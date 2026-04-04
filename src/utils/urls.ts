@@ -1,7 +1,9 @@
 export const URLS = {
   AUTH: {
     LOGIN: '/auth/login',
-    REGISTER: '/auth/register'
+    REGISTER: '/auth/register',
+    SEND_OTP: '/admin-auth/send-otp',
+    VERIFY_OTP: '/admin-auth/verify-otp'
   },
   USERS: {
     GET_ALL: '/users',

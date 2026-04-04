@@ -2,9 +2,12 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../store/store';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const user = useSelector((state: RootState) => state.auth.user);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -33,9 +36,11 @@ const AdminLayout = () => {
           </button>
           
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-700">Admin User</span>
+            <span className="text-sm font-medium text-gray-700">
+              {user?.name || 'Admin User'}
+            </span>
             <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
-              A
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
             </div>
           </div>
         </header>
