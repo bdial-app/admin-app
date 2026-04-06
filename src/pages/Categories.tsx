@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Folder, FolderOpen, Plus, Save, Edit3, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Folder, FolderOpen, Plus, Save, Edit3, ArrowRight, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 interface Category {
   id: string;
@@ -13,60 +14,31 @@ interface Category {
   children?: Category[];
 }
 
-const INITIAL_CATEGORIES: Category[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000002",
-    parentId: null,
-    name: "Tuition & Classes",
-    slug: "tuition-classes",
-    description: "Academic and extracuricular classes",
-    isActive: true,
-    displayOrder: 2,
-    createdAt: "2026-03-30T15:23:39.476Z",
-    children: [
-      {
-        id: "00000000-0000-0000-0000-000000000006",
-        parentId: "00000000-0000-0000-0000-000000000002",
-        name: "Academic Tuitions",
-        slug: "academic-tuitions",
-        description: null,
-        isActive: true,
-        displayOrder: 1,
-        createdAt: "2026-03-30T15:23:39.476Z"
-      },
-      {
-        id: "00000000-0000-0000-0000-000000000007",
-        parentId: "00000000-0000-0000-0000-000000000002",
-        name: "Quran Classes",
-        slug: "quran-classes",
-        description: null,
-        isActive: true,
-        displayOrder: 2,
-        createdAt: "2026-03-30T15:23:39.476Z"
-      }
-    ]
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000001",
-    parentId: null,
-    name: "Tailoring & Clothing",
-    slug: "tailoring-clothing",
-    description: "Ridas, joris, and custom tailoring services",
-    isActive: true,
-    displayOrder: 1,
-    createdAt: "2026-03-30T15:23:39.476Z",
-    children: []
-  }
-];
-
 const Categories = () => {
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Category>>({});
+  const [loading, setLoading] = useState(true);
   
   // Recursively open category tree
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/categories');
+      setCategories(response.data);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleNode = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -116,38 +88,47 @@ const Categories = () => {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedCategory) return;
 
-    // A real implementation would recursively update the tree or use flattened data structure
-    // For now, this is a simplified tree mock update mapping (it assumes max nesting 3 layers for simplicity in this mock or uses deep clone)
-    const deepUpdate = (cats: Category[]): Category[] => {
-      // Check if it's a new root category
-      if (!selectedCategory.parentId && !cats.find(c => c.id === selectedCategory.id)) {
-        return [...cats, formData as Category];
-      }
-      return cats.map(cat => {
-        if (cat.id === selectedCategory.id) {
-          return { ...cat, ...formData } as Category;
-        }
-        if (cat.id === selectedCategory.parentId) {
-          // It's a new subcategory being added to this parent!
-          const exists = cat.children?.find(c => c.id === selectedCategory.id);
-          const newChildren = exists 
-            ? deepUpdate(cat.children || []) 
-            : [...(cat.children || []), formData as Category];
-          return { ...cat, children: newChildren };
-        }
-        if (cat.children) {
-          return { ...cat, children: deepUpdate(cat.children) };
-        }
-        return cat;
-      });
-    };
+    const isNew = selectedCategory.id.length < 15; // our temporary id length is 9
 
-    setCategories(deepUpdate(categories));
-    setIsEditing(false);
-    setSelectedCategory(formData as Category);
+    if (isNew) {
+      try {
+        const payload = {
+          name: formData.name,
+          slug: formData.slug,
+          description: formData.description,
+          isActive: formData.isActive,
+          displayOrder: formData.displayOrder,
+          parentId: selectedCategory.parentId
+        };
+        const response = await api.post('/categories', payload);
+        await fetchCategories();
+        setIsEditing(false);
+        setSelectedCategory(response.data);
+      } catch (error) {
+        console.error('Failed to create category:', error);
+      }
+      return;
+    }
+
+    try {
+      const payload = {
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        isActive: formData.isActive,
+        displayOrder: formData.displayOrder,
+        parentId: selectedCategory.parentId // Keep existing parentId
+      };
+      const response = await api.patch(`/categories/${selectedCategory.id}`, payload);
+      await fetchCategories();
+      setIsEditing(false);
+      setSelectedCategory(response.data);
+    } catch (error) {
+      console.error('Failed to update category:', error);
+    }
   };
 
   const renderTreeNodes = (nodes: Category[], level = 0) => {
@@ -199,7 +180,15 @@ const Categories = () => {
             </button>
           </div>
           <div className="p-4 overflow-y-auto flex-1">
-            {renderTreeNodes(categories)}
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-4">No categories found.</div>
+            ) : (
+              renderTreeNodes(categories)
+            )}
           </div>
         </div>
 
