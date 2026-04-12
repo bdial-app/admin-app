@@ -89,7 +89,7 @@ const authSlice = createSlice({
         
         // Handle various backend response wrapping combinations
         const payloadData = action.payload?.data || action.payload || {};
-        const token = payloadData.token || payloadData.accessToken;
+        const token = payloadData.accessToken || payloadData.token;
         const userData = payloadData.user || payloadData.admin || payloadData.adminData || payloadData.data || payloadData;
         
         if (token && userData) {

@@ -1,9 +1,12 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   X, LayoutDashboard, Users, UsersRound, 
-  FileCheck, Star, FolderTree 
+  FileCheck, Star, FolderTree, LogOut
 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
+import { logout } from '../../store/slices/authSlice';
+import type { AppDispatch } from '../../store/store';
 
 interface SidebarProps {
   onClose: () => void;
@@ -11,6 +14,8 @@ interface SidebarProps {
 
 const Sidebar = ({ onClose }: SidebarProps) => {
   const location = useLocation();
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
 
   const navItems = [
     { name: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
@@ -56,7 +61,14 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       </div>
       
       <div className="p-4 border-t">
-        <button className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+        <button
+          onClick={() => {
+            dispatch(logout());
+            navigate(ROUTES.LOGIN);
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
           Sign out
         </button>
       </div>
