@@ -31,7 +31,7 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/categories?limit=1000');
+      const response = await api.get('/categories');
       // Backend returns { data: Category[], meta: {...} } — unwrap the data array
       const list = response.data?.data ?? response.data ?? [];
       setCategories(Array.isArray(list) ? list : []);

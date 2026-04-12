@@ -20,7 +20,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const navItems = [
     { name: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
     { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
-    { name: 'Registrations', path: ROUTES.REGISTRATIONS, icon: FileCheck },
+    { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck },
     { name: 'Providers', path: ROUTES.PROVIDERS, icon: UsersRound },
     { name: 'Users', path: ROUTES.USERS, icon: Users },
     { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
