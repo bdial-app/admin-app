@@ -1,27 +1,173 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback  } from 'react';
 import { Search, Trash2, AlertTriangle } from 'lucide-react';
-import { Phone } from 'lucide-react';
+import { Phone, Star } from 'lucide-react';
+
+import axios from 'axios';
 
 
-
-const MOCK_REVIEWS = [
-  { id: '1', provider: 'Fatema Tailors', user: 'Sakina M.', phone: '+91 9876543210', rating: 5, active: true, date: '2026-03-30', comment: 'Excellent stitching, the fits are perfect!', flagged: false },
-  { id: '2', provider: 'Burhani Tuitions', user: 'Abbas S.', phone: '+91 9876543109', rating: 1, active: false, date: '2026-03-29', comment: 'Unprofessional behavior. Did not show up.', flagged: true },
-  { id: '3', provider: 'Zainab Mehandi Arts', user: 'Murtaza K.', phone: '+91 9876581238', rating: 4, active: true, date: '2026-03-28', comment: 'Beautiful designs for the wedding.', flagged: false },
-  { id: '4', provider: 'Zainab drawing classes', user: 'Abdan.', phone: '+91 7010609928', rating: 3, active: true, date: '2026-03-28', comment: 'Excelent teaching drawing, Professional teachers', flagged: false },
-];
-
+const api = axios.create({
+  baseURL: 'https://xjkzgdt0-3001.inc1.devtunnels.ms/api',
+  headers: { 'Content-Type': 'application/json' },
+});
+ 
+// Response shape from GET /reviews
+interface ReviewsResponse {
+  data: Review[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+ 
+const PAGE_SIZE = 6;
+ 
+const StarFilter = ({ selected, onChange }: { selected: number | null; onChange: (val: number | null) => void }) => {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-sm text-gray-500 font-medium">Stars:</span>
+      <button
+        onClick={() => onChange(null)}
+        className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+          selected === null ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+        }`}
+      >
+        All
+      </button>
+      {[5, 4, 3, 2, 1].map((star) => (
+        <button
+          key={star}
+          onClick={() => onChange(selected === star ? null : star)}
+          className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+            selected === star
+              ? 'bg-yellow-400 text-yellow-900 border-yellow-400'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-yellow-50'
+          }`}
+        >
+          <Star className="w-3 h-3 fill-current" />
+          {star}
+        </button>
+      ))}
+    </div>
+  );
+};
+ 
+const StarDisplay = ({ rating }: { rating: number }) => (
+  <div className="flex items-center gap-1">
+    {[1, 2, 3, 4, 5].map((s) => (
+      <Star
+        key={s}
+        className={`w-3.5 h-3.5 ${s <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 fill-gray-300'}`}
+      />
+    ))}
+    <span className="text-xs text-gray-500 ml-1">{rating}/5</span>
+  </div>
+);
+ 
+interface Review {
+  id: string;
+  provider: string;
+  user: string;
+  phone: string;
+  rating: number;
+  active: boolean;
+  date: string;
+  comment: string;
+  flagged: boolean;
+}
+ 
 const Reviews = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [reviews, setReviews] = useState(MOCK_REVIEWS);
-
-  const toggleActive = (id: string) => {
-    setReviews(prev =>
-      prev.map(r =>
-        r.id === id ? { ...r, active: !r.active } : r
-      )
+  const [starFilter, setStarFilter] = useState<number | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+ 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Cancel token ref to abort in-flight requests on filter change
+  const abortRef = useRef<AbortController | null>(null);
+ 
+  const hasMore = reviews.length < total;
+ 
+  // Fetch a page of reviews from the API
+  const fetchReviews = useCallback(async (pageNum: number, replace: boolean) => {
+    if (isLoading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+ 
+    setIsLoading(true);
+    setError(null);
+ 
+    try {
+      const params: Record<string, string | number> = {
+        page: pageNum,
+        pageSize: PAGE_SIZE,
+      };
+      if (searchTerm) params.search = searchTerm;
+      if (starFilter !== null) params.rating = starFilter;
+ 
+      const { data } = await api.get<ReviewsResponse>('/reviews', {
+        params,
+        signal: abortRef.current.signal,
+      });
+ 
+      setReviews((prev) => (replace ? data.data : [...prev, ...data.data]));
+      setTotal(data.total);
+      setPage(pageNum);
+    } catch (err) {
+      if (!axios.isCancel(err)) {
+        setError('Failed to load reviews. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, starFilter, isLoading]);
+ 
+  // Re-fetch from page 1 whenever filters change
+  useEffect(() => {
+    fetchReviews(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, starFilter]);
+ 
+  // Load next page when sentinel comes into view
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+    fetchReviews(page + 1, false);
+  }, [isLoading, hasMore, page, fetchReviews]);
+ 
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
     );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
+ 
+  // PATCH /reviews/:id/toggle-active
+  const toggleActive = async (id: string) => {
+    const original = reviews.find((r) => r.id === id);
+    if (!original) return;
+ 
+    // Optimistic update
+    setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r)));
+ 
+    try {
+      await api.patch(`/reviews/${id}`, { active: !original.active });
+    } catch {
+      // Rollback on failure
+      setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, active: original.active } : r)));
+    }
   };
+
+
+
+
+
+  
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this review?')) {
@@ -53,6 +199,18 @@ const Reviews = () => {
           />
         </div>
       </div>
+
+      {/* Star filter bar */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+        <StarFilter selected={starFilter} onChange={setStarFilter} />
+      </div>
+ 
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredReviews.map((review) => (
@@ -120,11 +278,25 @@ const Reviews = () => {
           </div>
         )}
       </div>
+       {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="flex justify-center py-4">
+        {isLoading && (
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Loading more reviews...
+          </div>
+        )}
+        {!hasMore && reviews.length > 0 && !isLoading && (
+          <p className="text-xs text-gray-400">All {total} reviews loaded</p>
+        )}
+      </div>
     </div>
-
-     
-
   );
 };
+    
 
+    
 export default Reviews;
