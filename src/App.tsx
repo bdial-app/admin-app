@@ -10,7 +10,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Providers from './pages/Providers';
-import Registrations from './pages/Registrations';
+import Registrations from './pages/Verifications';
 import Reviews from './pages/Reviews';
 import Categories from './pages/Categories';
 
