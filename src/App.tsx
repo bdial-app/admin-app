@@ -16,11 +16,9 @@ import Categories from './pages/Categories';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-  
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
-
   return <>{children}</>;
 };
 

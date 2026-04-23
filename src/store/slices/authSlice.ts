@@ -1,9 +1,14 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '../../services/authService';
 
+// TODO: Remove mock bypass before production
+const MOCK_NUMBER = '1234567890';
+const MOCK_OTP = '0000';
+
 export const sendOtp = createAsyncThunk(
   'auth/sendOtp',
   async (mobileNumber: string, { rejectWithValue }) => {
+    if (mobileNumber === MOCK_NUMBER) return { message: 'Mock OTP sent' };
     try {
       const response = await authService.sendOtp(mobileNumber);
       return response;
@@ -16,6 +21,9 @@ export const sendOtp = createAsyncThunk(
 export const verifyOtp = createAsyncThunk(
   'auth/verifyOtp',
   async ({ mobileNumber, otp }: { mobileNumber: string, otp: string }, { rejectWithValue }) => {
+    if (mobileNumber === MOCK_NUMBER && otp === MOCK_OTP) {
+      return { data: { accessToken: 'mock-token-dev', user: { id: 'mock-1', name: 'Admin Dev', role: 'admin' } } };
+    }
     try {
       const response = await authService.verifyOtp(mobileNumber, otp);
       return response;
