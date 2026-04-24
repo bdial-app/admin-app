@@ -119,8 +119,7 @@ const AdminLayout = () => {
               }}
             >
               <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" 
-                    style={{ ringColor: 'var(--surface-0)' }} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
             </button>
 
             {/* Divider */}

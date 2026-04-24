@@ -15,7 +15,7 @@ export const userService = {
     if (filters.limit)  params.set('limit',  String(filters.limit));
     if (filters.search) params.set('search', filters.search);
     if (filters.status) params.set('status', filters.status);
-    const response = await api.get(`${URLS.USERS.GET_ALL}?${params.toString()}`);
+    const response = await api.get(`${URLS.USERS.LIST}?${params.toString()}`);
     return response.data;
   },
 };

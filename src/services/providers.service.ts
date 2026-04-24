@@ -1,0 +1,57 @@
+import api from './api';
+import { URLS } from '../utils/urls';
+import type { PaginatedResponse } from '../types';
+import type { Provider, ProviderFilters } from '../types';
+
+export const providersService = {
+  list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
+    const params = new URLSearchParams();
+    if (filters.page) params.set('page', String(filters.page));
+    if (filters.limit) params.set('limit', String(filters.limit));
+    if (filters.search) params.set('search', filters.search);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.city) params.set('city', filters.city);
+    if (filters.isFeatured !== undefined) params.set('isFeatured', String(filters.isFeatured));
+    if (filters.isWomenLed !== undefined) params.set('isWomenLed', String(filters.isWomenLed));
+    const { data } = await api.get(`${URLS.PROVIDERS.LIST}?${params.toString()}`);
+    return {
+      items: data?.items ?? data?.data ?? [],
+      meta: data?.meta ?? {
+        total: data?.total ?? 0,
+        page: data?.page ?? filters.page ?? 1,
+        limit: data?.limit ?? filters.limit ?? 10,
+        totalPages: data?.totalPages ?? 1,
+      },
+    };
+  },
+
+  getPending: async (): Promise<Provider[]> => {
+    const { data } = await api.get(URLS.PROVIDERS.PENDING);
+    return data;
+  },
+
+  getById: async (id: string): Promise<Provider> => {
+    const { data } = await api.get(URLS.PROVIDERS.DETAIL(id));
+    return data;
+  },
+
+  approve: async (id: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.APPROVE(id));
+    return data;
+  },
+
+  suspend: async (id: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.SUSPEND(id));
+    return data;
+  },
+
+  update: async (id: string, body: Partial<Provider>): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.UPDATE(id), body);
+    return data;
+  },
+
+  getWarnings: async (id: string) => {
+    const { data } = await api.get(URLS.PROVIDERS.WARNINGS(id));
+    return data;
+  },
+};

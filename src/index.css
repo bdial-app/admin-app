@@ -237,6 +237,15 @@ body {
   animation: fadeIn 0.2s ease-out forwards;
 }
 
+/* Scale in (for dialogs) */
+@keyframes scaleIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
 /* Focus ring utility */
 .focus-ring:focus-visible {
   outline: 2px solid var(--color-primary);

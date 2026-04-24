@@ -1,8 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, UsersRound,
+  LayoutDashboard, Users, Store,
   FileCheck, Star, FolderTree, LogOut,
-  X, ChevronLeft, Shield
+  X, ChevronLeft, Shield, AlertTriangle,
+  Package, Image, Megaphone, Gift, Award,
+  MessageSquare, BarChart3, ShieldAlert,
+  UserCog, FileText, Settings
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -16,15 +19,53 @@ interface SidebarProps {
 
 const sections = [
   {
+    label: 'Overview',
     items: [
       { name: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
-      { name: 'Listings', path: ROUTES.PROVIDERS, icon: UsersRound, badge: true },
-      { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck, badge: true },
-      { name: 'Users', path: ROUTES.USERS, icon: Users },
-      { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
-      { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star, badge: true }
     ],
-  }
+  },
+  {
+    label: 'Content',
+    items: [
+      { name: 'Users', path: ROUTES.USERS, icon: Users },
+      { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store, badge: true },
+      { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
+      { name: 'Products', path: ROUTES.PRODUCTS, icon: Package },
+    ],
+  },
+  {
+    label: 'Moderation',
+    items: [
+      { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck, badge: true },
+      { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
+      { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
+      { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
+      { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { name: 'Banners', path: ROUTES.BANNERS, icon: Image },
+      { name: 'Sponsorships', path: ROUTES.SPONSORSHIPS, icon: Megaphone },
+      { name: 'Offers', path: ROUTES.OFFERS, icon: Gift },
+      { name: 'Badges', path: ROUTES.BADGES, icon: Award },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { name: 'Analytics', path: ROUTES.ANALYTICS, icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog },
+      { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText },
+      { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
+    ],
+  },
 ];
 
 const Sidebar = ({ onClose }: SidebarProps) => {
@@ -50,7 +91,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-              <img src="/logo.png" alt="Logo" />
+              <Shield className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>

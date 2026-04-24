@@ -1,136 +1,295 @@
 import { useState } from 'react';
-import { Search, Trash2, AlertTriangle, Star, Check, X } from 'lucide-react';
-import StatusBadge from '../components/ui/StatusBadge';
-import EmptyState from '../components/ui/EmptyState';
+import { Eye, Trash2, Star, MessageSquare } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { DataTable, type Column } from '../components/ui/DataTable';
+import { DetailPanel } from '../components/ui/DetailPanel';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { useReviews, useUpdateReviewStatus, useRemoveReview } from '../hooks/useReviews';
+import { ROUTES } from '../utils/constants';
+import { toast } from 'react-toastify';
+import type { Review, ReviewStatus } from '../types';
 
-const MOCK_REVIEWS = [
-  { id: '1', provider: 'Fatema Tailors', user: 'Sakina M.', rating: 5, date: '2026-03-30', comment: 'Excellent stitching, the fits are perfect!', flagged: false },
-  { id: '2', provider: 'Burhani Tuitions', user: 'Abbas S.', rating: 1, date: '2026-03-29', comment: 'Unprofessional behavior. Did not show up.', flagged: true },
-  { id: '3', provider: 'Zainab Mehandi Arts', user: 'Murtaza K.', rating: 4, date: '2026-03-28', comment: 'Beautiful designs for the wedding.', flagged: false },
-  { id: '4', provider: 'Quick Fix Plumbing', user: 'Taher B.', rating: 2, date: '2026-03-27', comment: 'Very rude. Charged extra without telling.', flagged: true },
-  { id: '5', provider: 'Saifee Catering', user: 'Maryam T.', rating: 5, date: '2026-03-26', comment: 'Amazing biryani and service. Highly recommended.', flagged: false },
+const LIMIT = 10;
+const STATUS_TABS: { label: string; value: ReviewStatus | '' }[] = [
+  { label: 'All', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Removed', value: 'removed' },
 ];
 
-const TABS = ['all', 'flagged'] as const;
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const Reviews = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [reviews, setReviews] = useState(MOCK_REVIEWS);
-  const [activeTab, setActiveTab] = useState<string>('all');
+const RatingStars = ({ rating }: { rating: number }) => (
+  <div className="flex items-center gap-0.5">
+    {[1, 2, 3, 4, 5].map((n) => (
+      <Star
+        key={n}
+        className="w-3.5 h-3.5"
+        style={{
+          fill: n <= rating ? '#F59E0B' : 'transparent',
+          color: n <= rating ? '#F59E0B' : 'var(--text-muted)',
+        }}
+      />
+    ))}
+  </div>
+);
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to remove this review?')) {
-      setReviews(reviews.filter(r => r.id !== id));
+export default function Reviews() {
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<ReviewStatus | ''>('');
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<Review | null>(null);
+
+  const { data, isLoading } = useReviews({
+    page,
+    limit: LIMIT,
+    status: status || undefined,
+  });
+
+  const updateStatusMutation = useUpdateReviewStatus();
+  const removeMutation = useRemoveReview();
+
+  const handleRemove = async () => {
+    if (!confirmRemove) return;
+    try {
+      await removeMutation.mutateAsync(confirmRemove.id);
+      toast.success('Review removed');
+      setConfirmRemove(null);
+      setSelectedReview(null);
+    } catch {
+      toast.error('Failed to remove review');
     }
   };
 
-  const filtered = reviews
-    .filter(r => activeTab === 'all' || r.flagged)
-    .filter(r =>
-      r.provider.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.user.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const handleApprove = async (review: Review) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id: review.id, status: 'active' });
+      toast.success('Review approved');
+    } catch {
+      toast.error('Failed to approve review');
+    }
+  };
 
-  const renderStars = (rating: number) => (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(s => (
-        <Star key={s} className="w-3.5 h-3.5" style={{
-          color: s <= rating ? '#F59E0B' : 'var(--surface-3)',
-          fill: s <= rating ? '#F59E0B' : 'none',
-        }} />
-      ))}
-    </div>
-  );
+  const columns: Column<Review>[] = [
+    {
+      key: 'reviewer',
+      header: 'Reviewer',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            style={{ background: 'var(--color-info)' }}
+          >
+            {(row.reviewer?.name || '?')[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {row.reviewer?.name || '—'}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              to {row.provider?.brandName || '—'}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'rating',
+      header: 'Rating',
+      render: (row) => <RatingStars rating={row.rating} />,
+    },
+    {
+      key: 'comment',
+      header: 'Comment',
+      render: (row) => (
+        <p className="text-sm truncate max-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
+          {row.comment || <span style={{ color: 'var(--text-muted)' }}>No comment</span>}
+        </p>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => (
+        <span
+          className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
+          style={{
+            background:
+              row.status === 'active' ? 'var(--color-success-light)' :
+              row.status === 'removed' ? 'var(--color-danger-light)' :
+              'var(--color-warning-light)',
+            color:
+              row.status === 'active' ? 'var(--color-success-dark)' :
+              row.status === 'removed' ? 'var(--color-danger-dark)' :
+              'var(--color-warning-dark)',
+          }}
+        >
+          {row.status}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Date',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {formatDate(row.createdAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (row) => (
+        <button
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          onClick={(e) => { e.stopPropagation(); setSelectedReview(row); }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Reviews & Moderation</h2>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          {reviews.filter(r => r.flagged).length} flagged review{reviews.filter(r => r.flagged).length !== 1 ? 's' : ''} need attention
-        </p>
+    <div>
+      <PageHeader
+        title="Reviews"
+        description={data?.meta ? `${data.meta.total.toLocaleString()} reviews total` : undefined}
+        breadcrumbs={[
+          { label: 'Dashboard', path: ROUTES.DASHBOARD },
+          { label: 'Reviews' },
+        ]}
+      />
+
+      {/* Status Tabs */}
+      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => { setStatus(tab.value); setPage(1); }}
+            className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+            style={{
+              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Tabs + Search */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--surface-2)' }}>
-          {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className="px-4 py-1.5 text-xs font-semibold rounded-lg capitalize transition-all"
-              style={{
-                background: activeTab === tab ? 'var(--surface-0)' : 'transparent',
-                color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: activeTab === tab ? 'var(--shadow-sm)' : 'none',
-              }}>
-              {tab === 'flagged' ? `Flagged (${reviews.filter(r => r.flagged).length})` : 'All Reviews'}
-            </button>
-          ))}
-        </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
-          <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Filter by provider or user…"
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-        </div>
-      </div>
+      <DataTable<Review>
+        columns={columns}
+        data={data?.items ?? []}
+        meta={data?.meta}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        rowKey={(row) => row.id}
+        onRowClick={setSelectedReview}
+      />
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        {filtered.length === 0 ? (
-          <EmptyState title="No reviews found" description="No reviews match your current filter." />
-        ) : (
-          <div className="overflow-x-auto"><table className="min-w-full">
-            <thead><tr style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-default)' }}>
-              {['Provider', 'Reviewer', 'Rating', 'Comment', 'Date', 'Status', 'Actions'].map(h => (
-                <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>{filtered.map(review => (
-              <tr key={review.id} className="transition-colors"
+      {/* Review Detail Panel */}
+      <DetailPanel
+        open={!!selectedReview}
+        onClose={() => setSelectedReview(null)}
+        title="Review Detail"
+        subtitle={selectedReview?.reviewer?.name || undefined}
+        actions={
+          selectedReview && (
+            <div className="flex gap-2">
+              {selectedReview.status !== 'active' && (
+                <button
+                  onClick={() => handleApprove(selectedReview)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-success)' }}
+                >
+                  Approve
+                </button>
+              )}
+              {selectedReview.status !== 'removed' && (
+                <button
+                  onClick={() => setConfirmRemove(selectedReview)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                >
+                  <Trash2 className="w-4 h-4 inline mr-1.5" />
+                  Remove
+                </button>
+              )}
+            </div>
+          )
+        }
+      >
+        {selectedReview && (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <RatingStars rating={selectedReview.rating} />
+              <span
+                className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
                 style={{
-                  borderBottom: '1px solid var(--border-light)',
-                  background: review.flagged ? 'var(--color-warning-light)' : 'var(--surface-0)',
+                  background:
+                    selectedReview.status === 'active' ? 'var(--color-success-light)' :
+                    selectedReview.status === 'removed' ? 'var(--color-danger-light)' :
+                    'var(--color-warning-light)',
+                  color:
+                    selectedReview.status === 'active' ? 'var(--color-success-dark)' :
+                    selectedReview.status === 'removed' ? 'var(--color-danger-dark)' :
+                    'var(--color-warning-dark)',
                 }}
-                onMouseEnter={e => { if (!review.flagged) (e.currentTarget).style.background = 'var(--surface-1)'; }}
-                onMouseLeave={e => { (e.currentTarget).style.background = review.flagged ? 'var(--color-warning-light)' : 'var(--surface-0)'; }}>
-                <td className="px-5 py-3.5">
-                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{review.provider}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{review.user}</span>
-                </td>
-                <td className="px-5 py-3.5">{renderStars(review.rating)}</td>
-                <td className="px-5 py-3.5 max-w-[300px]">
-                  <p className="text-sm italic truncate" style={{ color: 'var(--text-secondary)' }}>"{review.comment}"</p>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{review.date}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  {review.flagged ? (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-700">
-                      <AlertTriangle className="w-3 h-3" />Flagged
-                    </span>
-                  ) : (
-                    <StatusBadge status="active" showDot={false} />
-                  )}
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 rounded-lg transition-colors hover:bg-emerald-50" title="Keep"
-                      style={{ color: 'var(--color-success)' }}><Check className="w-4 h-4" /></button>
-                    <button onClick={() => handleDelete(review.id)} className="p-1.5 rounded-lg transition-colors hover:bg-red-50" title="Remove"
-                      style={{ color: 'var(--color-danger)' }}><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}</tbody>
-          </table></div>
+              >
+                {selectedReview.status}
+              </span>
+            </div>
+
+            {selectedReview.comment && (
+              <div
+                className="p-3 rounded-lg text-sm leading-relaxed"
+                style={{ background: 'var(--surface-1)', color: 'var(--text-primary)' }}
+              >
+                <MessageSquare className="w-4 h-4 inline mr-2" style={{ color: 'var(--text-muted)' }} />
+                {selectedReview.comment}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Reviewer', value: selectedReview.reviewer?.name },
+                { label: 'Provider', value: selectedReview.provider?.brandName },
+                { label: 'Date', value: formatDate(selectedReview.createdAt) },
+                { label: 'Rating', value: `${selectedReview.rating}/5` },
+              ].map((field) => (
+                <div key={field.label}>
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>
+                    {field.label}
+                  </p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                    {field.value || '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
-      </div>
+      </DetailPanel>
+
+      {/* Remove Confirmation */}
+      <ConfirmDialog
+        open={!!confirmRemove}
+        onClose={() => setConfirmRemove(null)}
+        onConfirm={handleRemove}
+        title="Remove Review"
+        description={`Are you sure you want to remove this review by ${confirmRemove?.reviewer?.name || 'this user'}? It will be flagged as removed.`}
+        confirmLabel="Remove Review"
+        variant="danger"
+        isLoading={removeMutation.isPending}
+      />
     </div>
   );
-};
-
-export default Reviews;
+}

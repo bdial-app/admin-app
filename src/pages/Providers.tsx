@@ -1,249 +1,360 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, MapPin, Calendar, Tag, ImageIcon, FileText } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
-import api from '../services/api';
+import { useState } from 'react';
+import { Eye, CheckCircle2, XCircle, Star, MapPin } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { DataTable, type Column } from '../components/ui/DataTable';
+import { DetailPanel } from '../components/ui/DetailPanel';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
-import EmptyState from '../components/ui/EmptyState';
+import {
+  useProviders,
+  useApproveProvider,
+  useSuspendProvider,
+  useUpdateProvider,
+} from '../hooks/useProviders';
+import { ROUTES } from '../utils/constants';
+import { toast } from 'react-toastify';
+import type { Provider, ProviderStatus } from '../types';
 
-interface Provider { id: string; name: string; mobileNumber: string; }
-interface Category { id: string; name: string; }
-interface ListingCategory { category: Category; }
-interface Listing {
-  id: string; businessName: string; description: string | null; status: string;
-  city: string | null; area: string | null; provider: Provider;
-  listingCategories: ListingCategory[]; submittedAt: string | null;
-}
+const LIMIT = 10;
+const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
+  { label: 'All', value: '' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'In Review', value: 'in_review' },
+  { label: 'Active', value: 'active' },
+  { label: 'Suspended', value: 'suspended' },
+  { label: 'Unverified', value: 'unverified' },
+];
 
-const Providers = () => {
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [rejectionNote, setRejectionNote] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-  const fetchPendingListings = useCallback(async () => {
+export default function Providers() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<ProviderStatus | ''>('');
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend'; provider: Provider } | null>(null);
+
+  const { data, isLoading } = useProviders({
+    page,
+    limit: LIMIT,
+    search: search || undefined,
+    status: status || undefined,
+  });
+
+  const approveMutation = useApproveProvider();
+  const suspendMutation = useSuspendProvider();
+  const updateMutation = useUpdateProvider();
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
     try {
-      setIsLoading(true); setError(null);
-      const res = await api.get('/admin/listings/pending');
-      let d = res.data;
-      while (d && !Array.isArray(d) && d.data) d = d.data;
-      setListings(Array.isArray(d) ? d : []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch pending listings');
-    } finally { setIsLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchPendingListings(); }, [fetchPendingListings]);
-
-  const handleApprove = async (listing?: Listing) => {
-    const t = listing || selectedListing;
-    if (!t) return;
-    try {
-      setIsProcessing(true);
-      await api.patch(`/admin/listings/${t.id}/approve`);
-      await fetchPendingListings();
-      setSelectedListing(null); setExpandedRow(null);
-    } catch (err: any) { alert(err.response?.data?.message || 'Failed'); }
-    finally { setIsProcessing(false); }
+      if (confirmAction.type === 'approve') {
+        await approveMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Provider approved');
+      } else {
+        await suspendMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Provider suspended');
+      }
+      setConfirmAction(null);
+      setSelectedProvider(null);
+    } catch {
+      toast.error(`Failed to ${confirmAction.type} provider`);
+    }
   };
 
-  const handleReject = async () => {
-    if (!selectedListing || !rejectionNote.trim()) { alert('Please provide a rejection reason'); return; }
+  const handleToggleFeatured = async (provider: Provider) => {
     try {
-      setIsProcessing(true);
-      await api.patch(`/admin/listings/${selectedListing.id}/reject`, { note: rejectionNote });
-      await fetchPendingListings();
-      setSelectedListing(null); setRejectionNote('');
-    } catch (err: any) { alert(err.response?.data?.message || 'Failed'); }
-    finally { setIsProcessing(false); }
+      await updateMutation.mutateAsync({
+        id: provider.id,
+        body: { isFeatured: !provider.isFeatured },
+      });
+      toast.success(provider.isFeatured ? 'Removed from featured' : 'Marked as featured');
+    } catch {
+      toast.error('Failed to update provider');
+    }
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-
-  const filtered = listings.filter(l =>
-    l.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (l.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.provider.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const columns: Column<Provider>[] = [
+    {
+      key: 'brandName',
+      header: 'Business',
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            style={{ background: row.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)' }}
+          >
+            {(row.brandName || '?')[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {row.brandName || '—'}
+              {row.isFeatured && (
+                <Star className="w-3.5 h-3.5 inline ml-1 fill-amber-400 text-amber-400" />
+              )}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              {row.user?.name || row.user?.mobileNumber || '—'}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'city',
+      header: 'Location',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {[row.area, row.city].filter(Boolean).join(', ') || '—'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'averageRating',
+      header: 'Rating',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            {row.averageRating?.toFixed(1) || '—'}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            ({row.totalReviews || 0})
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Joined',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {formatDate(row.createdAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (row) => (
+        <button
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          onClick={(e) => { e.stopPropagation(); setSelectedProvider(row); }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Listing Approvals</h2>
-        {!isLoading && <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          {listings.length > 0 ? `${listings.length} listing${listings.length !== 1 ? 's' : ''} awaiting review` : 'All caught up!'}
-        </p>}
+    <div>
+      <PageHeader
+        title="Providers"
+        description={data?.meta ? `${data.meta.total.toLocaleString()} providers total` : undefined}
+        breadcrumbs={[
+          { label: 'Dashboard', path: ROUTES.DASHBOARD },
+          { label: 'Providers' },
+        ]}
+      />
+
+      {/* Status Tabs */}
+      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => { setStatus(tab.value); setPage(1); }}
+            className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+            style={{
+              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Search */}
-      <div className="p-4 rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
-          <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Search by business, provider, or city…"
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-        </div>
-      </div>
+      <DataTable<Provider>
+        columns={columns}
+        data={data?.items ?? []}
+        meta={data?.meta}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        onSearch={(q) => { setSearch(q); setPage(1); }}
+        searchPlaceholder="Search by business name, owner, or mobile…"
+        searchValue={search}
+        rowKey={(row) => row.id}
+        onRowClick={setSelectedProvider}
+      />
 
-      {/* Bulk bar */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl animate-fade-in"
-          style={{ background: 'var(--color-primary-light)', border: '1px solid var(--color-primary)' }}>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>{selectedIds.size} selected</span>
-          <div className="flex gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white"
-              style={{ background: 'var(--color-success)' }}><CheckCircle2 className="w-3.5 h-3.5" />Approve All</button>
-            <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-xs font-medium rounded-lg"
-              style={{ color: 'var(--text-muted)', border: '1px solid var(--border-default)', background: 'var(--surface-0)' }}>Clear</button>
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="card overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 space-y-4">{[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-              <div className="skeleton w-5 h-5 rounded" /><div className="skeleton h-10 w-10 rounded-xl" />
-              <div className="flex-1 space-y-2"><div className="skeleton h-4 w-48 rounded" /><div className="skeleton h-3 w-32 rounded" /></div>
-              <div className="skeleton h-6 w-16 rounded-full" /><div className="skeleton h-8 w-20 rounded-lg" />
-            </div>
-          ))}</div>
-        ) : error ? (
-          <div className="p-8 text-center"><p className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</p></div>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={CheckCircle2} title="All caught up!" description="No pending listings to review right now." />
-        ) : (
-          <div className="overflow-x-auto"><table className="min-w-full">
-            <thead><tr style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-default)' }}>
-              <th className="px-4 py-3 text-left w-10">
-                <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0}
-                  onChange={() => selectedIds.size === filtered.length ? setSelectedIds(new Set()) : setSelectedIds(new Set(filtered.map(l => l.id)))}
-                  className="w-4 h-4 rounded border-2 accent-primary cursor-pointer" style={{ borderColor: 'var(--border-strong)' }} />
-              </th>
-              {['Business', 'Category', 'Location', 'Submitted', 'Status', 'Actions'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>{filtered.map(listing => {
-              const isExp = expandedRow === listing.id;
-              const isSel = selectedIds.has(listing.id);
-              return (
-                <RowGroup key={listing.id} listing={listing} isExp={isExp} isSel={isSel}
-                  onToggleExpand={() => setExpandedRow(isExp ? null : listing.id)}
-                  onToggleSelect={() => toggleSelect(listing.id)}
-                  onApprove={() => handleApprove(listing)}
-                  onOpenReject={() => setSelectedListing(listing)}
-                  isProcessing={isProcessing} />
-              );
-            })}</tbody>
-          </table></div>
-        )}
-      </div>
-
-      {/* Reject Modal */}
-      <Dialog.Root open={!!selectedListing} onOpenChange={open => { if (!open) { setSelectedListing(null); setRejectionNote(''); } }}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-fade-in" />
-          <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-lg animate-slide-in-up"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)', padding: '24px' }}>
-            <Dialog.Title className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Reject Listing</Dialog.Title>
-            <p className="text-sm mt-1 mb-5" style={{ color: 'var(--text-muted)' }}>Rejecting "{selectedListing?.businessName}"</p>
-            <textarea rows={3} value={rejectionNote} onChange={e => setRejectionNote(e.target.value)}
-              placeholder="Reason for rejection (required)…" className="w-full px-3 py-2.5 text-sm rounded-xl focus-ring"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', resize: 'none' }} />
-            <div className="flex justify-end gap-2 mt-5">
-              <Dialog.Close asChild><button className="px-4 py-2 text-sm font-medium rounded-lg"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>Cancel</button></Dialog.Close>
-              <button onClick={handleReject} disabled={isProcessing || !rejectionNote.trim()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg disabled:opacity-50 text-white"
-                style={{ background: 'var(--color-danger)' }}>
-                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}Reject
+      {/* Provider Detail Panel */}
+      <DetailPanel
+        open={!!selectedProvider}
+        onClose={() => setSelectedProvider(null)}
+        title={selectedProvider?.brandName || 'Provider Detail'}
+        subtitle={selectedProvider?.user?.name || undefined}
+        actions={
+          selectedProvider && (
+            <div className="flex gap-2">
+              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review') && (
+                <>
+                  <button
+                    onClick={() => setConfirmAction({ type: 'approve', provider: selectedProvider })}
+                    className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                    style={{ background: 'var(--color-success)' }}
+                  >
+                    <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
+                    className="px-4 py-2 text-sm font-medium rounded-lg"
+                    style={{ color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}
+                  >
+                    <XCircle className="w-4 h-4 inline mr-1.5" />
+                    Reject
+                  </button>
+                </>
+              )}
+              {selectedProvider.status === 'active' && (
+                <button
+                  onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                >
+                  Suspend
+                </button>
+              )}
+              <button
+                onClick={() => handleToggleFeatured(selectedProvider)}
+                className="px-4 py-2 text-sm font-medium rounded-lg"
+                style={{
+                  background: selectedProvider.isFeatured ? 'var(--surface-2)' : 'var(--color-warning-light)',
+                  color: selectedProvider.isFeatured ? 'var(--text-secondary)' : 'var(--color-warning-dark)',
+                }}
+              >
+                <Star className="w-4 h-4 inline mr-1.5" />
+                {selectedProvider.isFeatured ? 'Unfeature' : 'Feature'}
               </button>
             </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+          )
+        }
+      >
+        {selectedProvider && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {(selectedProvider.brandName || '?')[0]?.toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {selectedProvider.brandName}
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <StatusBadge status={selectedProvider.status} />
+                  {selectedProvider.isFeatured && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                      Featured
+                    </span>
+                  )}
+                  {selectedProvider.communityVerified && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                      Verified
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            {selectedProvider.description && (
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {selectedProvider.description}
+              </p>
+            )}
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Owner', value: selectedProvider.user?.name },
+                { label: 'Mobile', value: selectedProvider.user?.mobileNumber },
+                { label: 'City', value: selectedProvider.city },
+                { label: 'Area', value: selectedProvider.area },
+                { label: 'Rating', value: selectedProvider.averageRating ? `${selectedProvider.averageRating.toFixed(1)} (${selectedProvider.totalReviews} reviews)` : null },
+                { label: 'Women-Led', value: selectedProvider.isWomenLed ? 'Yes' : 'No' },
+                { label: 'Available', value: selectedProvider.isAvailable ? 'Yes' : 'No' },
+                { label: 'Created', value: formatDate(selectedProvider.createdAt) },
+              ].map((field) => (
+                <div key={field.label}>
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>
+                    {field.label}
+                  </p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                    {field.value || '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Categories */}
+            {selectedProvider.providerCategories && selectedProvider.providerCategories.length > 0 && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Categories
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedProvider.providerCategories.map((pc) => (
+                    <span
+                      key={pc.id || pc.category?.id}
+                      className="px-2 py-1 text-xs font-medium rounded-md"
+                      style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                    >
+                      {pc.category?.name || 'Unknown'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </DetailPanel>
+
+      {/* Confirm Approve / Suspend */}
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+        title={confirmAction?.type === 'approve' ? 'Approve Provider' : 'Suspend Provider'}
+        description={
+          confirmAction?.type === 'approve'
+            ? `Are you sure you want to approve "${confirmAction.provider.brandName}"? They will become visible on the platform.`
+            : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
+        }
+        confirmLabel={confirmAction?.type === 'approve' ? 'Approve' : 'Suspend'}
+        variant={confirmAction?.type === 'approve' ? 'default' : 'danger'}
+        isLoading={approveMutation.isPending || suspendMutation.isPending}
+      />
     </div>
   );
-};
-
-/* ── Extracted Row Component ── */
-const RowGroup = ({ listing, isExp, isSel, onToggleExpand, onToggleSelect, onApprove, onOpenReject, isProcessing }: {
-  listing: Listing; isExp: boolean; isSel: boolean; onToggleExpand: () => void;
-  onToggleSelect: () => void; onApprove: () => void; onOpenReject: () => void; isProcessing: boolean;
-}) => (
-  <>
-    <tr className="group transition-colors cursor-pointer"
-      style={{ borderBottom: isExp ? 'none' : '1px solid var(--border-light)', background: isSel ? 'var(--color-primary-light)' : 'var(--surface-0)' }}
-      onMouseEnter={e => { if (!isSel) (e.currentTarget).style.background = 'var(--surface-1)'; }}
-      onMouseLeave={e => { if (!isSel) (e.currentTarget).style.background = 'var(--surface-0)'; }}
-      onClick={onToggleExpand}>
-      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
-        <input type="checkbox" checked={isSel} onChange={onToggleSelect} className="w-4 h-4 rounded border-2 accent-primary cursor-pointer" style={{ borderColor: 'var(--border-strong)' }} />
-      </td>
-      <td className="px-4 py-3.5"><div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-          style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>{listing.businessName.charAt(0).toUpperCase()}</div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{listing.businessName}</p>
-          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>by {listing.provider.name}</p>
-        </div>
-      </div></td>
-      <td className="px-4 py-3.5"><div className="flex flex-wrap gap-1">
-        {listing.listingCategories.length > 0 ? listing.listingCategories.slice(0, 2).map(lc => (
-          <span key={lc.category.id} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-md"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}><Tag className="w-3 h-3" />{lc.category.name}</span>
-        )) : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}
-      </div></td>
-      <td className="px-4 py-3.5"><span className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />{listing.city || '—'}</span></td>
-      <td className="px-4 py-3.5"><span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <Calendar className="w-3 h-3" />{listing.submittedAt ? new Date(listing.submittedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A'}</span></td>
-      <td className="px-4 py-3.5"><StatusBadge status="pending" /></td>
-      <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}><div className="flex items-center gap-1.5">
-        <button onClick={onApprove} disabled={isProcessing} className="p-1.5 rounded-lg transition-colors hover:bg-emerald-50" title="Approve" style={{ color: 'var(--color-success)' }}><CheckCircle2 className="w-4 h-4" /></button>
-        <button onClick={onOpenReject} className="p-1.5 rounded-lg transition-colors hover:bg-red-50" title="Reject" style={{ color: 'var(--color-danger)' }}><XCircle className="w-4 h-4" /></button>
-        <button onClick={onToggleExpand} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
-          {isExp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</button>
-      </div></td>
-    </tr>
-    {isExp && <tr><td colSpan={7} style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-default)' }}>
-      <div className="p-5 animate-fade-in"><div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="md:col-span-2 space-y-4">
-          <div><h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Description</h4>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{listing.description || <em style={{ color: 'var(--text-muted)' }}>No description</em>}</p></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><h4 className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Provider</h4>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{listing.provider.name}</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{listing.provider.mobileNumber}</p></div>
-            <div><h4 className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Location</h4>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{listing.city || '—'}</p>
-              {listing.area && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{listing.area}</p>}</div>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center" style={{ background: 'var(--surface-0)', border: '1px dashed var(--border-strong)', minHeight: '80px' }}>
-            <ImageIcon className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /><span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Photo Gallery</span></div>
-          <div className="rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-center" style={{ background: 'var(--surface-0)', border: '1px dashed var(--border-strong)', minHeight: '60px' }}>
-            <FileText className="w-5 h-5" style={{ color: 'var(--text-muted)' }} /><span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Documents</span></div>
-          <div className="flex gap-2">
-            <button onClick={onApprove} disabled={isProcessing} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg disabled:opacity-50 text-white"
-              style={{ background: 'var(--color-success)' }}><CheckCircle2 className="w-4 h-4" />Approve</button>
-            <button onClick={onOpenReject} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg"
-              style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}><XCircle className="w-4 h-4" />Reject</button>
-          </div>
-        </div>
-      </div></div>
-    </td></tr>}
-  </>
-);
-
-export default Providers;
+}
