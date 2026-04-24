@@ -25,7 +25,12 @@ const Login = () => {
     try {
       const resultAction = await dispatch(sendOtp(mobileNumber));
       if (sendOtp.fulfilled.match(resultAction)) {
-        toast.success("OTP sent successfully!");
+        const payload = resultAction.payload as { otp?: string; message?: string };
+        if (payload?.otp) {
+          toast.info(`Your OTP is: ${payload.otp}`, { autoClose: false, closeOnClick: false });
+        } else {
+          toast.success("OTP sent successfully!");
+        }
         setStep(2);
       } else {
         toast.error((resultAction.payload as string) || "Failed to send OTP.");
