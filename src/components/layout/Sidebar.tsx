@@ -5,7 +5,7 @@ import {
   X, ChevronLeft, Shield, AlertTriangle,
   Package, Image, Megaphone, Gift, Award,
   MessageSquare, BarChart3, ShieldAlert,
-  UserCog, FileText, Settings
+  UserCog, FileText, Settings, Bell
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -50,6 +50,7 @@ const sections = [
       { name: 'Sponsorships', path: ROUTES.SPONSORSHIPS, icon: Megaphone },
       { name: 'Offers', path: ROUTES.OFFERS, icon: Gift },
       { name: 'Badges', path: ROUTES.BADGES, icon: Award },
+      { name: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: Bell },
     ],
   },
   {

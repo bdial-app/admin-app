@@ -2,10 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, Store, Package, Star, ShieldCheck, AlertTriangle,
   ArrowRight, Loader2, Search, MessageSquare, TrendingUp,
-  Image, Megaphone, Gift, UserPlus,
+  Image, Megaphone, Gift, UserPlus, Bell, Send, Eye,
 } from 'lucide-react';
 import { StatCard } from '../components/ui/StatCard';
 import { useDashboardStats, useDashboardTimeSeries } from '../hooks/useDashboard';
+import { useNotificationStats } from '../hooks/useNotifications';
 import { ROUTES } from '../utils/constants';
 import { useState } from 'react';
 import {
@@ -21,6 +22,7 @@ const formatDate = (label: unknown): string => {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data: stats, isLoading, error } = useDashboardStats();
+  const { data: notifStats } = useNotificationStats();
   const [days, setDays] = useState(30);
   const { data: timeSeries } = useDashboardTimeSeries(days);
 
@@ -198,6 +200,30 @@ export default function Dashboard() {
           {marketingStats.map((m) => (<StatCard key={m.title} {...m} />))}
         </div>
       </div>
+
+      {/* Notification Stats */}
+      {notifStats && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Notifications</h2>
+            <button
+              onClick={() => navigate(ROUTES.NOTIFICATIONS)}
+              className="flex items-center gap-1 text-sm font-medium transition-colors"
+              style={{ color: 'var(--color-primary)' }}
+            >
+              Manage
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <StatCard title="Sent Today" value={notifStats.sentToday} icon={<Send className="w-5 h-5" />} accent="var(--color-primary)" />
+            <StatCard title="Total Sent" value={notifStats.totalSent.toLocaleString()} icon={<Bell className="w-5 h-5" />} accent="var(--color-info)" />
+            <StatCard title="Total Read" value={notifStats.totalRead.toLocaleString()} icon={<Eye className="w-5 h-5" />} accent="var(--color-success)" />
+            <StatCard title="Read Rate" value={`${notifStats.readRate}%`} icon={<TrendingUp className="w-5 h-5" />} accent="#8B5CF6" />
+            <StatCard title="Batches Sent" value={notifStats.batchesSent} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.NOTIFICATIONS)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

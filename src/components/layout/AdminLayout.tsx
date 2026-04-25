@@ -1,15 +1,17 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useState } from 'react';
 import { Menu, Moon, Sun, Bell, Search } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
 import { useTheme } from '../../hooks/useTheme';
+import { ROUTES } from '../../utils/constants';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -109,6 +111,7 @@ const AdminLayout = () => {
 
             {/* Notifications */}
             <button
+              onClick={() => navigate(ROUTES.NOTIFICATIONS)}
               className="relative p-2 rounded-lg transition-colors focus-ring"
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={(e) => {

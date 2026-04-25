@@ -29,6 +29,7 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const SystemSettings = lazy(() => import('./pages/Settings'));
+const Notifications = lazy(() => import('./pages/Notifications'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
@@ -79,6 +80,7 @@ function App() {
             <Route path={ROUTES.SPONSORSHIPS} element={<Sponsorships />} />
             <Route path={ROUTES.OFFERS} element={<Offers />} />
             <Route path={ROUTES.BADGES} element={<Badges />} />
+            <Route path={ROUTES.NOTIFICATIONS} element={<Notifications />} />
 
             {/* Insights */}
             <Route path={ROUTES.ANALYTICS} element={<Analytics />} />

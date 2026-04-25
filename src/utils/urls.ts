@@ -163,4 +163,12 @@ export const URLS = {
     CREATE: '/admin/settings',
     DELETE: (id: string) => `/admin/settings/${id}`,
   },
+
+  // ── Admin Notifications ──────────────────────────────
+  NOTIFICATIONS: {
+    SEND: '/admin/notifications/send',
+    BATCHES: '/admin/notifications/batches',
+    BATCH_DETAIL: (id: string) => `/admin/notifications/batches/${id}`,
+    STATS: '/admin/notifications/stats',
+  },
 };
