@@ -96,14 +96,14 @@ export default function Reviews() {
     {
       key: 'rating',
       header: 'Rating',
-      render: (row) => <RatingStars rating={row.rating} />,
+      render: (row) => <RatingStars rating={(row as any).starRating ?? row.rating} />,
     },
     {
       key: 'comment',
       header: 'Comment',
       render: (row) => (
         <p className="text-sm truncate max-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
-          {row.comment || <span style={{ color: 'var(--text-muted)' }}>No comment</span>}
+          {((row as any).reviewText ?? row.comment) || <span style={{ color: 'var(--text-muted)' }}>No comment</span>}
         </p>
       ),
     },
@@ -134,7 +134,7 @@ export default function Reviews() {
       sortable: true,
       render: (row) => (
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {formatDate(row.createdAt)}
+          {formatDate((row as any).postedAt ?? row.createdAt)}
         </span>
       ),
     },
@@ -230,7 +230,7 @@ export default function Reviews() {
         {selectedReview && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <RatingStars rating={selectedReview.rating} />
+              <RatingStars rating={(selectedReview as any).starRating ?? selectedReview.rating} />
               <span
                 className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
                 style={{
@@ -248,13 +248,13 @@ export default function Reviews() {
               </span>
             </div>
 
-            {selectedReview.comment && (
+            {((selectedReview as any).reviewText ?? selectedReview.comment) && (
               <div
                 className="p-3 rounded-lg text-sm leading-relaxed"
                 style={{ background: 'var(--surface-1)', color: 'var(--text-primary)' }}
               >
                 <MessageSquare className="w-4 h-4 inline mr-2" style={{ color: 'var(--text-muted)' }} />
-                {selectedReview.comment}
+                {(selectedReview as any).reviewText ?? selectedReview.comment}
               </div>
             )}
 
@@ -262,8 +262,8 @@ export default function Reviews() {
               {[
                 { label: 'Reviewer', value: selectedReview.reviewer?.name },
                 { label: 'Provider', value: selectedReview.provider?.brandName },
-                { label: 'Date', value: formatDate(selectedReview.createdAt) },
-                { label: 'Rating', value: `${selectedReview.rating}/5` },
+                { label: 'Date', value: formatDate((selectedReview as any).postedAt ?? selectedReview.createdAt) },
+                { label: 'Rating', value: `${(selectedReview as any).starRating ?? selectedReview.rating}/5` },
               ].map((field) => (
                 <div key={field.label}>
                   <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>

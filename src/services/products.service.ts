@@ -36,6 +36,6 @@ export const productsService = {
   },
 
   remove: async (id: string): Promise<void> => {
-    await api.delete(URLS.PRODUCTS.DELETE(id));
+    await api.patch(`${URLS.PRODUCTS.DELETE(id)}/delete`);
   },
 };

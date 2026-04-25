@@ -6,9 +6,12 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useRemoveAdminUser } from '../hooks/useAdminUsers';
 import { ROUTES } from '../utils/constants';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store/store';
 import type { User } from '../types/user';
 
 export default function AdminUsers() {
+  const currentUser = useSelector((state: RootState) => state.auth.user);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const { data, isLoading } = useAdminUsers({ page, limit: 20, search: search || undefined });
@@ -137,18 +140,24 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleEdit(user)} className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setRemoveTarget(user)} className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--color-danger)' }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {currentUser?.id !== user.id ? (
+                        <>
+                          <button onClick={() => handleEdit(user)} className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setRemoveTarget(user)} className="p-1.5 rounded-md transition-colors" style={{ color: 'var(--color-danger)' }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>You</span>
+                      )}
                     </div>
                   </td>
                 </tr>

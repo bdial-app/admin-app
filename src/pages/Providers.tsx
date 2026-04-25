@@ -18,11 +18,10 @@ import type { Provider, ProviderStatus } from '../types';
 const LIMIT = 10;
 const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
   { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending' },
+  { label: 'Unverified', value: 'unverified' },
   { label: 'In Review', value: 'in_review' },
   { label: 'Active', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
-  { label: 'Unverified', value: 'unverified' },
 ];
 
 const formatDate = (iso: string | null) =>
