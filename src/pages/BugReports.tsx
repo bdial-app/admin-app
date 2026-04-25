@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bug, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -30,13 +30,6 @@ const CATEGORY_OPTIONS: { label: string; value: BugCategory | '' }[] = [
   { label: 'Other', value: 'other' },
 ];
 
-const STATUS_COLORS: Record<BugReportStatus, string> = {
-  open: 'error',
-  in_progress: 'warning',
-  resolved: 'success',
-  closed: 'neutral',
-};
-
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -45,7 +38,7 @@ export default function BugReports() {
   const [status, setStatus] = useState<BugReportStatus | ''>('');
   const [category, setCategory] = useState<BugCategory | ''>('');
   const [selected, setSelected] = useState<BugReport | null>(null);
-  const [newStatus, setNewStatus] = useState<BugReportStatus | ''>('');
+  const [newStatus, setNewStatus] = useState<BugReportStatus>('open');
   const [adminNotes, setAdminNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +57,7 @@ export default function BugReports() {
     try {
       await updateMutation.mutateAsync({
         id: selected.id,
-        status: newStatus || undefined,
+        status: newStatus,
         adminNotes: adminNotes || undefined,
       });
       toast.success('Bug report updated');
@@ -115,14 +108,14 @@ export default function BugReports() {
     {
       key: 'status',
       header: 'Status',
-      render: (row) => <StatusBadge status={row.status} variant={STATUS_COLORS[row.status] as any} />,
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: 'id',
       header: '',
       render: (row) => (
         <button
-          onClick={() => handleSelect(row)}
+          onClick={(e) => { e.stopPropagation(); handleSelect(row); }}
           className="p-1.5 rounded hover:bg-accent transition-colors"
           title="View details"
         >
@@ -137,7 +130,6 @@ export default function BugReports() {
       <PageHeader
         title="Bug Reports"
         description="Review and manage bug reports submitted by users"
-        icon={Bug}
       />
 
       {/* Status Tabs */}
@@ -173,18 +165,18 @@ export default function BugReports() {
         )}
       </div>
 
-      <DataTable
+      <DataTable<BugReport>
         columns={columns}
         data={data?.items ?? []}
         isLoading={isLoading}
-        page={page}
-        totalPages={data?.pages ?? 1}
+        meta={data ? { total: data.total, page: data.page, limit: data.limit, totalPages: data.pages } : undefined}
         onPageChange={setPage}
+        rowKey={(row) => row.id}
+        onRowClick={handleSelect}
       />
 
-      {/* Detail Panel */}
-      {selected && (
-        <DetailPanel title="Bug Report Detail" onClose={() => setSelected(null)}>
+      <DetailPanel open={!!selected} title="Bug Report Detail" onClose={() => setSelected(null)}>
+        {selected ? (
           <div className="space-y-4 p-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -193,9 +185,7 @@ export default function BugReports() {
               </div>
               <div>
                 <span className="text-muted-foreground">Status</span>
-                <p>
-                  <StatusBadge status={selected.status} variant={STATUS_COLORS[selected.status] as any} />
-                </p>
+                <p className="mt-0.5"><StatusBadge status={selected.status} /></p>
               </div>
               <div>
                 <span className="text-muted-foreground">Submitted</span>
@@ -262,8 +252,8 @@ export default function BugReports() {
               </button>
             </div>
           </div>
+        ) : null}
         </DetailPanel>
-      )}
     </div>
   );
 }
