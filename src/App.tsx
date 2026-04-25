@@ -19,6 +19,7 @@ const Reviews = lazy(() => import('./pages/Reviews'));
 const Categories = lazy(() => import('./pages/Categories'));
 const Products = lazy(() => import('./pages/Products'));
 const Reports = lazy(() => import('./pages/Reports'));
+const BugReports = lazy(() => import('./pages/BugReports'));
 const Warnings = lazy(() => import('./pages/Warnings'));
 const ChatModeration = lazy(() => import('./pages/ChatModeration'));
 const Banners = lazy(() => import('./pages/Banners'));
@@ -72,6 +73,7 @@ function App() {
             <Route path={ROUTES.REGISTRATIONS} element={<Verifications />} />
             <Route path={ROUTES.REVIEWS} element={<Reviews />} />
             <Route path={ROUTES.REPORTS} element={<Reports />} />
+            <Route path={ROUTES.BUG_REPORTS} element={<BugReports />} />
             <Route path={ROUTES.WARNINGS} element={<Warnings />} />
             <Route path={ROUTES.CHAT_MODERATION} element={<ChatModeration />} />
 

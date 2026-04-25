@@ -5,7 +5,7 @@ import {
   X, ChevronLeft, Shield, AlertTriangle,
   Package, Image, Megaphone, Gift, Award,
   MessageSquare, BarChart3, ShieldAlert,
-  UserCog, FileText, Settings, Bell
+  UserCog, FileText, Settings, Bell, Bug
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -41,6 +41,7 @@ const sections = [
       { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
       { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
       { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare },
+      { name: 'Bug Reports', path: ROUTES.BUG_REPORTS, icon: Bug },
     ],
   },
   {

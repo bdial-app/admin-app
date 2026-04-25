@@ -21,6 +21,7 @@ export const ROUTES = {
   AUDIT_LOG: '/audit-log',
   SETTINGS: '/settings',
   NOTIFICATIONS: '/notifications',
+  BUG_REPORTS: '/bug-reports-admin',
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';

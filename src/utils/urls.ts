@@ -1,17 +1,17 @@
-export const URLS = {
-  // ── Auth ──────────────────────────────────────────────
+﻿export const URLS = {
+  // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   AUTH: {
     SEND_OTP: '/admin-auth/send-otp',
     VERIFY_OTP: '/admin-auth/verify-otp',
   },
 
-  // ── Admin Dashboard ──────────────────────────────────
+  // â”€â”€ Admin Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   DASHBOARD: {
     STATS: '/admin/dashboard',
     TIME_SERIES: '/admin/dashboard/time-series',
   },
 
-  // ── Admin Users ──────────────────────────────────────
+  // â”€â”€ Admin Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   USERS: {
     LIST: '/admin/users',
     DETAIL: (id: string) => `/admin/users/${id}`,
@@ -21,7 +21,7 @@ export const URLS = {
     ACTIVITY: (id: string) => `/admin/users/${id}/activity`,
   },
 
-  // ── Admin Providers ──────────────────────────────────
+  // â”€â”€ Admin Providers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   PROVIDERS: {
     LIST: '/admin/providers',
     PENDING: '/admin/providers/pending',
@@ -33,7 +33,7 @@ export const URLS = {
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
   },
 
-  // ── Admin Categories ─────────────────────────────────
+  // â”€â”€ Admin Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   CATEGORIES: {
     LIST: '/categories',
     CREATE: '/categories',
@@ -45,7 +45,7 @@ export const URLS = {
     UPLOAD_IMAGE: (id: string) => `/categories/${id}/image`,
   },
 
-  // ── Admin Products ───────────────────────────────────
+  // â”€â”€ Admin Products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   PRODUCTS: {
     LIST: '/admin/products',
     DETAIL: (id: string) => `/admin/products/${id}`,
@@ -54,7 +54,7 @@ export const URLS = {
     STATS: '/admin/products/stats',
   },
 
-  // ── Admin Reviews ────────────────────────────────────
+  // â”€â”€ Admin Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   REVIEWS: {
     LIST: '/admin/reviews',
     DETAIL: (id: string) => `/admin/reviews/${id}`,
@@ -64,7 +64,7 @@ export const URLS = {
     STATS: '/admin/reviews/stats',
   },
 
-  // ── Admin Verifications ──────────────────────────────
+  // â”€â”€ Admin Verifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   VERIFICATIONS: {
     LIST: '/admin/verifications',
     DETAIL: (id: string) => `/admin/verifications/${id}`,
@@ -73,7 +73,7 @@ export const URLS = {
     STATS: '/admin/verifications/stats',
   },
 
-  // ── Admin Reports ────────────────────────────────────
+  // â”€â”€ Admin Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   REPORTS: {
     LIST: '/admin/reports',
     DETAIL: (id: string) => `/admin/reports/${id}`,
@@ -81,7 +81,7 @@ export const URLS = {
     STATS: '/admin/reports/stats',
   },
 
-  // ── Admin Warnings ───────────────────────────────────
+  // â”€â”€ Admin Warnings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   WARNINGS: {
     LIST: '/admin/warnings',
     DETAIL: (id: string) => `/admin/warnings/${id}`,
@@ -89,7 +89,7 @@ export const URLS = {
     UPDATE: (id: string) => `/admin/warnings/${id}`,
   },
 
-  // ── Admin Banners ────────────────────────────────────
+  // â”€â”€ Admin Banners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   BANNERS: {
     LIST: '/admin/banners',
     CREATE: '/admin/banners',
@@ -99,7 +99,7 @@ export const URLS = {
     REORDER: '/admin/banners/reorder',
   },
 
-  // ── Admin Sponsored ──────────────────────────────────
+  // â”€â”€ Admin Sponsored â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   SPONSORED: {
     LIST: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
@@ -107,7 +107,7 @@ export const URLS = {
     STATS: '/admin/sponsorships/stats',
   },
 
-  // ── Admin Offers ─────────────────────────────────────
+  // â”€â”€ Admin Offers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   OFFERS: {
     LIST: '/admin/offers',
     DETAIL: (id: string) => `/admin/offers/${id}`,
@@ -116,7 +116,7 @@ export const URLS = {
     STATS: '/admin/offers/stats',
   },
 
-  // ── Admin Badges ─────────────────────────────────────
+  // â”€â”€ Admin Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   BADGES: {
     LIST: '/admin/badges',
     CREATE: '/admin/badges',
@@ -124,7 +124,7 @@ export const URLS = {
     DELETE: (id: string) => `/admin/badges/${id}`,
   },
 
-  // ── Admin Chat ───────────────────────────────────────
+  // â”€â”€ Admin Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   CHAT: {
     CONVERSATIONS: '/admin/chat/conversations',
     MESSAGES: (id: string) => `/admin/chat/conversations/${id}/messages`,
@@ -133,7 +133,7 @@ export const URLS = {
     STATS: '/admin/chat/stats',
   },
 
-  // ── Admin Analytics ──────────────────────────────────
+  // â”€â”€ Admin Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   ANALYTICS: {
     OVERVIEW: '/admin/analytics/overview',
     EVENTS: '/admin/analytics/events',
@@ -141,7 +141,7 @@ export const URLS = {
     GEOGRAPHIC: '/admin/analytics/geographic',
   },
 
-  // ── Admin Users (admins) ─────────────────────────────
+  // â”€â”€ Admin Users (admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   ADMINS: {
     LIST: '/admin/admins',
     CREATE: '/admin/admins',
@@ -150,13 +150,13 @@ export const URLS = {
     DELETE: (id: string) => `/admin/admins/${id}`,
   },
 
-  // ── Audit Logs ───────────────────────────────────────
+  // â”€â”€ Audit Logs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   AUDIT_LOGS: {
     LIST: '/admin/audit-logs',
     STATS: '/admin/audit-logs/stats',
   },
 
-  // ── System Settings ──────────────────────────────────
+  // â”€â”€ System Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   SETTINGS: {
     LIST: '/admin/settings',
     UPDATE: '/admin/settings',
@@ -164,11 +164,17 @@ export const URLS = {
     DELETE: (id: string) => `/admin/settings/${id}`,
   },
 
-  // ── Admin Notifications ──────────────────────────────
+  // â”€â”€ Admin Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   NOTIFICATIONS: {
     SEND: '/admin/notifications/send',
     BATCHES: '/admin/notifications/batches',
     BATCH_DETAIL: (id: string) => `/admin/notifications/batches/${id}`,
     STATS: '/admin/notifications/stats',
+  },
+  // -- Admin Bug Reports --------------------------------
+  BUG_REPORTS: {
+    LIST: '/admin/bug-reports',
+    DETAIL: (id: string) => `/admin/bug-reports/${id}`,
+    UPDATE: (id: string) => `/admin/bug-reports/${id}`,
   },
 };

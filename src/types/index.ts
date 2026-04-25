@@ -18,4 +18,5 @@ export * from './offer';
 export * from './badge';
 export * from './chat';
 export * from './analytics';
+export * from './bug-report';
 export * from './notification';
