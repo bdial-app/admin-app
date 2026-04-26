@@ -9,6 +9,7 @@ import {
   useProviders,
   useApproveProvider,
   useSuspendProvider,
+  useUnsuspendProvider,
   useUpdateProvider,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
@@ -32,7 +33,7 @@ export default function Providers() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ProviderStatus | ''>('');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend'; provider: Provider } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
 
   const { data, isLoading } = useProviders({
     page,
@@ -43,6 +44,7 @@ export default function Providers() {
 
   const approveMutation = useApproveProvider();
   const suspendMutation = useSuspendProvider();
+  const unsuspendMutation = useUnsuspendProvider();
   const updateMutation = useUpdateProvider();
 
   const handleConfirmAction = async () => {
@@ -51,6 +53,9 @@ export default function Providers() {
       if (confirmAction.type === 'approve') {
         await approveMutation.mutateAsync(confirmAction.provider.id);
         toast.success('Provider approved');
+      } else if (confirmAction.type === 'unsuspend') {
+        await unsuspendMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Suspension revoked');
       } else {
         await suspendMutation.mutateAsync(confirmAction.provider.id);
         toast.success('Provider suspended');
@@ -241,6 +246,16 @@ export default function Providers() {
                   Suspend
                 </button>
               )}
+              {selectedProvider.status === 'suspended' && (
+                <button
+                  onClick={() => setConfirmAction({ type: 'unsuspend', provider: selectedProvider })}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-success)' }}
+                >
+                  <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                  Revoke Suspension
+                </button>
+              )}
               <button
                 onClick={() => handleToggleFeatured(selectedProvider)}
                 className="px-4 py-2 text-sm font-medium rounded-lg"
@@ -339,20 +354,34 @@ export default function Providers() {
         )}
       </DetailPanel>
 
-      {/* Confirm Approve / Suspend */}
+      {/* Confirm Approve / Suspend / Unsuspend */}
       <ConfirmDialog
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleConfirmAction}
-        title={confirmAction?.type === 'approve' ? 'Approve Provider' : 'Suspend Provider'}
+        title={
+          confirmAction?.type === 'approve'
+            ? 'Approve Provider'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend Provider'
+        }
         description={
           confirmAction?.type === 'approve'
             ? `Are you sure you want to approve "${confirmAction.provider.brandName}"? They will become visible on the platform.`
-            : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
+            : confirmAction?.type === 'unsuspend'
+              ? `Are you sure you want to revoke the suspension for "${confirmAction?.provider.brandName}"? Their profile will become active again.`
+              : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
         }
-        confirmLabel={confirmAction?.type === 'approve' ? 'Approve' : 'Suspend'}
-        variant={confirmAction?.type === 'approve' ? 'default' : 'danger'}
-        isLoading={approveMutation.isPending || suspendMutation.isPending}
+        confirmLabel={
+          confirmAction?.type === 'approve'
+            ? 'Approve'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend'
+        }
+        variant={confirmAction?.type === 'suspend' ? 'danger' : 'default'}
+        isLoading={approveMutation.isPending || suspendMutation.isPending || unsuspendMutation.isPending}
       />
     </div>
   );

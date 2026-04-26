@@ -45,6 +45,11 @@ export const providersService = {
     return data;
   },
 
+  unsuspend: async (id: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.UNSUSPEND(id));
+    return data;
+  },
+
   update: async (id: string, body: Partial<Provider>): Promise<Provider> => {
     const { data } = await api.patch(URLS.PROVIDERS.UPDATE(id), body);
     return data;

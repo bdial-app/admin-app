@@ -28,6 +28,7 @@ export default function Users() {
   const [status, setStatus] = useState<UserStatus | ''>('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [confirmSuspend, setConfirmSuspend] = useState<User | null>(null);
+  const [confirmActivate, setConfirmActivate] = useState<User | null>(null);
 
   const { data, isLoading } = useUsers({
     page,
@@ -51,10 +52,13 @@ export default function Users() {
     }
   };
 
-  const handleActivate = async (user: User) => {
+  const handleActivate = async () => {
+    if (!confirmActivate) return;
     try {
-      await updateMutation.mutateAsync({ id: user.id, body: { status: 'active' as UserStatus } });
+      await updateMutation.mutateAsync({ id: confirmActivate.id, body: { status: 'active' as UserStatus } });
       toast.success('User activated');
+      setConfirmActivate(null);
+      setSelectedUser(null);
     } catch {
       toast.error('Failed to activate user');
     }
@@ -202,7 +206,7 @@ export default function Users() {
               )}
               {selectedUser.status === 'suspended' && (
                 <button
-                  onClick={() => handleActivate(selectedUser)}
+                  onClick={() => setConfirmActivate(selectedUser)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
                   style={{ background: 'var(--color-success)' }}
                 >
@@ -272,6 +276,18 @@ export default function Users() {
         confirmLabel="Suspend User"
         variant="danger"
         isLoading={suspendMutation.isPending}
+      />
+
+      {/* Activate Confirmation */}
+      <ConfirmDialog
+        open={!!confirmActivate}
+        onClose={() => setConfirmActivate(null)}
+        onConfirm={handleActivate}
+        title="Activate User"
+        description={`Are you sure you want to re-activate ${confirmActivate?.name || 'this user'}? They will regain full access to the platform.`}
+        confirmLabel="Activate"
+        variant="default"
+        isLoading={updateMutation.isPending}
       />
     </div>
   );

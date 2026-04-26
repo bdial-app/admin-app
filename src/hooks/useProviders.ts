@@ -54,6 +54,16 @@ export function useSuspendProvider() {
   });
 }
 
+export function useUnsuspendProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => providersService.unsuspend(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+    },
+  });
+}
+
 export function useUpdateProvider() {
   const qc = useQueryClient();
   return useMutation({

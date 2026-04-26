@@ -28,6 +28,7 @@
     DETAIL: (id: string) => `/admin/providers/${id}`,
     APPROVE: (id: string) => `/admin/providers/${id}/approve`,
     SUSPEND: (id: string) => `/admin/providers/${id}/suspend`,
+    UNSUSPEND: (id: string) => `/admin/providers/${id}/unsuspend`,
     UPDATE: (id: string) => `/admin/providers/${id}`,
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
