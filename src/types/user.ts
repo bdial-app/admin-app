@@ -35,6 +35,7 @@ export interface UserFilters {
   status?: UserStatus | '';
   role?: UserRole | '';
   city?: string;
+  hasProvider?: boolean;
 }
 
 export interface AdminUser {

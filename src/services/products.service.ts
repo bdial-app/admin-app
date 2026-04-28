@@ -2,6 +2,7 @@ import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { Product, ProductFilters } from '../types';
+import type { BulkActionPayload } from '../types';
 
 export const productsService = {
   list: async (filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> => {
@@ -37,5 +38,10 @@ export const productsService = {
 
   remove: async (id: string): Promise<void> => {
     await api.patch(`${URLS.PRODUCTS.DELETE(id)}/delete`);
+  },
+
+  bulkAction: async (payload: BulkActionPayload): Promise<{ affected: number }> => {
+    const { data } = await api.post(URLS.PRODUCTS.BULK_ACTION, payload);
+    return data;
   },
 };

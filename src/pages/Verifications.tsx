@@ -5,6 +5,7 @@ import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
+import { VerificationStepper } from '../components/ui/VerificationStepper';
 import { useVerifications, useReviewVerification } from '../hooks/useVerifications';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -224,6 +225,12 @@ export default function Verifications() {
                   {selected.user?.mobileNumber || '—'}
                 </p>
               </div>
+            </div>
+
+            {/* Verification Progress Stepper */}
+            <div>
+              <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Verification Progress</p>
+              <VerificationStepper verification={selected} />
             </div>
 
             {/* Status Grid */}

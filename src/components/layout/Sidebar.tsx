@@ -5,7 +5,9 @@ import {
   X, ChevronLeft, Shield, AlertTriangle,
   Package, Image, Megaphone, Gift, Award,
   MessageSquare, BarChart3, ShieldAlert,
-  UserCog, FileText, Settings, Bell, Bug
+  UserCog, FileText, Settings, Bell, Bug,
+  UserPlus, PlusCircle, Camera, ToggleLeft,
+  ClipboardList
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -28,7 +30,9 @@ const sections = [
     label: 'Content',
     items: [
       { name: 'Users', path: ROUTES.USERS, icon: Users },
+      { name: 'Create User', path: ROUTES.CREATE_USER, icon: UserPlus },
       { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store, badge: true },
+      { name: 'Create Provider', path: ROUTES.CREATE_PROVIDER, icon: PlusCircle },
       { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
       { name: 'Products', path: ROUTES.PRODUCTS, icon: Package },
     ],
@@ -36,11 +40,13 @@ const sections = [
   {
     label: 'Moderation',
     items: [
+      { name: 'Queue', path: ROUTES.MODERATION_QUEUE, icon: ClipboardList, badge: true },
       { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck, badge: true },
       { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
       { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
       { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
       { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare },
+      { name: 'Photos', path: ROUTES.PHOTO_MODERATION, icon: Camera },
       { name: 'Bug Reports', path: ROUTES.BUG_REPORTS, icon: Bug },
     ],
   },
@@ -64,6 +70,7 @@ const sections = [
     label: 'System',
     items: [
       { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog },
+      { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft },
       { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText },
       { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
     ],

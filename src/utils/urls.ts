@@ -17,6 +17,9 @@
     DETAIL: (id: string) => `/admin/users/${id}`,
     UPDATE: (id: string) => `/admin/users/${id}`,
     SUSPEND: (id: string) => `/admin/users/${id}/suspend`,
+    UNSUSPEND: (id: string) => `/admin/users/${id}/unsuspend`,
+    DELETE: (id: string) => `/admin/users/${id}`,
+    BULK_ACTION: '/admin/users/bulk-action',
     STATS: '/admin/users/stats',
     ACTIVITY: (id: string) => `/admin/users/${id}/activity`,
   },
@@ -29,7 +32,12 @@
     APPROVE: (id: string) => `/admin/providers/${id}/approve`,
     SUSPEND: (id: string) => `/admin/providers/${id}/suspend`,
     UNSUSPEND: (id: string) => `/admin/providers/${id}/unsuspend`,
+    DISABLE: (id: string) => `/admin/providers/${id}/disable`,
+    ENABLE: (id: string) => `/admin/providers/${id}/enable`,
+    DELETE: (id: string) => `/admin/providers/${id}`,
+    FEATURE: (id: string) => `/admin/providers/${id}/feature`,
     UPDATE: (id: string) => `/admin/providers/${id}`,
+    BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
   },
@@ -41,6 +49,7 @@
     DETAIL: (id: string) => `/categories/${id}`,
     UPDATE: (id: string) => `/categories/${id}`,
     TOP_LEVEL: '/categories/top-level',
+    TREE: '/categories/tree',
     SUBCATEGORIES: (parentId: string) => `/categories/${parentId}/subcategories`,
     UPLOAD_ICON: (id: string) => `/categories/${id}/icon`,
     UPLOAD_IMAGE: (id: string) => `/categories/${id}/image`,
@@ -52,6 +61,7 @@
     DETAIL: (id: string) => `/admin/products/${id}`,
     UPDATE: (id: string) => `/admin/products/${id}`,
     DELETE: (id: string) => `/admin/products/${id}`,
+    BULK_ACTION: '/admin/products/bulk-action',
     STATS: '/admin/products/stats',
   },
 
@@ -105,6 +115,9 @@
     LIST: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
     UPDATE: (id: string) => `/admin/sponsorships/${id}`,
+    PENDING: '/admin/sponsorships/pending',
+    APPROVE: (id: string) => `/admin/sponsorships/${id}/approve`,
+    REJECT: (id: string) => `/admin/sponsorships/${id}/reject`,
     STATS: '/admin/sponsorships/stats',
   },
 
@@ -114,6 +127,9 @@
     DETAIL: (id: string) => `/admin/offers/${id}`,
     UPDATE: (id: string) => `/admin/offers/${id}`,
     DELETE: (id: string) => `/admin/offers/${id}`,
+    PENDING: '/admin/offers/pending',
+    APPROVE: (id: string) => `/admin/offers/${id}/approve`,
+    REJECT: (id: string) => `/admin/offers/${id}/reject`,
     STATS: '/admin/offers/stats',
   },
 
@@ -177,5 +193,36 @@
     LIST: '/admin/bug-reports',
     DETAIL: (id: string) => `/admin/bug-reports/${id}`,
     UPDATE: (id: string) => `/admin/bug-reports/${id}`,
+  },
+
+  // -- Admin Create User/Provider ----------------------
+  ADMIN_CREATE: {
+    CREATE_USER: '/admin/create-user',
+    CREATE_PROVIDER_WITH_USER: '/admin/create-provider-with-user',
+    CHECK_USER: (mobileNumber: string) => `/admin/check-user/${mobileNumber}`,
+    SEND_OTP: '/admin/otp/send',
+    VERIFY_OTP: '/admin/otp/verify',
+  },
+
+  // -- Photo Moderation --------------------------------
+  PHOTOS: {
+    LIST: '/admin/photos',
+    DELETE: (id: string) => `/admin/photos/${id}`,
+  },
+
+  // -- Feature Flags -----------------------------------
+  FEATURE_FLAGS: {
+    LIST: '/admin/feature-flags',
+    UPDATE: '/admin/feature-flags',
+  },
+
+  // -- CSV Export --------------------------------------
+  EXPORT: {
+    CSV: (entity: string) => `/admin/export/${entity}`,
+  },
+
+  // -- Moderation Queue --------------------------------
+  MODERATION: {
+    QUEUE: '/admin/moderation/queue',
   },
 };

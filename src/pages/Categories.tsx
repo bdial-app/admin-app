@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Folder, FolderOpen, Plus, Save, Edit3, ArrowRight, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import { Folder, FolderOpen, Plus, Save, Edit3, ArrowRight, Loader2, ToggleLeft, ToggleRight, X, Tag } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 
 interface Category {
   id: string; parentId: string | null; name: string; slug: string; description: string | null;
   isActive: boolean; displayOrder: number; createdAt: string; children?: Category[];
+  keywords?: string[] | null;
 }
 
 const Categories = () => {
@@ -15,14 +16,16 @@ const Categories = () => {
   const [formData, setFormData] = useState<Partial<Category>>({});
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+  const [keywordInput, setKeywordInput] = useState('');
+  const keywordRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchCategories(); }, []);
 
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/categories');
-      const list = response.data?.data ?? response.data ?? [];
+      const response = await api.get('/categories/tree');
+      const list = response.data ?? [];
       setCategories(Array.isArray(list) ? list : []);
     } catch { console.error('Failed to fetch categories'); }
     finally { setLoading(false); }
@@ -52,7 +55,7 @@ const Categories = () => {
   const handleSave = async () => {
     if (!selectedCategory) return;
     const isNew = selectedCategory.id.length < 15;
-    const payload = { name: formData.name, isActive: formData.isActive, displayOrder: formData.displayOrder, parentId: selectedCategory.parentId };
+    const payload = { name: formData.name, isActive: formData.isActive, displayOrder: formData.displayOrder, parentId: selectedCategory.parentId, keywords: formData.keywords ?? [] };
 
     try {
       if (isNew) {
@@ -155,6 +158,49 @@ const Categories = () => {
                         className="w-full px-3 py-2 text-sm rounded-xl focus-ring" rows={3}
                         style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', resize: 'none' }} />
                     </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                        <span className="flex items-center gap-1"><Tag className="w-3 h-3" />Search Keywords</span>
+                      </label>
+                      <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+                        Add synonyms / related terms so customers can find providers in this category (e.g. &quot;glazier&quot;, &quot;mirror&quot; for Glass)
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {(formData.keywords ?? []).map((kw, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium"
+                            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                            {kw}
+                            <button type="button" onClick={() => setFormData({ ...formData, keywords: (formData.keywords ?? []).filter((_, j) => j !== i) })}
+                              className="hover:opacity-70"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input ref={keywordRef} type="text" value={keywordInput} onChange={e => setKeywordInput(e.target.value)}
+                          placeholder="Type keyword and press Enter"
+                          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                            if (e.key === 'Enter' && keywordInput.trim()) {
+                              e.preventDefault();
+                              const kw = keywordInput.trim().toLowerCase();
+                              if (!(formData.keywords ?? []).includes(kw)) {
+                                setFormData({ ...formData, keywords: [...(formData.keywords ?? []), kw] });
+                              }
+                              setKeywordInput('');
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 text-sm rounded-lg focus-ring"
+                          style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                        <button type="button" onClick={() => {
+                          const kw = keywordInput.trim().toLowerCase();
+                          if (kw && !(formData.keywords ?? []).includes(kw)) {
+                            setFormData({ ...formData, keywords: [...(formData.keywords ?? []), kw] });
+                          }
+                          setKeywordInput('');
+                          keywordRef.current?.focus();
+                        }} className="px-3 py-2 text-xs font-semibold rounded-lg text-white"
+                          style={{ background: 'var(--color-primary)' }}>Add</button>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-6">
                       <button type="button" onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
                         className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -193,6 +239,21 @@ const Categories = () => {
                       <div className="col-span-2">
                         <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Description</h4>
                         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{selectedCategory.description || <em style={{ color: 'var(--text-muted)' }}>No description</em>}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                          <Tag className="w-3 h-3" />Search Keywords
+                        </h4>
+                        {selectedCategory.keywords && selectedCategory.keywords.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedCategory.keywords.map((kw, i) => (
+                              <span key={i} className="inline-block px-2 py-0.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{kw}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm" style={{ color: 'var(--text-muted)' }}><em>No keywords</em></p>
+                        )}
                       </div>
                     </div>
                     {/* Sub-categories */}

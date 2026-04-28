@@ -2,6 +2,7 @@ import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { Provider, ProviderFilters } from '../types';
+import type { BulkActionPayload } from '../types';
 
 export const providersService = {
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
@@ -50,8 +51,32 @@ export const providersService = {
     return data;
   },
 
+  disable: async (id: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.DISABLE(id));
+    return data;
+  },
+
+  enable: async (id: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.ENABLE(id));
+    return data;
+  },
+
+  softDelete: async (id: string): Promise<void> => {
+    await api.delete(URLS.PROVIDERS.DELETE(id));
+  },
+
+  toggleFeatured: async (id: string, isFeatured: boolean): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.FEATURE(id), { isFeatured });
+    return data;
+  },
+
   update: async (id: string, body: Partial<Provider>): Promise<Provider> => {
     const { data } = await api.patch(URLS.PROVIDERS.UPDATE(id), body);
+    return data;
+  },
+
+  bulkAction: async (payload: BulkActionPayload): Promise<{ affected: number }> => {
+    const { data } = await api.post(URLS.PROVIDERS.BULK_ACTION, payload);
     return data;
   },
 

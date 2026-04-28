@@ -51,4 +51,19 @@ export const sponsoredService = {
     const { data } = await api.get(URLS.SPONSORED.STATS);
     return data;
   },
+
+  getPending: async (): Promise<SponsoredListing[]> => {
+    const { data } = await api.get(URLS.SPONSORED.PENDING);
+    return data;
+  },
+
+  approve: async (id: string, notes?: string): Promise<SponsoredListing> => {
+    const { data } = await api.patch(URLS.SPONSORED.APPROVE(id), { adminNotes: notes });
+    return data;
+  },
+
+  reject: async (id: string, notes?: string): Promise<SponsoredListing> => {
+    const { data } = await api.patch(URLS.SPONSORED.REJECT(id), { adminNotes: notes });
+    return data;
+  },
 };

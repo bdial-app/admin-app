@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Megaphone, Eye, DollarSign, MousePointerClick, BarChart3 } from 'lucide-react';
+import { Megaphone, Eye, DollarSign, MousePointerClick, BarChart3, Check, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useSponsoredListings, useSponsoredStats, useUpdateSponsored } from '../hooks/useSponsored';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { useSponsoredListings, useSponsoredStats, useUpdateSponsored, usePendingSponsorships, useApproveSponsorship, useRejectSponsorship } from '../hooks/useSponsored';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { SponsoredListing } from '../types';
@@ -25,6 +26,13 @@ const STATUS_TABS = [
   { label: 'Inactive', value: 'false' },
 ];
 
+const APPROVAL_TABS = [
+  { label: 'All', value: '' },
+  { label: 'Pending', value: 'pending_approval' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Rejected', value: 'rejected' },
+];
+
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -37,6 +45,9 @@ export default function Sponsorships() {
   const [selected, setSelected] = useState<SponsoredListing | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<SponsoredListing>>({});
+  const [approvalFilter, setApprovalFilter] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
+  const [rejectNotes, setRejectNotes] = useState('');
 
   const { data, isLoading } = useSponsoredListings({
     page, limit: LIMIT,
@@ -44,7 +55,15 @@ export default function Sponsorships() {
     isActive: isActive || undefined,
   });
   const { data: stats } = useSponsoredStats();
+  const { data: pendingList } = usePendingSponsorships();
   const updateMutation = useUpdateSponsored();
+  const approveMutation = useApproveSponsorship();
+  const rejectMutation = useRejectSponsorship();
+
+  // Filter by approval status client-side (if needed)
+  const filteredItems = approvalFilter
+    ? (data?.items ?? []).filter((i) => i.approvalStatus === approvalFilter)
+    : (data?.items ?? []);
 
   const openEdit = (listing: SponsoredListing) => {
     setEditForm({
@@ -131,6 +150,23 @@ export default function Sponsorships() {
       ),
     },
     {
+      key: 'approval',
+      header: 'Approval',
+      render: (row) => {
+        const colors: Record<string, { bg: string; color: string }> = {
+          approved: { bg: 'var(--color-success-light)', color: 'var(--color-success-dark)' },
+          pending_approval: { bg: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' },
+          rejected: { bg: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' },
+        };
+        const style = colors[row.approvalStatus] || colors.approved;
+        return (
+          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: style.bg, color: style.color }}>
+            {row.approvalStatus === 'pending_approval' ? 'Pending' : row.approvalStatus?.charAt(0).toUpperCase() + row.approvalStatus?.slice(1)}
+          </span>
+        );
+      },
+    },
+    {
       key: 'dates',
       header: 'Period',
       render: (row) => (
@@ -142,9 +178,15 @@ export default function Sponsorships() {
     {
       key: 'actions',
       header: '',
-      className: 'w-16',
+      className: 'w-28',
       render: (row) => (
         <div className="flex items-center gap-1">
+          {row.approvalStatus === 'pending_approval' && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'approve' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-success)' }} title="Approve"><Check className="w-4 h-4" /></button>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'reject' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-danger)' }} title="Reject"><X className="w-4 h-4" /></button>
+            </>
+          )}
           <button onClick={(e) => { e.stopPropagation(); setSelected(row); setEditMode(false); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
           <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><BarChart3 className="w-4 h-4" /></button>
         </div>
@@ -161,9 +203,10 @@ export default function Sponsorships() {
       />
 
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <StatCard title="Total Listings" value={stats.total} icon={<Megaphone className="w-5 h-5" />} accent="var(--color-primary)" />
           <StatCard title="Active" value={stats.active} icon={<Megaphone className="w-5 h-5" />} accent="var(--color-success)" />
+          <StatCard title="Pending Approval" value={pendingList?.length ?? 0} icon={<Megaphone className="w-5 h-5" />} accent="var(--color-warning)" />
           <StatCard title="Total Spent" value={formatCurrency(stats.totalSpent)} icon={<DollarSign className="w-5 h-5" />} accent="var(--color-warning)" />
           <StatCard title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={<MousePointerClick className="w-5 h-5" />} accent="var(--color-info)" />
         </div>
@@ -193,11 +236,22 @@ export default function Sponsorships() {
             </button>
           ))}
         </div>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+          {APPROVAL_TABS.map((tab) => (
+            <button key={tab.value} onClick={() => { setApprovalFilter(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
+              background: approvalFilter === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: approvalFilter === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: approvalFilter === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <DataTable<SponsoredListing>
         columns={columns}
-        data={data?.items ?? []}
+        data={filteredItems}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
@@ -235,6 +289,7 @@ export default function Sponsorships() {
                 ['CTR', getCtr(selected.clicks, selected.impressions)],
                 ['Starts', formatDate(selected.startsAt)],
                 ['Ends', formatDate(selected.endsAt)],
+                ['Approval', selected.approvalStatus === 'pending_approval' ? 'Pending' : selected.approvalStatus],
               ].map(([label, value]) => (
                 <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
                   <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
@@ -271,6 +326,37 @@ export default function Sponsorships() {
           </div>
         )}
       </DetailPanel>
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => { setConfirmAction(null); setRejectNotes(''); }}
+        onConfirm={async () => {
+          if (!confirmAction) return;
+          if (confirmAction.action === 'approve') {
+            await approveMutation.mutateAsync({ id: confirmAction.id });
+          } else {
+            await rejectMutation.mutateAsync({ id: confirmAction.id, notes: rejectNotes });
+          }
+          setConfirmAction(null);
+          setRejectNotes('');
+        }}
+        title={confirmAction?.action === 'approve' ? 'Approve Sponsorship' : 'Reject Sponsorship'}
+        description={confirmAction?.action === 'approve' ? 'This sponsorship will become visible to users.' : 'Please provide a reason for rejection.'}
+        confirmLabel={confirmAction?.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={confirmAction?.action === 'approve' ? 'default' : 'danger'}
+        isLoading={approveMutation.isPending || rejectMutation.isPending}
+      >
+        {confirmAction?.action === 'reject' && (
+          <textarea
+            value={rejectNotes}
+            onChange={(e) => setRejectNotes(e.target.value)}
+            placeholder="Reason for rejection..."
+            rows={3}
+            className="w-full mt-3 px-3 py-2 text-sm rounded-lg border resize-none"
+            style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+          />
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

@@ -32,4 +32,9 @@ export const categoriesService = {
     const { data } = await api.get(URLS.CATEGORIES.SUBCATEGORIES(parentId));
     return data;
   },
+
+  tree: async (): Promise<Category[]> => {
+    const { data } = await api.get(URLS.CATEGORIES.TREE);
+    return data;
+  },
 };

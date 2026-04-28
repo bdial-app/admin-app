@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { providersService } from '../services/providers.service';
-import type { ProviderFilters, Provider } from '../types';
+import type { ProviderFilters, Provider, BulkActionPayload } from '../types';
+import { toast } from 'react-toastify';
 
 export const providerKeys = {
   all: ['providers'] as const,
@@ -80,5 +81,66 @@ export function useProviderWarnings(id: string) {
     queryKey: providerKeys.warnings(id),
     queryFn: () => providersService.getWarnings(id),
     enabled: !!id,
+  });
+}
+
+export function useDisableProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => providersService.disable(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success('Provider disabled');
+    },
+    onError: () => toast.error('Failed to disable provider'),
+  });
+}
+
+export function useEnableProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => providersService.enable(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success('Provider enabled');
+    },
+    onError: () => toast.error('Failed to enable provider'),
+  });
+}
+
+export function useSoftDeleteProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => providersService.softDelete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success('Provider deleted');
+    },
+    onError: () => toast.error('Failed to delete provider'),
+  });
+}
+
+export function useToggleFeaturedProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isFeatured }: { id: string; isFeatured: boolean }) =>
+      providersService.toggleFeatured(id, isFeatured),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success('Featured status updated');
+    },
+    onError: () => toast.error('Failed to update featured status'),
+  });
+}
+
+export function useBulkProviderAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: BulkActionPayload) => providersService.bulkAction(payload),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success(`Bulk action applied to ${data.affected} providers`);
+    },
+    onError: () => toast.error('Bulk action failed'),
   });
 }

@@ -20,3 +20,5 @@ export * from './chat';
 export * from './analytics';
 export * from './bug-report';
 export * from './notification';
+export * from './moderation';
+export * from './feature-flag';

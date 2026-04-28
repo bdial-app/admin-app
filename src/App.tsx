@@ -31,6 +31,11 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const SystemSettings = lazy(() => import('./pages/Settings'));
 const Notifications = lazy(() => import('./pages/Notifications'));
+const CreateUser = lazy(() => import('./pages/CreateUser'));
+const CreateProviderFlow = lazy(() => import('./pages/CreateProviderFlow'));
+const PhotoModeration = lazy(() => import('./pages/PhotoModeration'));
+const FeatureFlags = lazy(() => import('./pages/FeatureFlags'));
+const ModerationQueuePage = lazy(() => import('./pages/ModerationQueue'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
@@ -68,6 +73,8 @@ function App() {
             <Route path={ROUTES.PROVIDERS} element={<Providers />} />
             <Route path={ROUTES.CATEGORIES} element={<Categories />} />
             <Route path={ROUTES.PRODUCTS} element={<Products />} />
+            <Route path={ROUTES.CREATE_USER} element={<CreateUser />} />
+            <Route path={ROUTES.CREATE_PROVIDER} element={<CreateProviderFlow />} />
 
             {/* Moderation */}
             <Route path={ROUTES.REGISTRATIONS} element={<Verifications />} />
@@ -76,6 +83,8 @@ function App() {
             <Route path={ROUTES.BUG_REPORTS} element={<BugReports />} />
             <Route path={ROUTES.WARNINGS} element={<Warnings />} />
             <Route path={ROUTES.CHAT_MODERATION} element={<ChatModeration />} />
+            <Route path={ROUTES.PHOTO_MODERATION} element={<PhotoModeration />} />
+            <Route path={ROUTES.MODERATION_QUEUE} element={<ModerationQueuePage />} />
 
             {/* Marketing */}
             <Route path={ROUTES.BANNERS} element={<Banners />} />
@@ -91,6 +100,7 @@ function App() {
             <Route path={ROUTES.ADMIN_USERS} element={<AdminUsers />} />
             <Route path={ROUTES.AUDIT_LOG} element={<AuditLog />} />
             <Route path={ROUTES.SETTINGS} element={<SystemSettings />} />
+            <Route path={ROUTES.FEATURE_FLAGS} element={<FeatureFlags />} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

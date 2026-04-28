@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Eye, UserX, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, UserX, Shield, UserPlus, Store } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -23,6 +24,7 @@ const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function Users() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<UserStatus | ''>('');
@@ -154,6 +156,16 @@ export default function Users() {
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Users' },
         ]}
+        actions={
+          <button
+            onClick={() => navigate(ROUTES.CREATE_USER)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            <UserPlus className="w-4 h-4" />
+            Create User
+          </button>
+        }
       />
 
       <DataTable<User>
@@ -194,6 +206,16 @@ export default function Users() {
         actions={
           selectedUser && (
             <>
+              {selectedUser.status === 'active' && !selectedUser.provider && (
+                <button
+                  onClick={() => navigate(`${ROUTES.CREATE_PROVIDER}?mobile=${selectedUser.mobileNumber}`)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  <Store className="w-4 h-4 inline mr-1.5" />
+                  Make Provider
+                </button>
+              )}
               {selectedUser.status === 'active' && (
                 <button
                   onClick={() => setConfirmSuspend(selectedUser)}

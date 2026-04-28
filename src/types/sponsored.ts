@@ -1,4 +1,4 @@
-import type { SponsoredType } from './enums';
+import type { SponsoredType, ApprovalStatus } from './enums';
 
 export interface SponsoredListing {
   id: string;
@@ -15,6 +15,10 @@ export interface SponsoredListing {
   startsAt: string;
   endsAt: string;
   isActive: boolean;
+  approvalStatus: ApprovalStatus;
+  adminNotes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
   provider?: import('./provider').Provider;

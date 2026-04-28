@@ -35,9 +35,16 @@ export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed
 
 // ── Sponsored ────────────────────────────────────────────
 export type SponsoredType = 'carousel' | 'inline' | 'top_result';
+export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
 
 // ── Offer ────────────────────────────────────────────────
 export type DiscountType = 'percentage' | 'flat';
+
+// ── Bulk Actions ─────────────────────────────────────────
+export type BulkActionType = 'activate' | 'deactivate' | 'delete' | 'suspend' | 'unsuspend' | 'feature' | 'unfeature';
+
+// ── Export Entities ──────────────────────────────────────
+export type ExportEntity = 'users' | 'providers' | 'products' | 'reviews' | 'reports';
 
 // ── Badge ────────────────────────────────────────────────
 export type BadgeType = 'gold_seller' | 'top_rated' | 'express_service' | 'trusted' | 'rising_star';

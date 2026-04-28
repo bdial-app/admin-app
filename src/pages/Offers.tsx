@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Gift, Eye, Pencil, Trash2, Percent, DollarSign, TrendingUp } from 'lucide-react';
+import { Gift, Eye, Pencil, Trash2, Percent, DollarSign, TrendingUp, Check, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useOffers, useOfferStats, useUpdateOffer, useDeleteOffer } from '../hooks/useOffers';
+import { useOffers, useOfferStats, useUpdateOffer, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { ProviderOffer } from '../types';
@@ -16,6 +16,13 @@ const STATUS_TABS = [
   { label: 'All', value: '' },
   { label: 'Active', value: 'true' },
   { label: 'Inactive', value: 'false' },
+];
+
+const APPROVAL_TABS = [
+  { label: 'All', value: '' },
+  { label: 'Pending', value: 'pending_approval' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Rejected', value: 'rejected' },
 ];
 
 const formatDate = (iso: string | null) =>
@@ -28,11 +35,21 @@ export default function Offers() {
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<ProviderOffer>>({});
   const [confirmDelete, setConfirmDelete] = useState<ProviderOffer | null>(null);
+  const [approvalFilter, setApprovalFilter] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
+  const [rejectNotes, setRejectNotes] = useState('');
 
   const { data, isLoading } = useOffers({ page, limit: LIMIT, isActive: isActive || undefined });
   const { data: stats } = useOfferStats();
+  const { data: pendingList } = usePendingOffers();
   const updateMutation = useUpdateOffer();
   const deleteMutation = useDeleteOffer();
+  const approveMutation = useApproveOffer();
+  const rejectMutation = useRejectOffer();
+
+  const filteredItems = approvalFilter
+    ? (data?.items ?? []).filter((i) => i.approvalStatus === approvalFilter)
+    : (data?.items ?? []);
 
   const openEdit = (offer: ProviderOffer) => {
     setEditForm({
@@ -128,6 +145,23 @@ export default function Offers() {
       },
     },
     {
+      key: 'approval',
+      header: 'Approval',
+      render: (row) => {
+        const colors: Record<string, { bg: string; color: string }> = {
+          approved: { bg: 'var(--color-success-light)', color: 'var(--color-success-dark)' },
+          pending_approval: { bg: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' },
+          rejected: { bg: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' },
+        };
+        const style = colors[row.approvalStatus] || colors.approved;
+        return (
+          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: style.bg, color: style.color }}>
+            {row.approvalStatus === 'pending_approval' ? 'Pending' : row.approvalStatus?.charAt(0).toUpperCase() + row.approvalStatus?.slice(1)}
+          </span>
+        );
+      },
+    },
+    {
       key: 'dates',
       header: 'Validity',
       render: (row) => (
@@ -139,9 +173,15 @@ export default function Offers() {
     {
       key: 'actions',
       header: '',
-      className: 'w-24',
+      className: 'w-32',
       render: (row) => (
         <div className="flex items-center gap-1">
+          {row.approvalStatus === 'pending_approval' && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'approve' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-success)' }} title="Approve"><Check className="w-4 h-4" /></button>
+              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'reject' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-danger)' }} title="Reject"><X className="w-4 h-4" /></button>
+            </>
+          )}
           <button onClick={(e) => { e.stopPropagation(); setSelected(row); setEditMode(false); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
           <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><Pencil className="w-4 h-4" /></button>
           <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-danger)' }}><Trash2 className="w-4 h-4" /></button>
@@ -159,28 +199,42 @@ export default function Offers() {
       />
 
       {stats && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard title="Total Offers" value={stats.total} icon={<Gift className="w-5 h-5" />} accent="var(--color-primary)" />
           <StatCard title="Active" value={stats.active} icon={<Gift className="w-5 h-5" />} accent="var(--color-success)" />
+          <StatCard title="Pending Approval" value={pendingList?.length ?? 0} icon={<Gift className="w-5 h-5" />} accent="var(--color-warning)" />
           <StatCard title="Total Redemptions" value={stats.totalUsage} icon={<TrendingUp className="w-5 h-5" />} accent="var(--color-warning)" />
         </div>
       )}
 
-      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
-        {STATUS_TABS.map((tab) => (
-          <button key={tab.value} onClick={() => { setIsActive(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
-            background: isActive === tab.value ? 'var(--surface-0)' : 'transparent',
-            color: isActive === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-            boxShadow: isActive === tab.value ? 'var(--shadow-sm)' : 'none',
-          }}>
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-4 mb-4">
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+          {STATUS_TABS.map((tab) => (
+            <button key={tab.value} onClick={() => { setIsActive(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
+              background: isActive === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: isActive === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: isActive === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+          {APPROVAL_TABS.map((tab) => (
+            <button key={tab.value} onClick={() => { setApprovalFilter(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
+              background: approvalFilter === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: approvalFilter === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: approvalFilter === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <DataTable<ProviderOffer>
         columns={columns}
-        data={data?.items ?? []}
+        data={filteredItems}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
@@ -220,6 +274,7 @@ export default function Offers() {
                 ['Starts', formatDate(selected.startsAt)],
                 ['Ends', formatDate(selected.endsAt)],
                 ['Created', formatDate(selected.createdAt)],
+                ['Approval', selected.approvalStatus === 'pending_approval' ? 'Pending' : selected.approvalStatus],
               ].map(([label, value]) => (
                 <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
                   <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
@@ -285,6 +340,37 @@ export default function Offers() {
         variant="danger"
         isLoading={deleteMutation.isPending}
       />
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => { setConfirmAction(null); setRejectNotes(''); }}
+        onConfirm={async () => {
+          if (!confirmAction) return;
+          if (confirmAction.action === 'approve') {
+            await approveMutation.mutateAsync({ id: confirmAction.id });
+          } else {
+            await rejectMutation.mutateAsync({ id: confirmAction.id, notes: rejectNotes });
+          }
+          setConfirmAction(null);
+          setRejectNotes('');
+        }}
+        title={confirmAction?.action === 'approve' ? 'Approve Offer' : 'Reject Offer'}
+        description={confirmAction?.action === 'approve' ? 'This offer will become visible to users.' : 'Please provide a reason for rejection.'}
+        confirmLabel={confirmAction?.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={confirmAction?.action === 'approve' ? 'default' : 'danger'}
+        isLoading={approveMutation.isPending || rejectMutation.isPending}
+      >
+        {confirmAction?.action === 'reject' && (
+          <textarea
+            value={rejectNotes}
+            onChange={(e) => setRejectNotes(e.target.value)}
+            placeholder="Reason for rejection..."
+            rows={3}
+            className="w-full mt-3 px-3 py-2 text-sm rounded-lg border resize-none"
+            style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+          />
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

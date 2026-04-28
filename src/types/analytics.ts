@@ -52,6 +52,8 @@ export interface DashboardStats {
   activeOffers: number;
   activeSponsorships: number;
   activeBanners: number;
+  pendingSponsorships: number;
+  pendingOffers: number;
 }
 
 export interface TimeSeriesPoint {
