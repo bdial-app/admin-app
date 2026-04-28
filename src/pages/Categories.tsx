@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Folder, FolderOpen, Plus, Save, Edit3, ArrowRight, Loader2, ToggleLeft, ToggleRight, X, Tag } from 'lucide-react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
