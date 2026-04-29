@@ -145,6 +145,7 @@ export default function CreateUser() {
                     setOtp('');
                   }}
                   placeholder="9876543210"
+                  maxLength={10}
                   className="flex-1 px-3 py-2 text-sm rounded-lg focus-ring"
                   style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 />

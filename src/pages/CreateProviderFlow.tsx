@@ -517,7 +517,7 @@ export default function CreateProviderFlow() {
                 setUserOtpSent(false); setUserOtpVerified(false); setUserOtp('');
                 setSelectedExistingUser(null);
               }}
-              placeholder="9876543210" className="flex-1 px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+              placeholder="9876543210" maxLength={10} className="flex-1 px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
             {isChecking && mobileValid && <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--text-muted)' }} />}
           </div>
           {mobileValid && hasProvider && (
@@ -595,8 +595,8 @@ export default function CreateProviderFlow() {
               Business Contact <span className="text-red-500">*</span>
             </label>
             <input type="text" value={contactNumber}
-              onChange={(e) => { setContactNumber(e.target.value); setBizOtpSent(false); setBizOtpVerified(false); setBizOtp(''); }}
-              placeholder="+919876543210" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+              onChange={(e) => { setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10)); setBizOtpSent(false); setBizOtpVerified(false); setBizOtp(''); }}
+              placeholder="9876543210" maxLength={10} className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Provider Status</label>
