@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Receipt, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { usePayments } from '../hooks/usePayments';

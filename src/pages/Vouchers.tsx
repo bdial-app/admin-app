@@ -19,7 +19,6 @@ const APPLICABLE_TO = ['sponsorship', 'lead_unlock', 'subscription', 'badge', 'd
 export default function Vouchers() {
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [viewRedemptions, setViewRedemptions] = useState<string | null>(null);
 
   const { data, isLoading } = useVouchers({ page, limit: 20 });

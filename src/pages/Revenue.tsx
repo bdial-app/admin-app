@@ -25,7 +25,7 @@ export default function Revenue() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Revenue" subtitle="Revenue analytics and insights" />
+        <PageHeader title="Revenue" description="Revenue analytics and insights" />
         <div className="flex items-center justify-center py-20">
           <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-default)', borderTopColor: 'var(--color-primary)' }} />
         </div>
@@ -41,7 +41,7 @@ export default function Revenue() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Revenue" subtitle="Revenue analytics and insights" />
+      <PageHeader title="Revenue" description="Revenue analytics and insights" />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon={<DollarSign size={20} />} />
