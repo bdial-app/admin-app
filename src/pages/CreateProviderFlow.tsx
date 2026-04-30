@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Phone, User, Store, Package, MapPin,
   CheckCircle, AlertCircle, Loader2, Plus, Trash2, Check,
-  Search, ChevronRight, Users,
+  Search, ChevronRight, Users, Upload, X, Image as ImageIcon,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import LocationPicker, { type LocationData } from '../components/ui/LocationPicker';
@@ -13,6 +13,7 @@ import {
   useAdminSendOtp,
   useAdminVerifyOtp,
 } from '../hooks/useAdminCreate';
+import { adminCreateService } from '../services/admin-create.service';
 import { useUsers } from '../hooks/useUsers';
 import { useCategoryTree } from '../hooks/useCategories';
 import { ROUTES } from '../utils/constants';
@@ -25,6 +26,8 @@ interface ProductEntry {
   description: string;
   price: string;
   currency: string;
+  imageFiles: File[];
+  imagePreviews: string[];
 }
 
 type Step = 'user' | 'provider' | 'products' | 'location' | 'review';
@@ -208,11 +211,30 @@ export default function CreateProviderFlow() {
 
   // ── Product management ──────────────────────────────────
   const addProduct = useCallback(() => {
-    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR' }]);
+    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR', imageFiles: [], imagePreviews: [] }]);
   }, []);
 
-  const updateProduct = useCallback((idx: number, field: keyof ProductEntry, value: string) => {
+  const updateProduct = useCallback((idx: number, field: keyof Omit<ProductEntry, 'imageFiles' | 'imagePreviews'>, value: string) => {
     setProducts((prev) => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  }, []);
+
+  const addProductImages = useCallback((idx: number, files: File[]) => {
+    setProducts((prev) => prev.map((p, i) => {
+      if (i !== idx) return p;
+      const newFiles = [...p.imageFiles, ...files].slice(0, 5); // max 5
+      // rebuild previews correctly
+      const previews = newFiles.map((f) => URL.createObjectURL(f));
+      return { ...p, imageFiles: newFiles, imagePreviews: previews };
+    }));
+  }, []);
+
+  const removeProductImage = useCallback((productIdx: number, imageIdx: number) => {
+    setProducts((prev) => prev.map((p, i) => {
+      if (i !== productIdx) return p;
+      const newFiles = p.imageFiles.filter((_, fi) => fi !== imageIdx);
+      const newPreviews = p.imagePreviews.filter((_, pi) => pi !== imageIdx);
+      return { ...p, imageFiles: newFiles, imagePreviews: newPreviews };
+    }));
   }, []);
 
   const removeProduct = useCallback((idx: number) => {
@@ -268,7 +290,7 @@ export default function CreateProviderFlow() {
   // ── Submit ──────────────────────────────────────────────
   const handleSubmit = async () => {
     try {
-      await createMutation.mutateAsync({
+      const result = await createMutation.mutateAsync({
         userMobileNumber: userMobile,
         userName: userName.trim(),
         userGender,
@@ -299,6 +321,20 @@ export default function CreateProviderFlow() {
         skipUserOtp,
         skipBusinessOtp,
       });
+
+      // Upload product images — match by index (same order as submitted)
+      const productsWithImages = products.filter((p) => p.name.trim() && p.imageFiles.length > 0);
+      if (productsWithImages.length > 0 && result.products?.length) {
+        const validProducts = products.filter((p) => p.name.trim());
+        await Promise.allSettled(
+          validProducts.map((p, idx) => {
+            const createdProduct = result.products[idx];
+            if (!createdProduct?.id || p.imageFiles.length === 0) return Promise.resolve();
+            return adminCreateService.uploadProductImages(createdProduct.id, p.imageFiles);
+          }),
+        );
+      }
+
       toast.success('Provider created successfully!');
       navigate(ROUTES.PROVIDERS);
     } catch (err: any) {
@@ -755,31 +791,97 @@ export default function CreateProviderFlow() {
             <p className="text-xs mt-1">Products are optional — you can add them later</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {products.map((product, idx) => (
-              <div key={idx} className="p-4 rounded-lg relative" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                <button type="button" onClick={() => removeProduct(idx)}
-                  className="absolute top-2 right-2 p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-8">
+              <div key={idx} className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
+                {/* Product header */}
+                <div className="flex items-center justify-between px-4 py-2" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-default)' }}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    Product {idx + 1}{product.name.trim() ? ` — ${product.name.trim()}` : ''}
+                  </span>
+                  <button type="button" onClick={() => removeProduct(idx)}
+                    className="p-1 rounded transition-colors" style={{ color: 'var(--color-danger)' }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {/* Text fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                        Name <span className="text-red-500">*</span>
+                      </label>
+                      <input type="text" value={product.name} onChange={(e) => updateProduct(idx, 'name', e.target.value)}
+                        placeholder="Haircut" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Price (₹)</label>
+                      <input type="text" value={product.price}
+                        onChange={(e) => updateProduct(idx, 'price', e.target.value.replace(/[^\d.]/g, ''))}
+                        placeholder="200" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Description</label>
+                      <input type="text" value={product.description} onChange={(e) => updateProduct(idx, 'description', e.target.value)}
+                        placeholder="Basic men's haircut" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+                    </div>
+                  </div>
+
+                  {/* Image upload */}
                   <div>
-                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                      Name <span className="text-red-500">*</span>
+                    <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                      Images <span style={{ color: 'var(--text-muted)' }}>(up to 5, uploaded after provider is created)</span>
                     </label>
-                    <input type="text" value={product.name} onChange={(e) => updateProduct(idx, 'name', e.target.value)}
-                      placeholder="Haircut" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Price (₹)</label>
-                    <input type="text" value={product.price}
-                      onChange={(e) => updateProduct(idx, 'price', e.target.value.replace(/[^\d.]/g, ''))}
-                      placeholder="200" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Description</label>
-                    <input type="text" value={product.description} onChange={(e) => updateProduct(idx, 'description', e.target.value)}
-                      placeholder="Basic men's haircut" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
+                    <div className="flex flex-wrap gap-2">
+                      {/* Existing previews */}
+                      {product.imagePreviews.map((preview, imgIdx) => (
+                        <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border-default)' }}>
+                          <img src={preview} alt={`Product ${idx + 1} image ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeProductImage(idx, imgIdx)}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-white"
+                            style={{ background: 'rgba(0,0,0,0.65)' }}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Add image button */}
+                      {product.imageFiles.length < 5 && (
+                        <label
+                          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed cursor-pointer transition-colors flex-shrink-0"
+                          style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}
+                        >
+                          <Upload className="w-5 h-5" />
+                          <span className="text-[10px] text-center leading-tight">Add<br/>image</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files ?? []);
+                              if (!files.length) return;
+                              const tooLarge = files.find(f => f.size > 5 * 1024 * 1024);
+                              if (tooLarge) { toast.error(`${tooLarge.name} is over 5MB`); return; }
+                              addProductImages(idx, files);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+
+                      {/* Empty state hint */}
+                      {product.imageFiles.length === 0 && (
+                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          <ImageIcon className="w-4 h-4 opacity-40" />
+                          <span>PNG, JPG, WebP — max 5MB each</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

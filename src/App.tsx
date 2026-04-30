@@ -36,6 +36,10 @@ const CreateProviderFlow = lazy(() => import('./pages/CreateProviderFlow'));
 const PhotoModeration = lazy(() => import('./pages/PhotoModeration'));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags'));
 const ModerationQueuePage = lazy(() => import('./pages/ModerationQueue'));
+const Vouchers = lazy(() => import('./pages/Vouchers'));
+const PaymentsPage = lazy(() => import('./pages/Payments'));
+const SubscriptionsPage = lazy(() => import('./pages/Subscriptions'));
+const RevenuePage = lazy(() => import('./pages/Revenue'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
@@ -92,6 +96,12 @@ function App() {
             <Route path={ROUTES.OFFERS} element={<Offers />} />
             <Route path={ROUTES.BADGES} element={<Badges />} />
             <Route path={ROUTES.NOTIFICATIONS} element={<Notifications />} />
+
+            {/* Monetization */}
+            <Route path={ROUTES.VOUCHERS} element={<Vouchers />} />
+            <Route path={ROUTES.PAYMENTS} element={<PaymentsPage />} />
+            <Route path={ROUTES.SUBSCRIPTIONS} element={<SubscriptionsPage />} />
+            <Route path={ROUTES.REVENUE} element={<RevenuePage />} />
 
             {/* Insights */}
             <Route path={ROUTES.ANALYTICS} element={<Analytics />} />

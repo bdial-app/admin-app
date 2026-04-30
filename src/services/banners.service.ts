@@ -8,6 +8,25 @@ export interface BannerFilters {
   isActive?: string;
 }
 
+function buildBannerFormData(body: Partial<PromoBanner>, imageFile?: File | null): FormData {
+  const fd = new FormData();
+  const fields: (keyof PromoBanner)[] = ['title', 'subtitle', 'gradient', 'emoji', 'cta', 'tag', 'linkUrl', 'isActive', 'startsAt', 'endsAt'];
+  for (const key of fields) {
+    const val = body[key];
+    if (val !== undefined) {
+      fd.append(key, val === null ? '' : String(val));
+    }
+  }
+  // If removing image explicitly (no file and imageUrl set to null)
+  if (!imageFile && body.imageUrl === null) {
+    fd.append('imageUrl', 'null');
+  }
+  if (imageFile) {
+    fd.append('image', imageFile);
+  }
+  return fd;
+}
+
 export const bannersService = {
   list: async (filters: BannerFilters = {}): Promise<PaginatedResponse<PromoBanner>> => {
     const params = new URLSearchParams();
@@ -31,13 +50,19 @@ export const bannersService = {
     return data;
   },
 
-  create: async (body: Partial<PromoBanner>): Promise<PromoBanner> => {
-    const { data } = await api.post(URLS.BANNERS.CREATE, body);
+  create: async (body: Partial<PromoBanner>, imageFile?: File | null): Promise<PromoBanner> => {
+    const fd = buildBannerFormData(body, imageFile);
+    const { data } = await api.post(URLS.BANNERS.CREATE, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
-  update: async (id: string, body: Partial<PromoBanner>): Promise<PromoBanner> => {
-    const { data } = await api.patch(URLS.BANNERS.UPDATE(id), body);
+  update: async (id: string, body: Partial<PromoBanner>, imageFile?: File | null): Promise<PromoBanner> => {
+    const fd = buildBannerFormData(body, imageFile);
+    const { data } = await api.patch(URLS.BANNERS.UPDATE(id), fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 

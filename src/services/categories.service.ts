@@ -37,4 +37,32 @@ export const categoriesService = {
     const { data } = await api.get(URLS.CATEGORIES.TREE);
     return data;
   },
+
+  uploadIcon: async (id: string, file: File): Promise<Category> => {
+    const form = new FormData();
+    form.append('icon', file);
+    const { data } = await api.post(URLS.CATEGORIES.UPLOAD_ICON(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  deleteIcon: async (id: string): Promise<Category> => {
+    const { data } = await api.delete(URLS.CATEGORIES.UPLOAD_ICON(id));
+    return data;
+  },
+
+  uploadImage: async (id: string, file: File): Promise<Category> => {
+    const form = new FormData();
+    form.append('image', file);
+    const { data } = await api.post(URLS.CATEGORIES.UPLOAD_IMAGE(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  deleteImage: async (id: string): Promise<Category> => {
+    const { data } = await api.delete(URLS.CATEGORIES.UPLOAD_IMAGE(id));
+    return data;
+  },
 };

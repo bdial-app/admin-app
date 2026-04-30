@@ -98,4 +98,13 @@ export const adminCreateService = {
     const { data } = await api.post(URLS.ADMIN_CREATE.VERIFY_OTP, { mobileNumber, otp, purpose });
     return data;
   },
+
+  uploadProductImages: async (productId: string, files: File[]): Promise<import('../types').Product> => {
+    const fd = new FormData();
+    for (const file of files) fd.append('images', file);
+    const { data } = await api.post(URLS.PRODUCTS.UPLOAD_IMAGES(productId), fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
 };

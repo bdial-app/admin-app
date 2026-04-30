@@ -27,7 +27,7 @@ export function useBanner(id: string) {
 export function useCreateBanner() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Partial<PromoBanner>) => bannersService.create(body),
+    mutationFn: ({ body, imageFile }: { body: Partial<PromoBanner>; imageFile?: File | null }) => bannersService.create(body, imageFile),
     onSuccess: () => { qc.invalidateQueries({ queryKey: bannerKeys.all }); },
   });
 }
@@ -35,7 +35,7 @@ export function useCreateBanner() {
 export function useUpdateBanner() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<PromoBanner> }) => bannersService.update(id, body),
+    mutationFn: ({ id, body, imageFile }: { id: string; body: Partial<PromoBanner>; imageFile?: File | null }) => bannersService.update(id, body, imageFile),
     onSuccess: () => { qc.invalidateQueries({ queryKey: bannerKeys.all }); },
   });
 }

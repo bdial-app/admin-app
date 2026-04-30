@@ -63,6 +63,7 @@
     DELETE: (id: string) => `/admin/products/${id}`,
     BULK_ACTION: '/admin/products/bulk-action',
     STATS: '/admin/products/stats',
+    UPLOAD_IMAGES: (id: string) => `/admin/products/${id}/images`,
   },
 
   // â”€â”€ Admin Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -224,5 +225,29 @@
   // -- Moderation Queue --------------------------------
   MODERATION: {
     QUEUE: '/admin/moderation/queue',
+  },
+
+  // -- Vouchers ----------------------------------------
+  VOUCHERS: {
+    LIST: '/admin/vouchers',
+    CREATE: '/admin/vouchers',
+    UPDATE: (id: string) => `/admin/vouchers/${id}`,
+    DETAIL: (id: string) => `/admin/vouchers/${id}`,
+    REDEMPTIONS: (id: string) => `/admin/vouchers/${id}/redemptions`,
+    STATS: '/admin/vouchers/stats',
+  },
+
+  // -- Payments ----------------------------------------
+  PAYMENTS: {
+    LIST: '/admin/payments',
+    REVENUE_STATS: '/admin/payments/stats',
+  },
+
+  // -- Subscriptions -----------------------------------
+  SUBSCRIPTIONS: {
+    LIST: '/admin/subscriptions',
+    STATS: '/admin/subscriptions/stats',
+    PLANS: '/admin/subscription-plans',
+    UPDATE_PLAN: (id: string) => `/admin/subscription-plans/${id}`,
   },
 };
