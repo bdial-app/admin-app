@@ -1,134 +1,400 @@
 import { useState } from 'react';
-import { Search, Eye, Filter } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { useNavigate } from 'react-router-dom';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle } from 'lucide-react';
+import { PageHeader } from '../components/ui/PageHeader';
+import { DataTable, type Column } from '../components/ui/DataTable';
+import { DetailPanel } from '../components/ui/DetailPanel';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
+import {
+  useProviders,
+  useApproveProvider,
+  useSuspendProvider,
+  useUnsuspendProvider,
+  useUpdateProvider,
+} from '../hooks/useProviders';
+import { ROUTES } from '../utils/constants';
+import { toast } from 'react-toastify';
+import type { Provider, ProviderStatus } from '../types';
 
-const MOCK_PROVIDERS = [
-  { id: '1', businessName: 'Fatema Tailors', category: 'Tailoring', city: 'Mumbai', status: 'Live', isWomenLed: true, rating: 4.8 },
-  { id: '2', businessName: 'Burhani Tuitions', category: 'Tuitions', city: 'Pune', status: 'Pending', isWomenLed: false, rating: 0 },
-  { id: '3', businessName: 'Zainab Mehandi Arts', category: 'Beauty', city: 'Surat', status: 'Live', isWomenLed: true, rating: 4.9 },
+const LIMIT = 10;
+const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
+  { label: 'All', value: '' },
+  { label: 'Unverified', value: 'unverified' },
+  { label: 'In Review', value: 'in_review' },
+  { label: 'Active', value: 'active' },
+  { label: 'Suspended', value: 'suspended' },
 ];
 
-const Providers = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<typeof MOCK_PROVIDERS[0] | null>(null);
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-  const filteredProviders = MOCK_PROVIDERS.filter(p => 
-    p.businessName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+export default function Providers() {
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<ProviderStatus | ''>('');
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Service Providers</h2>
-        
-        <div className="flex items-center gap-2">
-          <button className="flex items-center px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50">
-            <Filter className="h-4 w-4 mr-2 text-gray-500" />
-            Filter
-          </button>
-          <div className="relative w-full sm:w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Search providers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+  const { data, isLoading } = useProviders({
+    page,
+    limit: LIMIT,
+    search: search || undefined,
+    status: status || undefined,
+  });
+
+  const approveMutation = useApproveProvider();
+  const suspendMutation = useSuspendProvider();
+  const unsuspendMutation = useUnsuspendProvider();
+  const updateMutation = useUpdateProvider();
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    try {
+      if (confirmAction.type === 'approve') {
+        await approveMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Provider approved');
+      } else if (confirmAction.type === 'unsuspend') {
+        await unsuspendMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Suspension revoked');
+      } else {
+        await suspendMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Provider suspended');
+      }
+      setConfirmAction(null);
+      setSelectedProvider(null);
+    } catch {
+      toast.error(`Failed to ${confirmAction.type} provider`);
+    }
+  };
+
+  const handleToggleFeatured = async (provider: Provider) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: provider.id,
+        body: { isFeatured: !provider.isFeatured },
+      });
+      toast.success(provider.isFeatured ? 'Removed from featured' : 'Marked as featured');
+    } catch {
+      toast.error('Failed to update provider');
+    }
+  };
+
+  const columns: Column<Provider>[] = [
+    {
+      key: 'brandName',
+      header: 'Business',
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            style={{ background: row.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)' }}
+          >
+            {(row.brandName || '?')[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {row.brandName || '—'}
+              {row.isFeatured && (
+                <Star className="w-3.5 h-3.5 inline ml-1 fill-amber-400 text-amber-400" />
+              )}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              {row.user?.name || row.user?.mobileNumber || '—'}
+            </p>
           </div>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'city',
+      header: 'Location',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {[row.area, row.city].filter(Boolean).join(', ') || '—'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'averageRating',
+      header: 'Rating',
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            {row.averageRating?.toFixed(1) || '—'}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            ({row.totalReviews || 0})
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Joined',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {formatDate(row.createdAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-10',
+      render: (row) => (
+        <button
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          onClick={(e) => { e.stopPropagation(); setSelectedProvider(row); }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      ),
+    },
+  ];
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProviders.map(provider => (
-          <div key={provider.id} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="p-5">
-              <div className="flex justify-between items-start">
-                <h3 className="text-lg font-bold text-gray-900 truncate">{provider.businessName}</h3>
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                  provider.status === 'Live' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {provider.status}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{provider.category} • {provider.city}</p>
-              
-              <div className="mt-4 flex items-center gap-4">
-                <div className="flex flex-col">
-                  <span className="text-xs text-gray-500 lowercase">rating</span>
-                  <span className="text-sm font-semibold">{provider.rating > 0 ? `${provider.rating} ⭐` : 'New'}</span>
-                </div>
-                {provider.isWomenLed && (
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-500">Badge</span>
-                    <span className="text-sm font-semibold text-pink-600">Women-Led</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="border-t border-gray-100 bg-gray-50 px-5 py-3">
-              <Dialog.Root>
-                <Dialog.Trigger asChild>
-                  <button 
-                    onClick={() => setSelectedProvider(provider)}
-                    className="w-full flex items-center justify-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                  </button>
-                </Dialog.Trigger>
-                
-                <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40 transition-opacity" />
-                  <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-xl z-50 w-full max-w-md p-6 overflow-hidden">
-                    <Dialog.Title className="text-xl font-bold text-gray-900 mb-2">
-                      {selectedProvider?.businessName}
-                    </Dialog.Title>
-                    <Dialog.Description className="text-sm text-gray-500 mb-6">
-                      Detailed information about the service provider.
-                    </Dialog.Description>
-                    
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wider">Category</p>
-                          <p className="font-medium">{selectedProvider?.category}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wider">Location</p>
-                          <p className="font-medium">{selectedProvider?.city}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wider">Status</p>
-                          <p className="font-medium">{selectedProvider?.status}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wider">Rating</p>
-                          <p className="font-medium">{selectedProvider?.rating || 'No reviews yet'}</p>
-                        </div>
-                      </div>
-                    </div>
+  return (
+    <div>
+      <PageHeader
+        title="Providers"
+        description={data?.meta ? `${data.meta.total.toLocaleString()} providers total` : undefined}
+        breadcrumbs={[
+          { label: 'Dashboard', path: ROUTES.DASHBOARD },
+          { label: 'Providers' },
+        ]}
+        actions={
+          <button
+            onClick={() => navigate(ROUTES.CREATE_PROVIDER)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create Provider
+          </button>
+        }
+      />
 
-                    <div className="mt-8 flex justify-end">
-                      <Dialog.Close asChild>
-                        <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                          Close
-                        </button>
-                      </Dialog.Close>
-                    </div>
-                  </Dialog.Content>
-                </Dialog.Portal>
-              </Dialog.Root>
-            </div>
-          </div>
+      {/* Status Tabs */}
+      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => { setStatus(tab.value); setPage(1); }}
+            className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+            style={{
+              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            {tab.label}
+          </button>
         ))}
       </div>
+
+      <DataTable<Provider>
+        columns={columns}
+        data={data?.items ?? []}
+        meta={data?.meta}
+        isLoading={isLoading}
+        onPageChange={setPage}
+        onSearch={(q) => { setSearch(q); setPage(1); }}
+        searchPlaceholder="Search by business name, owner, or mobile…"
+        searchValue={search}
+        rowKey={(row) => row.id}
+        onRowClick={setSelectedProvider}
+      />
+
+      {/* Provider Detail Panel */}
+      <DetailPanel
+        open={!!selectedProvider}
+        onClose={() => setSelectedProvider(null)}
+        title={selectedProvider?.brandName || 'Provider Detail'}
+        subtitle={selectedProvider?.user?.name || undefined}
+        actions={
+          selectedProvider && (
+            <div className="flex gap-2">
+              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review') && (
+                <>
+                  <button
+                    onClick={() => setConfirmAction({ type: 'approve', provider: selectedProvider })}
+                    className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                    style={{ background: 'var(--color-success)' }}
+                  >
+                    <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
+                    className="px-4 py-2 text-sm font-medium rounded-lg"
+                    style={{ color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}
+                  >
+                    <XCircle className="w-4 h-4 inline mr-1.5" />
+                    Reject
+                  </button>
+                </>
+              )}
+              {selectedProvider.status === 'active' && (
+                <button
+                  onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                >
+                  Suspend
+                </button>
+              )}
+              {selectedProvider.status === 'suspended' && (
+                <button
+                  onClick={() => setConfirmAction({ type: 'unsuspend', provider: selectedProvider })}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-success)' }}
+                >
+                  <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                  Revoke Suspension
+                </button>
+              )}
+              <button
+                onClick={() => handleToggleFeatured(selectedProvider)}
+                className="px-4 py-2 text-sm font-medium rounded-lg"
+                style={{
+                  background: selectedProvider.isFeatured ? 'var(--surface-2)' : 'var(--color-warning-light)',
+                  color: selectedProvider.isFeatured ? 'var(--text-secondary)' : 'var(--color-warning-dark)',
+                }}
+              >
+                <Star className="w-4 h-4 inline mr-1.5" />
+                {selectedProvider.isFeatured ? 'Unfeature' : 'Feature'}
+              </button>
+            </div>
+          )
+        }
+      >
+        {selectedProvider && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {(selectedProvider.brandName || '?')[0]?.toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {selectedProvider.brandName}
+                </h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <StatusBadge status={selectedProvider.status} />
+                  {selectedProvider.isFeatured && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                      Featured
+                    </span>
+                  )}
+                  {selectedProvider.communityVerified && (
+                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                      Verified
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            {selectedProvider.description && (
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {selectedProvider.description}
+              </p>
+            )}
+
+            {/* Info Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Owner', value: selectedProvider.user?.name },
+                { label: 'Mobile', value: selectedProvider.user?.mobileNumber },
+                { label: 'City', value: selectedProvider.city },
+                { label: 'Area', value: selectedProvider.area },
+                { label: 'Rating', value: selectedProvider.averageRating ? `${selectedProvider.averageRating.toFixed(1)} (${selectedProvider.totalReviews} reviews)` : null },
+                { label: 'Women-Led', value: selectedProvider.isWomenLed ? 'Yes' : 'No' },
+                { label: 'Available', value: selectedProvider.isAvailable ? 'Yes' : 'No' },
+                { label: 'Created', value: formatDate(selectedProvider.createdAt) },
+              ].map((field) => (
+                <div key={field.label}>
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>
+                    {field.label}
+                  </p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                    {field.value || '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Categories */}
+            {selectedProvider.providerCategories && selectedProvider.providerCategories.length > 0 && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Categories
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedProvider.providerCategories.map((pc) => (
+                    <span
+                      key={pc.id || pc.category?.id}
+                      className="px-2 py-1 text-xs font-medium rounded-md"
+                      style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                    >
+                      {pc.category?.name || 'Unknown'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </DetailPanel>
+
+      {/* Confirm Approve / Suspend / Unsuspend */}
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleConfirmAction}
+        title={
+          confirmAction?.type === 'approve'
+            ? 'Approve Provider'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend Provider'
+        }
+        description={
+          confirmAction?.type === 'approve'
+            ? `Are you sure you want to approve "${confirmAction.provider.brandName}"? They will become visible on the platform.`
+            : confirmAction?.type === 'unsuspend'
+              ? `Are you sure you want to revoke the suspension for "${confirmAction?.provider.brandName}"? Their profile will become active again.`
+              : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
+        }
+        confirmLabel={
+          confirmAction?.type === 'approve'
+            ? 'Approve'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend'
+        }
+        variant={confirmAction?.type === 'suspend' ? 'danger' : 'default'}
+        isLoading={approveMutation.isPending || suspendMutation.isPending || unsuspendMutation.isPending}
+      />
     </div>
   );
-};
-
-export default Providers;
+}
