@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, ToggleLeft, ToggleRight, Crown, X } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Crown, X, Zap, Users, Target, Sparkles } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { StatCard } from '../components/ui/StatCard';
@@ -117,15 +117,15 @@ export default function Subscriptions() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--bg-subtle)' }}>
+      <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-2)' }}>
         <button onClick={() => setTab('subscriptions')}
           className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${tab === 'subscriptions' ? 'shadow-sm' : ''}`}
-          style={{ background: tab === 'subscriptions' ? 'var(--bg-card)' : 'transparent', color: tab === 'subscriptions' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+          style={{ background: tab === 'subscriptions' ? 'var(--surface-0)' : 'transparent', color: tab === 'subscriptions' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
           Active Subscriptions
         </button>
         <button onClick={() => setTab('plans')}
           className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${tab === 'plans' ? 'shadow-sm' : ''}`}
-          style={{ background: tab === 'plans' ? 'var(--bg-card)' : 'transparent', color: tab === 'plans' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+          style={{ background: tab === 'plans' ? 'var(--surface-0)' : 'transparent', color: tab === 'plans' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
           Manage Plans
         </button>
       </div>
@@ -154,137 +154,197 @@ export default function Subscriptions() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {(plans ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((plan) => (
-              <div key={plan.id} className="rounded-xl border overflow-hidden transition-shadow hover:shadow-md"
-                style={{ background: 'var(--bg-card)', borderColor: plan.isActive ? 'var(--color-primary)' : 'var(--border-light)', borderWidth: plan.isActive ? 2 : 1 }}>
-                {/* Plan Header */}
-                <div className="p-5 pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{plan.name}</h4>
-                        {plan.isActive
-                          ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
-                          : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Inactive</span>}
+            {(plans ?? []).sort((a, b) => a.sortOrder - b.sortOrder).map((plan, idx) => {
+              const tierColors = ['from-blue-500 to-indigo-600', 'from-violet-500 to-purple-600', 'from-amber-500 to-orange-600'];
+              const gradientClass = tierColors[idx % tierColors.length];
+              return (
+                <div key={plan.id} className="rounded-2xl border overflow-hidden transition-all hover:shadow-lg group"
+                  style={{ background: 'var(--surface-0)', borderColor: plan.isActive ? 'var(--color-primary)' : 'var(--border-light)', borderWidth: plan.isActive ? 2 : 1 }}>
+                  {/* Gradient Header */}
+                  <div className={`bg-gradient-to-br ${gradientClass} p-5 pb-4 relative overflow-hidden`}>
+                    <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/10 -translate-y-8 translate-x-8" />
+                    <div className="relative flex items-start justify-between">
+                      <div>
+                        <h4 className="text-xl font-bold text-white">{plan.name}</h4>
+                        <p className="text-xs text-white/60 font-mono mt-0.5">{plan.slug}</p>
                       </div>
-                      <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-muted)' }}>{plan.slug}</p>
+                      <div className="flex gap-1">
+                        <button onClick={() => openEditPlan(plan)} className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors" title="Edit">
+                          <Pencil size={14} className="text-white" />
+                        </button>
+                        <button onClick={() => handleTogglePlan(plan)} className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors" title="Toggle">
+                          {plan.isActive ? <ToggleRight size={16} className="text-white" /> : <ToggleLeft size={16} className="text-white/60" />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => openEditPlan(plan)} className="p-1.5 rounded-lg hover:bg-gray-100" title="Edit"><Pencil size={14} /></button>
-                      <button onClick={() => handleTogglePlan(plan)} className="p-1.5 rounded-lg hover:bg-gray-100" title="Toggle">
-                        {plan.isActive ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} className="text-gray-400" />}
-                      </button>
+                    <div className="flex items-baseline gap-1 mt-3">
+                      <span className="text-3xl font-extrabold text-white">₹{Number(plan.priceMonthly).toLocaleString()}</span>
+                      <span className="text-sm text-white/70">/mo</span>
                     </div>
+                    <p className="text-xs text-white/50 mt-0.5">₹{Number(plan.priceYearly).toLocaleString()}/yr</p>
+                    {!plan.isActive && (
+                      <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/20 text-white/70 uppercase">Inactive</span>
+                    )}
                   </div>
-                </div>
 
-                {/* Pricing */}
-                <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border-light)' }}>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(plan.priceMonthly).toLocaleString()}</span>
-                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>/mo</span>
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>₹{Number(plan.priceYearly).toLocaleString()}/yr</div>
-                </div>
-
-                {/* Limits */}
-                <div className="px-5 py-3 space-y-2" style={{ borderTop: '1px solid var(--border-light)' }}>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-secondary)' }}>Active Deals</span>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{plan.maxActiveDeals === -1 ? '∞' : plan.maxActiveDeals}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-secondary)' }}>Total Deals</span>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{plan.maxTotalDeals === -1 ? '∞' : plan.maxTotalDeals}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span style={{ color: 'var(--text-secondary)' }}>Lead Unlocks / mo</span>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{plan.monthlyLeadUnlocks === -1 ? '∞' : plan.monthlyLeadUnlocks}</span>
-                  </div>
-                  {plan.sponsorshipTypes && plan.sponsorshipTypes.length > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: 'var(--text-secondary)' }}>Sponsorships</span>
-                      <span className="font-medium capitalize" style={{ color: 'var(--text-primary)' }}>{plan.sponsorshipTypes.join(', ')}</span>
+                  {/* Features list */}
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                        <Target size={14} className="text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Active Deals</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{plan.maxActiveDeals === -1 ? 'Unlimited' : plan.maxActiveDeals}</p>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                        <Zap size={14} className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Deals</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{plan.maxTotalDeals === -1 ? 'Unlimited' : plan.maxTotalDeals}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                        <Users size={14} className="text-violet-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Lead Unlocks / mo</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{plan.monthlyLeadUnlocks === -1 ? 'Unlimited' : plan.monthlyLeadUnlocks}</p>
+                      </div>
+                    </div>
+                    {plan.sponsorshipTypes && plan.sponsorshipTypes.length > 0 && (
+                      <div className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                          <Sparkles size={14} className="text-amber-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sponsorship Types</p>
+                          <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{plan.sponsorshipTypes.join(', ').replace(/_/g, ' ')}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Sort Order */}
-                <div className="px-5 py-2 text-xs" style={{ borderTop: '1px solid var(--border-light)', color: 'var(--text-muted)' }}>
-                  Sort order: {plan.sortOrder}
+                  {/* Footer */}
+                  <div className="px-5 py-2.5 text-xs flex items-center justify-between" style={{ borderTop: '1px solid var(--border-light)', color: 'var(--text-muted)' }}>
+                    <span>Sort order: {plan.sortOrder}</span>
+                    {plan.isActive && <span className="inline-flex items-center gap-1 text-green-600 font-medium"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Live</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Plan Create/Edit Modal */}
       {showPlanForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--bg-card)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--surface-0)' }}>
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {editingPlan ? 'Edit Plan' : 'Create Plan'}
-              </h3>
-              <button onClick={() => setShowPlanForm(false)} className="p-1.5 rounded-lg hover:bg-gray-100"><X size={18} /></button>
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-500 to-violet-600">
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {editingPlan ? 'Edit Plan' : 'Create Plan'}
+                </h3>
+                <p className="text-xs text-white/60">Configure pricing and feature limits</p>
+              </div>
+              <button onClick={() => setShowPlanForm(false)} className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"><X size={18} className="text-white" /></button>
             </div>
 
             {/* Modal Body */}
-            <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Plan Name" required>
-                  <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="e.g. Business" className="input w-full" />
-                </FormField>
-                <FormField label="Slug" required>
-                  <input value={planForm.slug} onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                    placeholder="e.g. business" className="input w-full font-mono" disabled={!!editingPlan} />
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Monthly Price (₹)" required>
-                  <input type="number" value={planForm.priceMonthly || ''} onChange={(e) => setPlanForm({ ...planForm, priceMonthly: Number(e.target.value) })} className="input w-full" />
-                </FormField>
-                <FormField label="Yearly Price (₹)" required>
-                  <input type="number" value={planForm.priceYearly || ''} onChange={(e) => setPlanForm({ ...planForm, priceYearly: Number(e.target.value) })} className="input w-full" />
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <FormField label="Active Deals">
-                  <input type="number" value={planForm.maxActiveDeals} onChange={(e) => setPlanForm({ ...planForm, maxActiveDeals: Number(e.target.value) })} className="input w-full" />
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>-1 = unlimited</p>
-                </FormField>
-                <FormField label="Total Deals">
-                  <input type="number" value={planForm.maxTotalDeals} onChange={(e) => setPlanForm({ ...planForm, maxTotalDeals: Number(e.target.value) })} className="input w-full" />
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>-1 = unlimited</p>
-                </FormField>
-                <FormField label="Lead Unlocks/mo">
-                  <input type="number" value={planForm.monthlyLeadUnlocks} onChange={(e) => setPlanForm({ ...planForm, monthlyLeadUnlocks: Number(e.target.value) })} className="input w-full" />
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>-1 = unlimited</p>
-                </FormField>
-              </div>
-
-              <FormField label="Sponsorship Types">
-                <div className="flex flex-wrap gap-3">
-                  {SPONSORSHIP_OPTIONS.map((t) => (
-                    <label key={t} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                      <input type="checkbox" checked={planForm.sponsorshipTypes.includes(t)}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          sponsorshipTypes: e.target.checked ? [...planForm.sponsorshipTypes, t] : planForm.sponsorshipTypes.filter((x) => x !== t),
-                        })}
-                        className="rounded" />
-                      <span className="capitalize">{t.replace('_', ' ')}</span>
-                    </label>
-                  ))}
+            <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+              {/* Identity */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Identity</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Plan Name" required>
+                    <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="e.g. Business" className="input w-full" />
+                  </FormField>
+                  <FormField label="Slug" required>
+                    <input value={planForm.slug} onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                      placeholder="e.g. business" className="input w-full font-mono" disabled={!!editingPlan} />
+                  </FormField>
                 </div>
-              </FormField>
+              </div>
 
+              <hr style={{ borderColor: 'var(--border-light)' }} />
+
+              {/* Pricing */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pricing</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Monthly (₹)" required>
+                    <div className="relative">
+                      <input type="number" value={planForm.priceMonthly || ''} onChange={(e) => setPlanForm({ ...planForm, priceMonthly: Number(e.target.value) })} className="input w-full pl-6" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
+                    </div>
+                  </FormField>
+                  <FormField label="Yearly (₹)" required>
+                    <div className="relative">
+                      <input type="number" value={planForm.priceYearly || ''} onChange={(e) => setPlanForm({ ...planForm, priceYearly: Number(e.target.value) })} className="input w-full pl-6" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
+                    </div>
+                  </FormField>
+                </div>
+                {planForm.priceMonthly > 0 && planForm.priceYearly > 0 && (
+                  <p className="text-xs px-2 py-1 rounded bg-green-50 text-green-700 inline-block">
+                    Yearly saves {Math.round((1 - planForm.priceYearly / (planForm.priceMonthly * 12)) * 100)}%
+                  </p>
+                )}
+              </div>
+
+              <hr style={{ borderColor: 'var(--border-light)' }} />
+
+              {/* Feature Limits */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Feature Limits</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Use -1 for unlimited</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField label="Active Deals">
+                    <input type="number" value={planForm.maxActiveDeals} onChange={(e) => setPlanForm({ ...planForm, maxActiveDeals: Number(e.target.value) })} className="input w-full text-center" />
+                  </FormField>
+                  <FormField label="Total Deals">
+                    <input type="number" value={planForm.maxTotalDeals} onChange={(e) => setPlanForm({ ...planForm, maxTotalDeals: Number(e.target.value) })} className="input w-full text-center" />
+                  </FormField>
+                  <FormField label="Leads / mo">
+                    <input type="number" value={planForm.monthlyLeadUnlocks} onChange={(e) => setPlanForm({ ...planForm, monthlyLeadUnlocks: Number(e.target.value) })} className="input w-full text-center" />
+                  </FormField>
+                </div>
+              </div>
+
+              <hr style={{ borderColor: 'var(--border-light)' }} />
+
+              {/* Sponsorship Types */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sponsorship Access</p>
+                <div className="flex flex-wrap gap-2">
+                  {SPONSORSHIP_OPTIONS.map((t) => {
+                    const selected = planForm.sponsorshipTypes.includes(t);
+                    return (
+                      <button key={t} type="button"
+                        onClick={() => setPlanForm({
+                          ...planForm,
+                          sponsorshipTypes: selected ? planForm.sponsorshipTypes.filter((x) => x !== t) : [...planForm.sponsorshipTypes, t],
+                        })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all capitalize ${selected ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'hover:bg-gray-50'}`}
+                        style={!selected ? { borderColor: 'var(--border-color)', color: 'var(--text-muted)' } : undefined}>
+                        {t.replace('_', ' ')}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <hr style={{ borderColor: 'var(--border-light)' }} />
+
+              {/* Sort Order */}
               <FormField label="Sort Order">
-                <input type="number" value={planForm.sortOrder} onChange={(e) => setPlanForm({ ...planForm, sortOrder: Number(e.target.value) })} className="input w-24" />
+                <input type="number" value={planForm.sortOrder} onChange={(e) => setPlanForm({ ...planForm, sortOrder: Number(e.target.value) })} className="input w-24 text-center" />
               </FormField>
             </div>
 

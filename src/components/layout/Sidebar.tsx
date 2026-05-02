@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -67,6 +67,7 @@ const sections = [
       { name: 'Subscriptions', path: ROUTES.SUBSCRIPTIONS, icon: Crown },
       { name: 'Vouchers', path: ROUTES.VOUCHERS, icon: Ticket },
       { name: 'Revenue', path: ROUTES.REVENUE, icon: DollarSign },
+      { name: 'Pricing Config', path: ROUTES.MONETIZATION_SETTINGS, icon: Coins },
     ],
   },
   {

@@ -31,6 +31,7 @@ export const ROUTES = {
   SUBSCRIPTIONS: '/subscriptions',
   PAYMENTS: '/payments',
   REVENUE: '/revenue',
+  MONETIZATION_SETTINGS: '/monetization-settings',
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';

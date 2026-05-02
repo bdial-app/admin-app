@@ -40,6 +40,7 @@ const Vouchers = lazy(() => import('./pages/Vouchers'));
 const PaymentsPage = lazy(() => import('./pages/Payments'));
 const SubscriptionsPage = lazy(() => import('./pages/Subscriptions'));
 const RevenuePage = lazy(() => import('./pages/Revenue'));
+const MonetizationSettingsPage = lazy(() => import('./pages/MonetizationSettings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
@@ -102,6 +103,7 @@ function App() {
             <Route path={ROUTES.PAYMENTS} element={<PaymentsPage />} />
             <Route path={ROUTES.SUBSCRIPTIONS} element={<SubscriptionsPage />} />
             <Route path={ROUTES.REVENUE} element={<RevenuePage />} />
+            <Route path={ROUTES.MONETIZATION_SETTINGS} element={<MonetizationSettingsPage />} />
 
             {/* Insights */}
             <Route path={ROUTES.ANALYTICS} element={<Analytics />} />

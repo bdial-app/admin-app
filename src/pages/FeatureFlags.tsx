@@ -38,6 +38,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: 'Sponsorships Require Approval',
     description: 'When enabled, new sponsorship listings need admin approval before going live',
   },
+  provider_disable_cooldown_enabled: {
+    label: 'Provider Disable Cooldown',
+    description: 'Enforce cooldown period before a provider can re-enable after disabling',
+  },
 };
 
 const LIMIT_LABELS: Record<string, { label: string; description: string }> = {
@@ -56,6 +60,10 @@ const LIMIT_LABELS: Record<string, { label: string; description: string }> = {
   max_active_sponsorships_per_provider: {
     label: 'Max Active Sponsorships Per Provider',
     description: 'Maximum number of active sponsorships per provider',
+  },
+  provider_disable_cooldown_hours: {
+    label: 'Provider Disable Cooldown (Hours)',
+    description: 'Hours a provider must stay disabled before they can re-enable. Default: 48 (2 days)',
   },
 };
 
