@@ -9,7 +9,11 @@ export type NotificationType =
   | 'promotional'
   | 'system_announcement'
   | 'report_update'
-  | 'new_enquiry';
+  | 'new_enquiry'
+  | 'payment_update'
+  | 'voucher_update'
+  | 'subscription_update'
+  | 'invite_update';
 
 export type BatchTargetType = 'all' | 'segment' | 'individual';
 export type BatchStatus = 'draft' | 'sending' | 'sent' | 'failed';
@@ -58,4 +62,36 @@ export interface BatchFilters {
   page?: number;
   limit?: number;
   status?: BatchStatus | '';
+}
+
+// ── Notification Templates ───────────────────────────────
+
+export type TemplateCategory = 'onboarding' | 'transactional' | 'engagement' | 'marketing';
+
+export interface NotificationTemplate {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  type: NotificationType;
+  titleTemplate: string;
+  bodyTemplate: string;
+  variables: string[];
+  category: string;
+  isActive: boolean;
+  defaultRoute: string | null;
+  defaultImageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateTemplatePayload {
+  name?: string;
+  description?: string;
+  titleTemplate?: string;
+  bodyTemplate?: string;
+  variables?: string[];
+  isActive?: boolean;
+  defaultRoute?: string;
+  defaultImageUrl?: string;
 }

@@ -1,6 +1,7 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse, PromoBanner } from '../types';
+import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
 
 export interface BannerFilters {
   page?: number;
@@ -8,7 +9,7 @@ export interface BannerFilters {
   isActive?: string;
 }
 
-function buildBannerFormData(body: Partial<PromoBanner>, imageFile?: File | null): FormData {
+async function buildBannerFormData(body: Partial<PromoBanner>, imageFile?: File | null): Promise<FormData> {
   const fd = new FormData();
   const fields: (keyof PromoBanner)[] = ['title', 'subtitle', 'gradient', 'emoji', 'cta', 'tag', 'linkUrl', 'isActive', 'startsAt', 'endsAt'];
   for (const key of fields) {
@@ -22,7 +23,8 @@ function buildBannerFormData(body: Partial<PromoBanner>, imageFile?: File | null
     fd.append('imageUrl', 'null');
   }
   if (imageFile) {
-    fd.append('image', imageFile);
+    const compressed = await compressImageFile(imageFile, COMPRESS_PRESETS.banner);
+    fd.append('image', compressed);
   }
   return fd;
 }
@@ -51,7 +53,7 @@ export const bannersService = {
   },
 
   create: async (body: Partial<PromoBanner>, imageFile?: File | null): Promise<PromoBanner> => {
-    const fd = buildBannerFormData(body, imageFile);
+    const fd = await buildBannerFormData(body, imageFile);
     const { data } = await api.post(URLS.BANNERS.CREATE, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -59,7 +61,7 @@ export const bannersService = {
   },
 
   update: async (id: string, body: Partial<PromoBanner>, imageFile?: File | null): Promise<PromoBanner> => {
-    const fd = buildBannerFormData(body, imageFile);
+    const fd = await buildBannerFormData(body, imageFile);
     const { data } = await api.patch(URLS.BANNERS.UPDATE(id), fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

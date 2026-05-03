@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Clock, Eye, Bell, Users, User, BarChart3 } from 'lucide-react';
+import { Send, Clock, Eye, Bell, Users, User, BarChart3, Settings2, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -8,10 +8,13 @@ import {
   useNotificationBatches,
   useSendNotification,
   useNotificationStats,
+  useNotificationTemplates,
+  useToggleTemplate,
+  useUpdateTemplate,
 } from '../hooks/useNotifications';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { NotificationBatch, BatchStatus, BatchTargetType } from '../types';
+import type { NotificationBatch, BatchStatus, BatchTargetType, NotificationTemplate } from '../types';
 
 const LIMIT = 10;
 
@@ -50,7 +53,7 @@ const EMPTY_FORM = {
 
 export default function Notifications() {
   // ── Tab state ─────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'send' | 'history'>('send');
+  const [activeTab, setActiveTab] = useState<'send' | 'history' | 'controls'>('send');
 
   // ── History state ─────────────────────────────────────
   const [page, setPage] = useState(1);
@@ -228,6 +231,7 @@ export default function Notifications() {
         {[
           { label: 'Send', value: 'send' as const, icon: Send },
           { label: 'History', value: 'history' as const, icon: Clock },
+          { label: 'Controls', value: 'controls' as const, icon: Settings2 },
         ].map((tab) => (
           <button
             key={tab.value}
@@ -563,6 +567,9 @@ export default function Notifications() {
         </>
       )}
 
+      {/* ────────────────────── Controls Tab ──────────────── */}
+      {activeTab === 'controls' && <NotificationControlsTab />}
+
       {/* ────────────────────── Detail Panel ───────────────── */}
       <DetailPanel
         open={!!selected}
@@ -677,6 +684,255 @@ export default function Notifications() {
           </div>
         )}
       </DetailPanel>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Controls Tab Component
+// ─────────────────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<string, string> = {
+  onboarding: '🚀 Onboarding',
+  transactional: '🔔 Transactional',
+  engagement: '💡 Engagement',
+  marketing: '📢 Marketing',
+};
+
+const CATEGORY_ORDER = ['onboarding', 'transactional', 'engagement', 'marketing'];
+
+function NotificationControlsTab() {
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ titleTemplate: string; bodyTemplate: string }>({
+    titleTemplate: '',
+    bodyTemplate: '',
+  });
+
+  const { data: templates, isLoading } = useNotificationTemplates(categoryFilter || undefined);
+  const toggleMutation = useToggleTemplate();
+  const updateMutation = useUpdateTemplate();
+
+  const grouped = (templates || []).reduce<Record<string, NotificationTemplate[]>>((acc, t) => {
+    const cat = t.category || 'transactional';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(t);
+    return acc;
+  }, {});
+
+  const handleToggle = (template: NotificationTemplate) => {
+    toggleMutation.mutate(
+      { id: template.id, isActive: !template.isActive },
+      {
+        onSuccess: () =>
+          toast.success(`${template.name} ${!template.isActive ? 'enabled' : 'disabled'}`),
+        onError: () => toast.error('Failed to toggle template'),
+      },
+    );
+  };
+
+  const startEdit = (template: NotificationTemplate) => {
+    setEditingId(template.id);
+    setEditForm({
+      titleTemplate: template.titleTemplate,
+      bodyTemplate: template.bodyTemplate,
+    });
+  };
+
+  const saveEdit = (template: NotificationTemplate) => {
+    updateMutation.mutate(
+      {
+        id: template.id,
+        payload: {
+          titleTemplate: editForm.titleTemplate,
+          bodyTemplate: editForm.bodyTemplate,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Template updated');
+          setEditingId(null);
+        },
+        onError: () => toast.error('Failed to update template'),
+      },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Description */}
+      <div
+        className="p-4 rounded-xl"
+        style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+      >
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Notification Controls
+        </h3>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Toggle individual notifications on/off and customize their content. Disabled notifications
+          will not be sent to any user. All automated notifications are fully under admin control.
+        </p>
+      </div>
+
+      {/* Category Filter */}
+      <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
+        {[{ label: 'All', value: '' }, ...CATEGORY_ORDER.map((c) => ({ label: CATEGORY_LABELS[c] || c, value: c }))].map(
+          (tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setCategoryFilter(tab.value)}
+              className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+              style={{
+                background: categoryFilter === tab.value ? 'var(--surface-0)' : 'transparent',
+                color: categoryFilter === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: categoryFilter === tab.value ? 'var(--shadow-sm)' : 'none',
+              }}
+            >
+              {tab.label}
+            </button>
+          ),
+        )}
+      </div>
+
+      {/* Templates grouped by category */}
+      {CATEGORY_ORDER.filter((c) => !categoryFilter || c === categoryFilter).map((category) => {
+        const items = grouped[category];
+        if (!items || items.length === 0) return null;
+        return (
+          <div key={category} className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: 'var(--text-muted)' }}>
+              {CATEGORY_LABELS[category] || category}
+            </h4>
+            <div className="space-y-1">
+              {items.map((template) => (
+                <div
+                  key={template.id}
+                  className="p-4 rounded-xl transition-colors"
+                  style={{
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border-default)',
+                    opacity: template.isActive ? 1 : 0.6,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {template.name}
+                        </p>
+                        <span
+                          className="px-1.5 py-0.5 text-[10px] font-medium rounded"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                        >
+                          {template.type}
+                        </span>
+                      </div>
+                      {template.description && (
+                        <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                          {template.description}
+                        </p>
+                      )}
+
+                      {editingId === template.id ? (
+                        <div className="space-y-2 mt-2">
+                          <input
+                            type="text"
+                            value={editForm.titleTemplate}
+                            onChange={(e) => setEditForm({ ...editForm, titleTemplate: e.target.value })}
+                            className="w-full px-3 py-1.5 text-sm rounded-lg"
+                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                            placeholder="Title template"
+                          />
+                          <textarea
+                            value={editForm.bodyTemplate}
+                            onChange={(e) => setEditForm({ ...editForm, bodyTemplate: e.target.value })}
+                            rows={2}
+                            className="w-full px-3 py-1.5 text-sm rounded-lg resize-none"
+                            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                            placeholder="Body template"
+                          />
+                          {template.variables.length > 0 && (
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              Variables: {template.variables.map((v) => `{{${v}}}`).join(', ')}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => saveEdit(template)}
+                              disabled={updateMutation.isPending}
+                              className="px-3 py-1 text-xs font-medium rounded-md text-white"
+                              style={{ background: 'var(--color-primary)' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="px-3 py-1 text-xs font-medium rounded-md"
+                              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-1 p-2 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                            {template.titleTemplate}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                            {template.bodyTemplate}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => startEdit(template)}
+                        className="p-1.5 rounded-lg transition-colors hover:opacity-80"
+                        style={{ color: 'var(--text-muted)' }}
+                        title="Edit template"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleToggle(template)}
+                        disabled={toggleMutation.isPending}
+                        className="transition-colors"
+                        title={template.isActive ? 'Disable notification' : 'Enable notification'}
+                      >
+                        {template.isActive ? (
+                          <ToggleRight className="w-7 h-7" style={{ color: 'var(--color-success)' }} />
+                        ) : (
+                          <ToggleLeft className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {!templates?.length && (
+        <div className="text-center py-12">
+          <Bell className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            No notification templates configured yet. They will be auto-created on first server start.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

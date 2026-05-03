@@ -93,12 +93,16 @@ export default function Banners() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error('Image must be under 15MB'); return; }
     setImageFile(file);
+    // Revoke previous blob URL to prevent memory leak
+    if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
     setImagePreview(URL.createObjectURL(file));
   };
 
   const removeImage = () => {
+    // Revoke blob URL to prevent memory leak
+    if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
     setForm(prev => ({ ...prev, imageUrl: null }));

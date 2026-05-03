@@ -6,6 +6,8 @@ import type {
   NotificationStats,
   SendNotificationPayload,
   BatchFilters,
+  NotificationTemplate,
+  UpdateTemplatePayload,
 } from '../types';
 
 export const notificationsService = {
@@ -34,6 +36,30 @@ export const notificationsService = {
 
   getStats: async (): Promise<NotificationStats> => {
     const { data } = await api.get(URLS.NOTIFICATIONS.STATS);
+    return data;
+  },
+
+  // ── Template Management ──────────────────────────────────
+
+  getTemplates: async (category?: string): Promise<NotificationTemplate[]> => {
+    const { data } = await api.get(URLS.NOTIFICATIONS.TEMPLATES, {
+      params: category ? { category } : undefined,
+    });
+    return data;
+  },
+
+  getTemplate: async (id: string): Promise<NotificationTemplate> => {
+    const { data } = await api.get(URLS.NOTIFICATIONS.TEMPLATE_DETAIL(id));
+    return data;
+  },
+
+  updateTemplate: async (id: string, payload: UpdateTemplatePayload): Promise<NotificationTemplate> => {
+    const { data } = await api.put(URLS.NOTIFICATIONS.TEMPLATE_DETAIL(id), payload);
+    return data;
+  },
+
+  toggleTemplate: async (id: string, isActive: boolean): Promise<NotificationTemplate> => {
+    const { data } = await api.patch(URLS.NOTIFICATIONS.TEMPLATE_TOGGLE(id), { isActive });
     return data;
   },
 };

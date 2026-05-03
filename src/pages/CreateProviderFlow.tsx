@@ -221,8 +221,9 @@ export default function CreateProviderFlow() {
   const addProductImages = useCallback((idx: number, files: File[]) => {
     setProducts((prev) => prev.map((p, i) => {
       if (i !== idx) return p;
+      // Revoke old blob URLs to prevent memory leaks
+      p.imagePreviews.forEach((url) => URL.revokeObjectURL(url));
       const newFiles = [...p.imageFiles, ...files].slice(0, 5); // max 5
-      // rebuild previews correctly
       const previews = newFiles.map((f) => URL.createObjectURL(f));
       return { ...p, imageFiles: newFiles, imagePreviews: previews };
     }));
@@ -231,6 +232,8 @@ export default function CreateProviderFlow() {
   const removeProductImage = useCallback((productIdx: number, imageIdx: number) => {
     setProducts((prev) => prev.map((p, i) => {
       if (i !== productIdx) return p;
+      // Revoke removed blob URL
+      if (p.imagePreviews[imageIdx]) URL.revokeObjectURL(p.imagePreviews[imageIdx]);
       const newFiles = p.imageFiles.filter((_, fi) => fi !== imageIdx);
       const newPreviews = p.imagePreviews.filter((_, pi) => pi !== imageIdx);
       return { ...p, imageFiles: newFiles, imagePreviews: newPreviews };
@@ -865,8 +868,8 @@ export default function CreateProviderFlow() {
                             onChange={(e) => {
                               const files = Array.from(e.target.files ?? []);
                               if (!files.length) return;
-                              const tooLarge = files.find(f => f.size > 5 * 1024 * 1024);
-                              if (tooLarge) { toast.error(`${tooLarge.name} is over 5MB`); return; }
+                              const tooLarge = files.find(f => f.size > 20 * 1024 * 1024);
+                              if (tooLarge) { toast.error(`${tooLarge.name} is over 20MB`); return; }
                               addProductImages(idx, files);
                               e.target.value = '';
                             }}
@@ -878,7 +881,7 @@ export default function CreateProviderFlow() {
                       {product.imageFiles.length === 0 && (
                         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                           <ImageIcon className="w-4 h-4 opacity-40" />
-                          <span>PNG, JPG, WebP — max 5MB each</span>
+                          <span>PNG, JPG, WebP — up to 20MB (auto-compressed)</span>
                         </div>
                       )}
                     </div>

@@ -3,6 +3,7 @@ import { URLS } from '../utils/urls';
 import type { User } from '../types';
 import type { Provider } from '../types';
 import type { Product } from '../types';
+import { compressImageFiles, COMPRESS_PRESETS } from '../utils/compress-image';
 
 export interface AdminCreateUserPayload {
   mobileNumber: string;
@@ -100,8 +101,9 @@ export const adminCreateService = {
   },
 
   uploadProductImages: async (productId: string, files: File[]): Promise<import('../types').Product> => {
+    const compressed = await compressImageFiles(files, COMPRESS_PRESETS.product);
     const fd = new FormData();
-    for (const file of files) fd.append('images', file);
+    for (const file of compressed) fd.append('images', file);
     const { data } = await api.post(URLS.PRODUCTS.UPLOAD_IMAGES(productId), fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

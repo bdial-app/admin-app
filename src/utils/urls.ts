@@ -191,8 +191,9 @@
     SEND: '/admin/notifications/send',
     BATCHES: '/admin/notifications/batches',
     BATCH_DETAIL: (id: string) => `/admin/notifications/batches/${id}`,
-    STATS: '/admin/notifications/stats',
-  },
+    STATS: '/admin/notifications/stats',    TEMPLATES: '/admin/notifications/templates',
+    TEMPLATE_DETAIL: (id: string) => `/admin/notifications/templates/${id}`,
+    TEMPLATE_TOGGLE: (id: string) => `/admin/notifications/templates/${id}/toggle`,  },
   // -- Admin Bug Reports --------------------------------
   BUG_REPORTS: {
     LIST: '/admin/bug-reports',
