@@ -84,4 +84,25 @@ export const providersService = {
     const { data } = await api.get(URLS.PROVIDERS.WARNINGS(id));
     return data;
   },
+
+  // Women-Led Approval
+  getWomenLedPending: async (page = 1, limit = 10) => {
+    const { data } = await api.get(`${URLS.PROVIDERS.WOMEN_LED_PENDING}?page=${page}&limit=${limit}`);
+    return data;
+  },
+
+  approveWomenLed: async (id: string) => {
+    const { data } = await api.patch(URLS.PROVIDERS.WOMEN_LED_APPROVE(id));
+    return data;
+  },
+
+  rejectWomenLed: async (id: string) => {
+    const { data } = await api.patch(URLS.PROVIDERS.WOMEN_LED_REJECT(id));
+    return data;
+  },
+
+  getWomenLedAnalytics: async () => {
+    const { data } = await api.get(URLS.PROVIDERS.WOMEN_LED_ANALYTICS);
+    return data;
+  },
 };

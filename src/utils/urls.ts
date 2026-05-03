@@ -24,7 +24,7 @@
     ACTIVITY: (id: string) => `/admin/users/${id}/activity`,
   },
 
-  // â”€â”€ Admin Providers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Admin Providers ──────────────────────────────────────
   PROVIDERS: {
     LIST: '/admin/providers',
     PENDING: '/admin/providers/pending',
@@ -40,6 +40,10 @@
     BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
+    WOMEN_LED_PENDING: '/admin/providers/women-led/pending',
+    WOMEN_LED_APPROVE: (id: string) => `/admin/providers/${id}/women-led/approve`,
+    WOMEN_LED_REJECT: (id: string) => `/admin/providers/${id}/women-led/reject`,
+    WOMEN_LED_ANALYTICS: '/admin/analytics/women-led',
   },
 
   // â”€â”€ Admin Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

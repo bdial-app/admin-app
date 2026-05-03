@@ -54,6 +54,18 @@ export interface DashboardStats {
   activeBanners: number;
   pendingSponsorships: number;
   pendingOffers: number;
+  // Extended
+  totalRevenue: number;
+  revenueThisMonth: number;
+  totalPayments: number;
+  activeSubscriptions: number;
+  leadBreakdown: { hot: number; warm: number; cold: number };
+  adImpressions: number;
+  adClicks: number;
+  adCtr: number;
+  womenLedPending: number;
+  topCities: { city: string; count: number }[];
+  totalMessages: number;
 }
 
 export interface TimeSeriesPoint {
@@ -66,6 +78,8 @@ export interface DashboardTimeSeries {
   providerGrowth: TimeSeriesPoint[];
   searchVolume: TimeSeriesPoint[];
   reportVolume: TimeSeriesPoint[];
+  leadVolume: TimeSeriesPoint[];
+  conversationVolume: TimeSeriesPoint[];
 }
 
 export interface AnalyticsOverview {
