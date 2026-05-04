@@ -1,4 +1,4 @@
-type StatusType = 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'deleted' | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed';
+type StatusType = 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'deleted' | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed' | 'paused' | 'in_review' | 'unverified' | 'disabled';
 
 interface StatusBadgeProps {
   status: string;
@@ -10,8 +10,12 @@ const config: Record<StatusType, { label: string; dot: string; bg: string; text:
   pending:       { label: 'Pending',       dot: 'bg-amber-400',  bg: 'bg-amber-50',   text: 'text-amber-700'  },
   approved:      { label: 'Approved',      dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
   rejected:      { label: 'Rejected',      dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
-  active:        { label: 'Active',        dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
+  active:        { label: 'Verified',      dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
   suspended:     { label: 'Suspended',     dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
+  paused:        { label: 'Paused',        dot: 'bg-blue-400',   bg: 'bg-blue-50',     text: 'text-blue-700'   },
+  in_review:     { label: 'In Review',     dot: 'bg-amber-400',  bg: 'bg-amber-50',    text: 'text-amber-700'  },
+  unverified:    { label: 'Unverified',    dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-600'   },
+  disabled:      { label: 'Disabled',      dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
   deleted:       { label: 'Deleted',       dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
   not_submitted: { label: 'Not Submitted', dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
   flagged:       { label: 'Flagged',       dot: 'bg-orange-400', bg: 'bg-orange-50',   text: 'text-orange-700' },

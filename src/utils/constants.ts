@@ -33,6 +33,7 @@ export const ROUTES = {
   REVENUE: '/revenue',
   MONETIZATION_SETTINGS: '/monetization-settings',
   WOMEN_LED: '/women-led',
+  PROVIDER_VIEW: '/providers/:id',
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';

@@ -198,21 +198,21 @@ export default function BugReports() {
             </div>
 
             <div>
-              <span className="text-sm text-muted-foreground">Description</span>
-              <p className="mt-1 text-sm bg-muted rounded p-2 whitespace-pre-wrap">{selected.description}</p>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Description</span>
+              <p className="mt-1 text-sm rounded-lg p-3 whitespace-pre-wrap" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.description}</p>
             </div>
 
             {selected.stepsToReproduce && (
               <div>
-                <span className="text-sm text-muted-foreground">Steps to Reproduce</span>
-                <p className="mt-1 text-sm bg-muted rounded p-2 whitespace-pre-wrap">{selected.stepsToReproduce}</p>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Steps to Reproduce</span>
+                <p className="mt-1 text-sm rounded-lg p-3 whitespace-pre-wrap" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.stepsToReproduce}</p>
               </div>
             )}
 
             {selected.deviceInfo && (
               <div>
-                <span className="text-sm text-muted-foreground">Device Info</span>
-                <p className="mt-1 text-sm bg-muted rounded p-2 font-mono text-xs">{selected.deviceInfo}</p>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Device Info</span>
+                <p className="mt-1 text-sm font-mono text-xs rounded-lg p-3" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.deviceInfo}</p>
               </div>
             )}
 
@@ -224,7 +224,8 @@ export default function BugReports() {
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as BugReportStatus)}
-                  className="mt-1 w-full text-sm border rounded-md px-3 py-1.5 bg-background"
+                  className="mt-1 w-full text-sm rounded-lg px-3 py-2"
+                  style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                 >
                   {(Object.keys(BUG_STATUS_LABELS) as BugReportStatus[]).map((s) => (
                     <option key={s} value={s}>{BUG_STATUS_LABELS[s]}</option>
@@ -239,7 +240,8 @@ export default function BugReports() {
                   onChange={(e) => setAdminNotes(e.target.value)}
                   rows={3}
                   placeholder="Add internal notes…"
-                  className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background resize-none"
+                  className="mt-1 w-full text-sm rounded-lg px-3 py-2 resize-none"
+                  style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                 />
               </div>
 

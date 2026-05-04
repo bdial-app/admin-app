@@ -6,6 +6,7 @@ import type { AppDispatch } from '../store/store';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import { Shield, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import logo from '../assets/logo.jpeg';
 
 const Login = () => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -85,10 +86,10 @@ const Login = () => {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="text-white/90 text-lg font-bold">Bohri Connect</span>
+            <span className="text-white/90 text-lg font-bold">Tijarah</span>
           </div>
         </div>
 
@@ -114,7 +115,7 @@ const Login = () => {
         </div>
 
         <p className="relative z-10 text-white/40 text-xs">
-          © {new Date().getFullYear()} Bohri Connect. All rights reserved.
+          © {new Date().getFullYear()} Tijarah. All rights reserved.
         </p>
       </div>
 
@@ -123,11 +124,11 @@ const Login = () => {
         <div className="w-full max-w-sm">
           {/* Mobile brand (shown on mobile only) */}
           <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="w-4.5 h-4.5 text-white" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
             <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              Bohri Connect
+              Tijarah
             </span>
           </div>
 

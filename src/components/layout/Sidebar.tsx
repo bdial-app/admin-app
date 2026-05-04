@@ -9,6 +9,7 @@ import {
   UserPlus, PlusCircle, Camera, ToggleLeft,
   ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart
 } from 'lucide-react';
+import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
 import { logout } from '../../store/slices/authSlice';
@@ -115,8 +116,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       >
         {!collapsed && (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-              <Shield className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+              <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
@@ -129,8 +130,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
-            <Shield className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mx-auto">
+            <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -178,9 +179,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                     key={item.name}
                     to={item.path}
                     onClick={onClose}
-                    className={`group relative flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150 ${
-                      collapsed ? 'justify-center' : ''
-                    }`}
+                    className={`group relative flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150 ${collapsed ? 'justify-center' : ''
+                      }`}
                     style={{
                       color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
                       background: isActive ? 'var(--sidebar-active)' : 'transparent',
@@ -231,9 +231,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             dispatch(logout());
             navigate(ROUTES.LOGIN);
           }}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${
-            collapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${collapsed ? 'justify-center' : ''
+            }`}
           style={{ color: 'var(--color-danger)' }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)';

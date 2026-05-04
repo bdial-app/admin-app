@@ -21,8 +21,7 @@ const LIMIT = 10;
 const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Unverified', value: 'unverified' },
-  { label: 'In Review', value: 'in_review' },
-  { label: 'Active', value: 'active' },
+  { label: 'Verified', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
 ];
 
@@ -158,7 +157,7 @@ export default function Providers() {
         <button
           className="p-1.5 rounded-lg transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          onClick={(e) => { e.stopPropagation(); setSelectedProvider(row); }}
+          onClick={(e) => { e.stopPropagation(); navigate(`/providers/${row.id}`); }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
         >
@@ -217,7 +216,7 @@ export default function Providers() {
         searchPlaceholder="Search by business name, owner, or mobile…"
         searchValue={search}
         rowKey={(row) => row.id}
-        onRowClick={setSelectedProvider}
+        onRowClick={(row) => navigate(`/providers/${row.id}`)}
       />
 
       {/* Provider Detail Panel */}
@@ -228,8 +227,8 @@ export default function Providers() {
         subtitle={selectedProvider?.user?.name || undefined}
         actions={
           selectedProvider && (
-            <div className="flex gap-2">
-              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review') && (
+            <div className="flex gap-2 flex-wrap">
+              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review' || selectedProvider.status === 'unverified') && (
                 <>
                   <button
                     onClick={() => setConfirmAction({ type: 'approve', provider: selectedProvider })}
@@ -268,17 +267,6 @@ export default function Providers() {
                   Revoke Suspension
                 </button>
               )}
-              <button
-                onClick={() => handleToggleFeatured(selectedProvider)}
-                className="px-4 py-2 text-sm font-medium rounded-lg"
-                style={{
-                  background: selectedProvider.isFeatured ? 'var(--surface-2)' : 'var(--color-warning-light)',
-                  color: selectedProvider.isFeatured ? 'var(--text-secondary)' : 'var(--color-warning-dark)',
-                }}
-              >
-                <Star className="w-4 h-4 inline mr-1.5" />
-                {selectedProvider.isFeatured ? 'Unfeature' : 'Feature'}
-              </button>
             </div>
           )
         }
