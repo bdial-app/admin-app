@@ -3,7 +3,7 @@ import {
   Users, Store, Package, Star, ShieldCheck, AlertTriangle,
   ArrowRight, Loader2, Search, MessageSquare, TrendingUp,
   Image, Megaphone, Gift, UserPlus, Bell, Send, Eye,
-  DollarSign, CreditCard, Heart, Zap, Target, BarChart3,
+  DollarSign, CreditCard, Heart, Zap,
 } from 'lucide-react';
 import { StatCard } from '../components/ui/StatCard';
 import { useDashboardStats, useDashboardTimeSeries } from '../hooks/useDashboard';
@@ -285,12 +285,12 @@ export default function Dashboard() {
       </div>
 
       {/* City Distribution */}
-      {stats?.topCities?.length > 0 && (
+      {(stats?.topCities?.length ?? 0) > 0 && (
         <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
           <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Provider Distribution by City</p>
           <div className="space-y-2">
-            {stats.topCities.map((c: any) => {
-              const maxCount = stats.topCities[0]?.count || 1;
+            {stats?.topCities?.map((c: any) => {
+              const maxCount = stats?.topCities?.[0]?.count || 1;
               return (
                 <div key={c.city} className="flex items-center gap-3">
                   <span className="text-xs font-medium w-24 truncate" style={{ color: 'var(--text-secondary)' }}>{c.city}</span>

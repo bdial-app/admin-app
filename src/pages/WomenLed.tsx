@@ -119,7 +119,7 @@ export default function WomenLed() {
     <div className="space-y-6">
       <PageHeader
         title="Women-Led Businesses"
-        subtitle="Review and approve women-led business claims"
+        description="Review and approve women-led business claims"
       />
 
       {/* Analytics Cards */}
@@ -214,13 +214,15 @@ export default function WomenLed() {
           columns={columns}
           data={pendingData?.items || []}
           isLoading={isLoading}
-          pagination={{
+          rowKey={(row: any) => row.id}
+          meta={{
             page,
             totalPages: pendingData?.meta?.totalPages || 1,
             total: pendingData?.meta?.total || 0,
-            onPageChange: setPage,
+            limit: LIMIT,
           }}
-          emptyMessage="No pending women-led requests"
+          onPageChange={setPage}
+          emptyTitle="No pending women-led requests"
         />
       </div>
 
@@ -234,7 +236,7 @@ export default function WomenLed() {
             : `Reject the women-led claim for "${confirmAction?.item?.brandName}"? The badge will not be shown.`
         }
         confirmLabel={confirmAction?.type === 'approve' ? 'Approve' : 'Reject'}
-        variant={confirmAction?.type === 'approve' ? 'default' : 'destructive'}
+        variant={confirmAction?.type === 'approve' ? 'default' : 'danger'}
         onConfirm={handleConfirm}
         onCancel={() => setConfirmAction(null)}
         isLoading={approveMutation.isPending || rejectMutation.isPending}
