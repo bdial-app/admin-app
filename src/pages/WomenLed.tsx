@@ -230,7 +230,7 @@ export default function WomenLed() {
       <ConfirmDialog
         open={!!confirmAction}
         title={confirmAction?.type === 'approve' ? 'Approve Women-Led Status' : 'Reject Women-Led Status'}
-        message={
+        description={
           confirmAction?.type === 'approve'
             ? `Approve "${confirmAction.item?.brandName}" as a women-led business? They will receive the badge and incentives.`
             : `Reject the women-led claim for "${confirmAction?.item?.brandName}"? The badge will not be shown.`
@@ -238,7 +238,7 @@ export default function WomenLed() {
         confirmLabel={confirmAction?.type === 'approve' ? 'Approve' : 'Reject'}
         variant={confirmAction?.type === 'approve' ? 'default' : 'danger'}
         onConfirm={handleConfirm}
-        onCancel={() => setConfirmAction(null)}
+        onClose={() => setConfirmAction(null)}
         isLoading={approveMutation.isPending || rejectMutation.isPending}
       />
     </div>
