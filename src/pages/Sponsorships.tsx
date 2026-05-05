@@ -183,12 +183,47 @@ export default function Sponsorships() {
         <div className="flex items-center gap-1">
           {row.approvalStatus === 'pending_approval' && (
             <>
-              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'approve' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-success)' }} title="Approve"><Check className="w-4 h-4" /></button>
-              <button onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'reject' }); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-danger)' }} title="Reject"><X className="w-4 h-4" /></button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'approve' }); }}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--color-success)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-success-light)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                title="Approve"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmAction({ id: row.id, action: 'reject' }); }}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--color-danger)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                title="Reject"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </>
           )}
-          <button onClick={(e) => { e.stopPropagation(); setSelected(row); setEditMode(false); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><BarChart3 className="w-4 h-4" /></button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelected(row); setEditMode(false); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Performance"
+          >
+            <BarChart3 className="w-4 h-4" />
+          </button>
         </div>
       ),
     },

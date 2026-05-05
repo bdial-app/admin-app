@@ -8,6 +8,7 @@ import { useBugReports, useUpdateBugReport } from '../hooks/useBugReports';
 import { toast } from 'react-toastify';
 import type { BugReport, BugCategory, BugReportStatus } from '../types';
 import { BUG_CATEGORY_LABELS, BUG_STATUS_LABELS } from '../types';
+import { ROUTES } from '@/utils/constants';
 
 const LIMIT = 20;
 
@@ -116,7 +117,10 @@ export default function BugReports() {
       render: (row) => (
         <button
           onClick={(e) => { e.stopPropagation(); handleSelect(row); }}
-          className="p-1.5 rounded hover:bg-accent transition-colors"
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           title="View details"
         >
           <Eye className="w-4 h-4" />
@@ -128,9 +132,10 @@ export default function BugReports() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bug Reports"
-        description="Review and manage bug reports submitted by users"
-      />
+              title="Bug Reports"
+              description="Review and manage bug reports submitted by users"
+              breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Bug Reports' }]}
+            />
 
       {/* Status Tabs */}
       <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-1)' }}>

@@ -152,8 +152,25 @@ export default function Badges() {
       className: 'w-20',
       render: (row) => (
         <div className="flex items-center gap-1">
-          <button onClick={(e) => { e.stopPropagation(); setSelected(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }} className="p-1.5 rounded-lg" style={{ color: 'var(--color-danger)' }}><Trash2 className="w-4 h-4" /></button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelected(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--color-danger)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Revoke"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       ),
     },
