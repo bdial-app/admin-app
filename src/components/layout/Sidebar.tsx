@@ -17,6 +17,8 @@ import type { AppDispatch } from '../../store/store';
 import { useState } from 'react';
 
 interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
   onClose: () => void;
 }
 
@@ -94,29 +96,28 @@ const sections = [
   },
 ];
 
-const Sidebar = ({ onClose }: SidebarProps) => {
+const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
   const location = useLocation();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div
-      className="h-full flex flex-col transition-all duration-200"
+      className="h-full flex flex-col transition-all duration-300"
       style={{
         background: 'var(--sidebar-bg)',
         borderRight: '1px solid var(--sidebar-border)',
-        width: collapsed ? '72px' : '100%',
+        width: '100%',
       }}
     >
       {/* Brand Header */}
       <div
-        className="h-16 flex items-center justify-between px-4 flex-shrink-0"
+        className={`h-16 flex items-center flex-shrink-0 px-4 transition-all duration-300 ${collapsed ? 'justify-center' : 'justify-between'}`}
         style={{ borderBottom: '1px solid var(--border-light)' }}
       >
-        {!collapsed && (
+        {!collapsed ? (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10">
               <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
@@ -128,34 +129,35 @@ const Sidebar = ({ onClose }: SidebarProps) => {
               </p>
             </div>
           </div>
-        )}
-        {collapsed && (
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mx-auto">
-            <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-lg border border-white/10 transition-all hover:scale-110 duration-300 bg-primary">
+            <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover opacity-90 hover:opacity-100" />
           </div>
         )}
 
-        {/* Close button (mobile) */}
-        <button
-          onClick={onClose}
-          className="lg:hidden p-1 rounded-md transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        {/* Collapse button (desktop) */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex p-1 rounded-md transition-colors hover:bg-primary-light"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <ChevronLeft
-            className="h-4 w-4 transition-transform duration-200"
-            style={{ transform: collapsed ? 'rotate(180deg)' : 'none' }}
-          />
-        </button>
+        {!collapsed && (
+          <button
+            onClick={onToggle}
+            className="hidden lg:flex p-1.5 rounded-lg transition-all duration-200 hover:bg-surface-2 group"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          </button>
+        )}
       </div>
+
+      {/* Toggle Button for Collapsed State - Floating or Centered? Let's use a subtle bar */}
+      {collapsed && (
+        <div className="flex justify-center py-1.5">
+          <button
+            onClick={onToggle}
+            className="p-1 rounded-md transition-all duration-200 hover:bg-surface-2 opacity-50 hover:opacity-100"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ChevronLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-3 px-2.5">
@@ -179,37 +181,45 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                     key={item.name}
                     to={item.path}
                     onClick={onClose}
-                    className={`group relative flex items-center gap-3 px-3 py-2 text-[13px] font-medium rounded-lg transition-all duration-150 ${collapsed ? 'justify-center' : ''
-                      }`}
+                    className={`group relative flex items-center rounded-xl transition-all duration-300 ${
+                      collapsed ? 'justify-center w-12 h-12 mx-auto mb-1.5' : 'gap-3 px-3 py-2.5 mb-1'
+                    }`}
                     style={{
                       color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
                       background: isActive ? 'var(--sidebar-active)' : 'transparent',
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
+                      if (collapsed) (e.currentTarget as HTMLElement).style.transform = 'scale(1.05) translateX(2px)';
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      if (collapsed) (e.currentTarget as HTMLElement).style.transform = 'scale(1) translateX(0)';
                     }}
                     title={collapsed ? item.name : undefined}
                   >
                     {/* Active indicator bar */}
                     {isActive && (
                       <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
+                        className={`absolute rounded-full bg-primary transition-all duration-300 shadow-[0_0_8px_rgba(79,70,229,0.4)] ${
+                          collapsed ? 'left-[-12px] w-1.5 h-7 top-1/2 -translate-y-1/2' : 'left-0 w-1 h-6 top-1/2 -translate-y-1/2'
+                        }`}
                       />
                     )}
                     <Icon
-                      className="flex-shrink-0 w-[18px] h-[18px] transition-colors"
+                      className={`flex-shrink-0 transition-all duration-300 ${
+                        collapsed ? 'w-5.5 h-5.5' : 'w-[18px] h-[18px]'
+                      }`}
                       style={{
                         color: isActive ? 'var(--color-primary)' : 'var(--text-muted)',
+                        transform: isActive ? 'scale(1.15)' : 'scale(1)',
                       }}
                     />
                     {!collapsed && (
                       <>
-                        <span className="truncate">{item.name}</span>
+                        <span className="truncate font-medium text-[13.5px]">{item.name}</span>
                         {item.badge && (
-                          <span className="ml-auto w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 pulse-dot" />
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 pulse-dot" />
                         )}
                       </>
                     )}
@@ -221,9 +231,8 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         ))}
       </div>
 
-      {/* Bottom — Logout */}
       <div
-        className="flex-shrink-0 p-3"
+        className={`flex-shrink-0 ${collapsed ? 'py-4 flex justify-center' : 'p-3'}`}
         style={{ borderTop: '1px solid var(--border-light)' }}
       >
         <button
@@ -231,18 +240,21 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             dispatch(logout());
             navigate(ROUTES.LOGIN);
           }}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors ${collapsed ? 'justify-center' : ''
-            }`}
+          className={`group flex items-center transition-all duration-300 ${
+            collapsed ? 'w-12 h-12 justify-center rounded-xl' : 'w-full gap-2.5 px-3 py-2 text-[13px] font-medium rounded-lg'
+          }`}
           style={{ color: 'var(--color-danger)' }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)';
+            if (collapsed) (e.currentTarget as HTMLElement).style.transform = 'translateX(4px)';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.background = 'transparent';
+            if (collapsed) (e.currentTarget as HTMLElement).style.transform = 'translateX(0)';
           }}
           title={collapsed ? 'Sign out' : undefined}
         >
-          <LogOut className="w-[18px] h-[18px]" />
+          <LogOut className={`flex-shrink-0 transition-transform group-hover:scale-110 ${collapsed ? 'w-5 h-5' : 'w-[18px] h-[18px]'}`} />
           {!collapsed && 'Sign out'}
         </button>
       </div>
