@@ -14,7 +14,7 @@ import type { User, UserStatus } from '../types';
 const LIMIT = 10;
 const STATUS_OPTIONS: { label: string; value: UserStatus | '' }[] = [
   { label: 'All Status', value: '' },
-  { label: 'Verified', value: 'active' },
+  { label: 'Active', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
   { label: 'Paused', value: 'paused' },
   { label: 'Deleted', value: 'deleted' },
