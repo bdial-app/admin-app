@@ -116,16 +116,13 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
       >
         {!collapsed ? (
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10">
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm border border-white/10">
               <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
+              <h1 className="text-lg font-bold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
                 Tijarah
               </h1>
-              <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                Admin Panel
-              </p>
             </div>
           </div>
         ) : (

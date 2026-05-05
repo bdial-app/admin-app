@@ -1,7 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useState } from 'react';
-import { Menu, Moon, Sun, Bell, Search } from 'lucide-react';
+import { Menu, Moon, Sun, Bell } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
 import { useTheme } from '../../hooks/useTheme';
@@ -60,36 +60,9 @@ const AdminLayout = () => {
             >
               <Menu className="h-5 w-5" />
             </button>
-
-            {/* Desktop Search */}
-            <div className="hidden md:flex items-center">
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-                  style={{ color: 'var(--text-muted)' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search anything…"
-                  className="pl-9 pr-16 py-1.5 w-64 text-sm rounded-lg focus-ring transition-colors"
-                  style={{
-                    background: 'var(--surface-1)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-primary)',
-                  }}
-                />
-                <kbd
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: 'var(--text-muted)',
-                    border: '1px solid var(--border-default)',
-                  }}
-                >
-                  ⌘K
-                </kbd>
-              </div>
-            </div>
+            <span className="hidden sm:block text-sm font-bold uppercase tracking-widest ml-2" style={{ color: 'var(--text-muted)' }}>
+              Admin Panel
+            </span>
           </div>
 
           {/* Right: Actions */}

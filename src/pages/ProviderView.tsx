@@ -463,7 +463,7 @@ export default function ProviderView() {
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{offer.title}</p>
                           <StatusBadge status={offer.isActive ? 'active' : 'closed'} size="sm" showDot={false} />
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: offer.approvalStatus === 'approved' ? 'var(--color-success-light)' : offer.approvalStatus === 'rejected' ? 'var(--color-danger-light)' : 'var(--color-warning-light)', color: offer.approvalStatus === 'approved' ? 'var(--color-success-dark)' : offer.approvalStatus === 'rejected' ? 'var(--color-danger-dark)' : 'var(--color-warning-dark)' }}>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: offer.approvalStatus === 'approved' ? 'var(--color-success-light)' : offer.approvalStatus === 'rejected' ? 'var(--color-danger)' : 'var(--color-warning-light)', color: offer.approvalStatus === 'approved' ? 'var(--color-success-dark)' : offer.approvalStatus === 'rejected' ? '#FFFFFF' : 'var(--color-warning-dark)' }}>
                             {offer.approvalStatus.replace('_', ' ')}
                           </span>
                         </div>

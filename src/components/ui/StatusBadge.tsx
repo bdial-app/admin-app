@@ -9,9 +9,9 @@ interface StatusBadgeProps {
 const config: Record<StatusType, { label: string; color: string; bg: string }> = {
   pending:       { label: 'Pending',       color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
   approved:      { label: 'Approved',      color: 'var(--color-success)', bg: 'var(--color-success-light)' },
-  rejected:      { label: 'Rejected',      color: 'var(--color-danger)',  bg: 'var(--color-danger-light)'  },
+  rejected:      { label: 'Rejected',      color: '#FFFFFF',              bg: 'var(--color-danger)'        },
   active:        { label: 'Verified',      color: 'var(--color-success)', bg: 'var(--color-success-light)' },
-  suspended:     { label: 'Suspended',     color: 'var(--color-danger)',  bg: 'var(--color-danger-light)'  },
+  suspended:     { label: 'Suspended',     color: '#FFFFFF',              bg: 'var(--color-danger)'        },
   paused:        { label: 'Paused',        color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
   in_review:     { label: 'In Review',     color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
   unverified:    { label: 'Unverified',    color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },

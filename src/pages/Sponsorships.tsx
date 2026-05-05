@@ -156,7 +156,7 @@ export default function Sponsorships() {
         const colors: Record<string, { bg: string; color: string }> = {
           approved: { bg: 'var(--color-success-light)', color: 'var(--color-success-dark)' },
           pending_approval: { bg: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' },
-          rejected: { bg: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' },
+          rejected: { bg: 'var(--color-danger)', color: '#FFFFFF' },
         };
         const style = colors[row.approvalStatus] || colors.approved;
         return (
