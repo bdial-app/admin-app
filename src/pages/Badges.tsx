@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { FormField } from '../components/ui/FormField';
 import { useBadges, useCreateBadge, useUpdateBadge, useDeleteBadge } from '../hooks/useBadges';
 import { ROUTES } from '../utils/constants';
@@ -124,10 +125,9 @@ export default function Badges() {
       header: 'Status',
       render: (row) => {
         const isExpired = row.expiresAt && new Date(row.expiresAt) < new Date();
-        const label = !row.isActive ? 'Inactive' : isExpired ? 'Expired' : 'Active';
-        const bg = !row.isActive ? 'var(--surface-2)' : isExpired ? 'var(--color-danger-light)' : 'var(--color-success-light)';
-        const color = !row.isActive ? 'var(--text-muted)' : isExpired ? 'var(--color-danger-dark)' : 'var(--color-success-dark)';
-        return <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: bg, color }}>{label}</span>;
+        if (!row.isActive) return <StatusBadge status="disabled" />;
+        if (isExpired) return <StatusBadge status="expired" />;
+        return <StatusBadge status="active" />;
       },
     },
     {
@@ -239,17 +239,27 @@ export default function Badges() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                ['Provider', selected.provider?.brandName || selected.providerId.slice(0, 8)],
-                ['Source', selected.source],
-                ['Status', selected.isActive ? 'Active' : 'Inactive'],
-                ['Expires', selected.expiresAt ? formatDate(selected.expiresAt) : 'Never'],
-                ['Awarded', formatDate(selected.createdAt)],
-              ].map(([label, value]) => (
-                <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
-                  <p className="text-sm font-medium mt-0.5 capitalize" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                { label: 'Provider', value: selected.provider?.brandName || selected.providerId.slice(0, 8) },
+                { label: 'Source', value: selected.source },
+                { label: 'Expires', value: selected.expiresAt ? formatDate(selected.expiresAt) : 'Never' },
+                { label: 'Awarded', value: formatDate(selected.createdAt) },
+              ].map((field) => (
+                <div key={field.label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
+                  <p className="text-sm font-medium mt-0.5 truncate capitalize" style={{ color: 'var(--text-primary)' }}>{field.value}</p>
                 </div>
               ))}
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    const isExpired = selected.expiresAt && new Date(selected.expiresAt) < new Date();
+                    if (!selected.isActive) return <StatusBadge status="disabled" />;
+                    if (isExpired) return <StatusBadge status="expired" />;
+                    return <StatusBadge status="active" />;
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Star, MapPin, Phone, Clock, Package,
+  Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift,
 } from 'lucide-react';
@@ -11,7 +11,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
-  useUnsuspendProvider, useUpdateProvider, useProviderWarnings,
+  useUnsuspendProvider, useProviderWarnings,
 } from '../hooks/useProviders';
 import { useProducts } from '../hooks/useProducts';
 import { useReviews } from '../hooks/useReviews';
@@ -54,7 +54,6 @@ export default function ProviderView() {
   const approveMut = useApproveProvider();
   const suspendMut = useSuspendProvider();
   const unsuspendMut = useUnsuspendProvider();
-  const updateMut = useUpdateProvider();
 
   // Products & Reviews for this provider
   const { data: productsData } = useProducts({ providerId: id, limit: 50 });
@@ -157,7 +156,7 @@ export default function ProviderView() {
               <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{provider.brandName}</h2>
               <StatusBadge status={provider.status} size="md" />
               {provider.isFeatured && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">★ Featured</span>}
-              {provider.communityVerified && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Verified</span>}
+              {provider.communityVerified && <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ background: 'var(--color-success)' }}>✓ Verified</span>}
               {provider.isWomenLed && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">♀ Women-Led</span>}
             </div>
 
@@ -463,7 +462,7 @@ export default function ProviderView() {
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{offer.title}</p>
                           <StatusBadge status={offer.isActive ? 'active' : 'closed'} size="sm" showDot={false} />
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: offer.approvalStatus === 'approved' ? 'var(--color-success-light)' : offer.approvalStatus === 'rejected' ? 'var(--color-danger)' : 'var(--color-warning-light)', color: offer.approvalStatus === 'approved' ? 'var(--color-success-dark)' : offer.approvalStatus === 'rejected' ? '#FFFFFF' : 'var(--color-warning-dark)' }}>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize" style={{ background: offer.approvalStatus === 'approved' ? 'var(--color-success)' : offer.approvalStatus === 'rejected' ? 'var(--color-danger)' : 'var(--color-warning-light)', color: offer.approvalStatus === 'approved' ? '#FFFFFF' : offer.approvalStatus === 'rejected' ? '#FFFFFF' : 'var(--color-warning-dark)' }}>
                             {offer.approvalStatus.replace('_', ' ')}
                           </span>
                         </div>

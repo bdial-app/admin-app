@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { useReviews, useUpdateReviewStatus, useRemoveReview } from '../hooks/useReviews';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -107,27 +108,7 @@ export default function Reviews() {
         </p>
       ),
     },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (row) => (
-        <span
-          className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
-          style={{
-            background:
-              row.status === 'active' ? 'var(--color-success-light)' :
-              row.status === 'removed' ? 'var(--color-danger-light)' :
-              'var(--color-warning-light)',
-            color:
-              row.status === 'active' ? 'var(--color-success-dark)' :
-              row.status === 'removed' ? 'var(--color-danger-dark)' :
-              'var(--color-warning-dark)',
-          }}
-        >
-          {row.status}
-        </span>
-      ),
-    },
+    { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status === 'removed' ? 'rejected' : row.status} /> },
     {
       key: 'createdAt',
       header: 'Date',

@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
 import { useOffers, useOfferStats, useUpdateOffer, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
@@ -138,28 +139,15 @@ export default function Offers() {
       render: (row) => {
         const now = new Date();
         const isExpired = new Date(row.endsAt) < now;
-        const label = !row.isActive ? 'Inactive' : isExpired ? 'Expired' : 'Active';
-        const bg = !row.isActive ? 'var(--surface-2)' : isExpired ? 'var(--color-danger-light)' : 'var(--color-success-light)';
-        const color = !row.isActive ? 'var(--text-muted)' : isExpired ? 'var(--color-danger-dark)' : 'var(--color-success-dark)';
-        return <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: bg, color }}>{label}</span>;
+        if (!row.isActive) return <StatusBadge status="disabled" />;
+        if (isExpired) return <StatusBadge status="expired" />;
+        return <StatusBadge status="active" />;
       },
     },
     {
       key: 'approval',
       header: 'Approval',
-      render: (row) => {
-        const colors: Record<string, { bg: string; color: string }> = {
-          approved: { bg: 'var(--color-success-light)', color: 'var(--color-success-dark)' },
-          pending_approval: { bg: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' },
-          rejected: { bg: 'var(--color-danger)', color: '#FFFFFF' },
-        };
-        const style = colors[row.approvalStatus] || colors.approved;
-        return (
-          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: style.bg, color: style.color }}>
-            {row.approvalStatus === 'pending_approval' ? 'Pending' : row.approvalStatus?.charAt(0).toUpperCase() + row.approvalStatus?.slice(1)}
-          </span>
-        );
-      },
+      render: (row) => <StatusBadge status={row.approvalStatus === 'pending_approval' ? 'pending' : row.approvalStatus} />,
     },
     {
       key: 'dates',
@@ -290,23 +278,38 @@ export default function Offers() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {[
-                ['Provider', selected.provider?.brandName || selected.providerId.slice(0, 8)],
-                ['Discount', getDiscountLabel(selected)],
-                ['Type', selected.discountType],
-                ['Status', selected.isActive ? 'Active' : 'Inactive'],
-                ['Usage', `${selected.usageCount}${selected.usageLimit ? ` / ${selected.usageLimit}` : ''}`],
-                ['Min Order', selected.minOrderAmount ? `₹${selected.minOrderAmount}` : '—'],
-                ['Max Discount', selected.maxDiscount ? `₹${selected.maxDiscount}` : '—'],
-                ['Starts', formatDate(selected.startsAt)],
-                ['Ends', formatDate(selected.endsAt)],
-                ['Created', formatDate(selected.createdAt)],
-                ['Approval', selected.approvalStatus === 'pending_approval' ? 'Pending' : selected.approvalStatus],
-              ].map(([label, value]) => (
-                <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
-                  <p className="text-sm font-medium mt-0.5 capitalize" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                { label: 'Provider', value: selected.provider?.brandName || selected.providerId.slice(0, 8) },
+                { label: 'Discount', value: getDiscountLabel(selected) },
+                { label: 'Type', value: selected.discountType },
+                { label: 'Usage', value: `${selected.usageCount}${selected.usageLimit ? ` / ${selected.usageLimit}` : ''}` },
+                { label: 'Min Order', value: selected.minOrderAmount ? `₹${selected.minOrderAmount}` : '—' },
+                { label: 'Max Discount', value: selected.maxDiscount ? `₹${selected.maxDiscount}` : '—' },
+                { label: 'Starts', value: formatDate(selected.startsAt) },
+                { label: 'Ends', value: formatDate(selected.endsAt) },
+                { label: 'Created', value: formatDate(selected.createdAt) },
+              ].map((field) => (
+                <div key={field.label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
+                  <p className="text-sm font-medium mt-0.5 truncate capitalize" style={{ color: 'var(--text-primary)' }}>{field.value}</p>
                 </div>
               ))}
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    const isExpired = new Date(selected.endsAt) < new Date();
+                    if (!selected.isActive) return <StatusBadge status="disabled" />;
+                    if (isExpired) return <StatusBadge status="expired" />;
+                    return <StatusBadge status="active" />;
+                  })()}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Approval</p>
+                <div className="mt-1">
+                  <StatusBadge status={selected.approvalStatus === 'pending_approval' ? 'pending' : selected.approvalStatus} />
+                </div>
+              </div>
             </div>
             {selected.description && (
               <div>

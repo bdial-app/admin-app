@@ -6,6 +6,7 @@ import {
 import { categoriesService } from '../services/categories.service';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../components/ui/PageHeader';
+import StatusBadge from '../components/ui/StatusBadge';
 
 interface Category {
   id: string;
@@ -599,14 +600,8 @@ const Categories = () => {
                           style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{selectedCategory.slug}</code>
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</p>
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
-                          <span className="w-2 h-2 rounded-full"
-                            style={{ background: selectedCategory.isActive ? 'var(--color-success)' : 'var(--color-warning)' }} />
-                          <span style={{ color: selectedCategory.isActive ? 'var(--color-success-dark)' : 'var(--color-warning-dark)' }}>
-                            {selectedCategory.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </span>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Status</p>
+                        <StatusBadge status={selectedCategory.isActive ? 'active' : 'disabled'} />
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Display Order</p>

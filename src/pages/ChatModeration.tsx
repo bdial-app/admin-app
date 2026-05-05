@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { StatCard } from '../components/ui/StatCard';
 import { useChatConversations, useChatMessages, useRedactMessage, useCloseConversation, useChatStats } from '../hooks/useChat';
 import { ROUTES } from '../utils/constants';
@@ -94,21 +95,7 @@ export default function ChatModeration() {
         </div>
       ),
     },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (row) => (
-        <span
-          className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
-          style={{
-            background: row.status === 'active' ? 'var(--color-success-light)' : row.status === 'closed' ? 'var(--color-danger-light)' : 'var(--surface-2)',
-            color: row.status === 'active' ? 'var(--color-success-dark)' : row.status === 'closed' ? 'var(--color-danger-dark)' : 'var(--text-muted)',
-          }}
-        >
-          {row.status}
-        </span>
-      ),
-    },
+    { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
     {
       key: 'lastMessageAt',
       header: 'Last Message',
