@@ -55,7 +55,8 @@ function UploadZone({
             style={{ minWidth: label.includes('Icon') ? '64px' : '200px', maxWidth: '320px' }} />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
             <button onClick={() => ref.current?.click()} disabled={uploading}
-              className="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-white text-gray-800 shadow-sm hover:bg-gray-50 transition-colors">
+              className="px-3 py-1.5 text-[11px] font-semibold rounded-lg shadow-sm transition-colors"
+              style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}>
               {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Replace'}
             </button>
             <button onClick={onRemove} disabled={uploading}
@@ -298,7 +299,7 @@ const Categories = () => {
             <div
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all group ${isSelected ? 'shadow-sm' : ''}`}
               style={{
-                background: isSelected ? 'var(--color-primary-light)' : 'transparent',
+                background: isSelected ? 'var(--sidebar-active)' : 'transparent',
                 border: isSelected ? '1px solid var(--color-primary)' : '1px solid transparent',
               }}
               onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)'; }}
@@ -439,7 +440,7 @@ const Categories = () => {
                     style={{ border: '1px solid var(--border-default)' }} />
                 ) : (
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: 'var(--color-primary-light)' }}>
+                    style={{ background: 'var(--sidebar-active)' }}>
                     <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
                       {formData.name?.[0]?.toUpperCase() || '?'}
                     </span>
@@ -467,7 +468,7 @@ const Categories = () => {
                       </button>
                       <button onClick={() => setIsEditing(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                        style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                        style={{ background: 'var(--sidebar-active)', color: 'var(--color-primary)' }}>
                         <Edit3 className="w-3.5 h-3.5" /> Edit
                       </button>
                     </>
@@ -643,7 +644,7 @@ const Categories = () => {
                                 style={{ background: 'var(--surface-0)', border: '1px solid var(--border-light)' }}
                                 onMouseEnter={e => {
                                   e.currentTarget.style.borderColor = 'var(--color-primary)';
-                                  e.currentTarget.style.background = 'var(--color-primary-light)';
+                                  e.currentTarget.style.background = 'var(--sidebar-active)';
                                 }}
                                 onMouseLeave={e => {
                                   e.currentTarget.style.borderColor = 'var(--border-light)';
@@ -690,7 +691,7 @@ const Categories = () => {
                           <p className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>No sub-categories yet</p>
                           <button onClick={handleAddSubCategory}
                             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                            style={{ background: 'var(--sidebar-active)', color: 'var(--color-primary)' }}>
                             <Plus className="w-3.5 h-3.5" /> Add Sub-category
                           </button>
                         </div>

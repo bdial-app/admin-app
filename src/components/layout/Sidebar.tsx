@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Store,
   FileCheck, Star, FolderTree, LogOut,
-  X, ChevronLeft, Shield, AlertTriangle,
+  ChevronLeft, AlertTriangle,
   Package, Image, Megaphone, Gift, Award,
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
@@ -14,7 +14,6 @@ import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
 import { logout } from '../../store/slices/authSlice';
 import type { AppDispatch } from '../../store/store';
-import { useState } from 'react';
 
 interface SidebarProps {
   collapsed: boolean;
