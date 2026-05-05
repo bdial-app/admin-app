@@ -36,7 +36,7 @@ export default function Products() {
     if (!confirmDelete) return;
     try {
       await deleteMutation.mutateAsync(confirmDelete.id);
-      toast.success('Product deactivated');
+      toast.success('Product disabled');
       setConfirmDelete(null);
       setSelectedProduct(null);
     } catch {
@@ -47,7 +47,7 @@ export default function Products() {
   const handleToggleActive = async (product: Product) => {
     try {
       await updateMutation.mutateAsync({ id: product.id, body: { isActive: !product.isActive } });
-      toast.success(product.isActive ? 'Product deactivated' : 'Product activated');
+      toast.success(product.isActive ? 'Product disabled' : 'Product activated');
     } catch {
       toast.error('Failed to update product');
     }
@@ -189,7 +189,7 @@ export default function Products() {
                   color: selectedProduct.isActive ? 'var(--text-secondary)' : 'white',
                 }}
               >
-                {selectedProduct.isActive ? 'Deactivate' : 'Activate'}
+                {selectedProduct.isActive ? 'Disable' : 'Activate'}
               </button>
               <button
                 onClick={() => setConfirmDelete(selectedProduct)}
