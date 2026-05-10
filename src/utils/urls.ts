@@ -255,4 +255,12 @@
     PLANS: '/admin/subscription-plans',
     UPDATE_PLAN: (id: string) => `/admin/subscription-plans/${id}`,
   },
+
+  // -- Serviceable Cities ------------------------------
+  SERVICEABLE_CITIES: {
+    LIST: '/admin/serviceable-cities',
+    UPDATE: (id: string) => `/admin/serviceable-cities/${id}`,
+    REQUEST_STATS: '/admin/city-requests/stats',
+    REQUEST_INSIGHTS: '/admin/city-requests/insights',
+  },
 };

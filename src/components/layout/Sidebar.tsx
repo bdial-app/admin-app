@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
@@ -85,6 +85,7 @@ const sections = [
   {
     label: 'System',
     items: [
+      { name: 'Serviceable Cities', path: ROUTES.SERVICEABLE_CITIES, icon: MapPin },
       { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog },
       { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft },
       { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText },
