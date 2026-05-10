@@ -153,6 +153,161 @@ export default function ServiceableCities() {
         </div>
       </div>
 
+      {/* Request Analytics */}
+      {(requestStats?.length || (insights && (insights.platformStats.length > 0 || insights.deviceTypeStats.length > 0))) && (
+        <div className="mb-6">
+          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Request Analytics</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Top Requested Cities */}
+            {requestStats && requestStats.length > 0 && (
+              <div
+                className="rounded-xl p-4 lg:row-span-2"
+                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+              >
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <TrendingUp className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                  Top Requested Cities
+                </h3>
+                <div className="space-y-2.5">
+                  {requestStats
+                    .sort((a, b) => Number(b.count) - Number(a.count))
+                    .slice(0, 10)
+                    .map((stat, idx) => {
+                      const maxCount = Number(requestStats[0]?.count ?? 1);
+                      const pct = Math.round((Number(stat.count) / maxCount) * 100);
+                      return (
+                        <div key={stat.city} className="flex items-center gap-2.5">
+                          <span className="text-xs font-bold w-4 text-right" style={{ color: 'var(--text-muted)' }}>{idx + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{stat.city}</span>
+                              <span className="text-xs font-semibold ml-2" style={{ color: 'var(--color-info)' }}>{stat.count}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--color-primary)' }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* Platform Breakdown */}
+            {insights && insights.platformStats.length > 0 && (
+              <div
+                className="rounded-xl p-4"
+                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+              >
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <Smartphone className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                  Platform Breakdown
+                </h3>
+                <div className="space-y-2.5">
+                  {insights.platformStats.map((s) => {
+                    const total = insights.platformStats.reduce((sum, p) => sum + Number(p.count), 0);
+                    const pct = total > 0 ? Math.round((Number(s.count) / total) * 100) : 0;
+                    const label = s.platform === 'android' ? 'Android' : s.platform === 'ios' ? 'iOS' : s.platform === 'web' ? 'Web' : 'Unknown';
+                    const color = s.platform === 'android' ? '#34A853' : s.platform === 'ios' ? '#007AFF' : s.platform === 'web' ? '#FF9500' : '#999';
+                    return (
+                      <div key={s.platform}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
+                          <span className="text-xs font-semibold" style={{ color }}>{s.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Device Type Breakdown */}
+            {insights && insights.deviceTypeStats.length > 0 && (
+              <div
+                className="rounded-xl p-4"
+                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+              >
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <Monitor className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                  Device Type
+                </h3>
+                <div className="space-y-2.5">
+                  {insights.deviceTypeStats.map((s) => {
+                    const total = insights.deviceTypeStats.reduce((sum, d) => sum + Number(d.count), 0);
+                    const pct = total > 0 ? Math.round((Number(s.count) / total) * 100) : 0;
+                    const label = s.deviceType === 'mobile' ? 'Mobile' : s.deviceType === 'tablet' ? 'Tablet' : s.deviceType === 'desktop' ? 'Desktop' : 'Unknown';
+                    const Icon = s.deviceType === 'mobile' ? Smartphone : s.deviceType === 'tablet' ? Tablet : Monitor;
+                    return (
+                      <div key={s.deviceType}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                            <Icon className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                            {label}
+                          </span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--color-info)' }}>{s.count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--color-primary)' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Requests Log */}
+          {insights && insights.recentRequests.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Recent Requests</h3>
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                        {['City', 'Platform', 'Device', 'OS', 'Date'].map((h) => (
+                          <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insights.recentRequests.slice(0, 20).map((r) => (
+                        <tr key={r.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td className="px-4 py-2.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{r.city}</td>
+                          <td className="px-4 py-2.5">
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                              style={{
+                                background: r.platform === 'android' ? '#34A85315' : r.platform === 'ios' ? '#007AFF15' : '#FF950015',
+                                color: r.platform === 'android' ? '#34A853' : r.platform === 'ios' ? '#007AFF' : '#FF9500',
+                              }}
+                            >
+                              {r.platform || 'unknown'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{r.deviceType || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{r.osVersion || '—'}</td>
+                          <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(r.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Filters */}
       <div
         className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl"
@@ -348,168 +503,6 @@ export default function ServiceableCities() {
           </table>
         </div>
       </div>
-
-      {/* Top Requested Cities (from city_requests) */}
-      {requestStats && requestStats.length > 0 && (
-        <div className="mt-6">
-          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            Top Requested Cities
-          </h2>
-          <div
-            className="rounded-xl p-4"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
-          >
-            <div className="space-y-3">
-              {requestStats
-                .sort((a, b) => Number(b.count) - Number(a.count))
-                .slice(0, 15)
-                .map((stat, idx) => {
-                  const maxCount = Number(requestStats[0]?.count ?? 1);
-                  const pct = Math.round((Number(stat.count) / maxCount) * 100);
-                  return (
-                    <div key={stat.city} className="flex items-center gap-3">
-                      <span className="text-xs font-bold w-5 text-right" style={{ color: 'var(--text-muted)' }}>
-                        {idx + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                            {stat.city}
-                          </span>
-                          <span className="text-xs font-semibold ml-2" style={{ color: 'var(--color-info)' }}>
-                            {stat.count} requests
-                          </span>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, background: 'var(--color-primary)' }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Platform & Device Insights */}
-      {insights && (insights.platformStats.length > 0 || insights.deviceTypeStats.length > 0) && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Platform Breakdown */}
-          <div
-            className="rounded-xl p-4"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
-          >
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <Smartphone className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-              Platform Breakdown
-            </h3>
-            <div className="space-y-2.5">
-              {insights.platformStats.map((s) => {
-                const total = insights.platformStats.reduce((sum, p) => sum + Number(p.count), 0);
-                const pct = total > 0 ? Math.round((Number(s.count) / total) * 100) : 0;
-                const label = s.platform === 'android' ? 'Android' : s.platform === 'ios' ? 'iOS' : s.platform === 'web' ? 'Web' : 'Unknown';
-                const color = s.platform === 'android' ? '#34A853' : s.platform === 'ios' ? '#007AFF' : s.platform === 'web' ? '#FF9500' : '#999';
-                return (
-                  <div key={s.platform}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
-                      <span className="text-xs font-semibold" style={{ color }}>{s.count} ({pct}%)</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Device Type Breakdown */}
-          <div
-            className="rounded-xl p-4"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
-          >
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <Monitor className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-              Device Type
-            </h3>
-            <div className="space-y-2.5">
-              {insights.deviceTypeStats.map((s) => {
-                const total = insights.deviceTypeStats.reduce((sum, d) => sum + Number(d.count), 0);
-                const pct = total > 0 ? Math.round((Number(s.count) / total) * 100) : 0;
-                const label = s.deviceType === 'mobile' ? 'Mobile' : s.deviceType === 'tablet' ? 'Tablet' : s.deviceType === 'desktop' ? 'Desktop' : 'Unknown';
-                const Icon = s.deviceType === 'mobile' ? Smartphone : s.deviceType === 'tablet' ? Tablet : Monitor;
-                return (
-                  <div key={s.deviceType}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
-                        <Icon className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                        {label}
-                      </span>
-                      <span className="text-xs font-semibold" style={{ color: 'var(--color-info)' }}>{s.count} ({pct}%)</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--color-primary)' }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Requests Log */}
-      {insights && insights.recentRequests.length > 0 && (
-        <div className="mt-6">
-          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            Recent City Requests
-          </h2>
-          <div
-            className="rounded-xl overflow-hidden"
-            style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
-                    {['City', 'Platform', 'Device', 'OS', 'Date'].map((h) => (
-                      <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {insights.recentRequests.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                      <td className="px-4 py-2.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{r.city}</td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                          style={{
-                            background: r.platform === 'android' ? '#34A85315' : r.platform === 'ios' ? '#007AFF15' : '#FF950015',
-                            color: r.platform === 'android' ? '#34A853' : r.platform === 'ios' ? '#007AFF' : '#FF9500',
-                          }}
-                        >
-                          {r.platform || 'unknown'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-secondary)' }}>{r.deviceType || '—'}</td>
-                      <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{r.osVersion || '—'}</td>
-                      <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(r.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirm Dialog */}
       <ConfirmDialog
