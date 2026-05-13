@@ -32,6 +32,7 @@ export const ROUTES = {
   PAYMENTS: '/payments',
   REVENUE: '/revenue',
   MONETIZATION_SETTINGS: '/monetization-settings',
+  BOOST_SETTINGS: '/boost-settings',
   WOMEN_LED: '/women-led',
   SERVICEABLE_CITIES: '/serviceable-cities',
 };

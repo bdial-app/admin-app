@@ -41,6 +41,7 @@ const PaymentsPage = lazy(() => import('./pages/Payments'));
 const SubscriptionsPage = lazy(() => import('./pages/Subscriptions'));
 const RevenuePage = lazy(() => import('./pages/Revenue'));
 const MonetizationSettingsPage = lazy(() => import('./pages/MonetizationSettings'));
+const BoostSettingsPage = lazy(() => import('./pages/BoostSettings'));
 const WomenLedPage = lazy(() => import('./pages/WomenLed'));
 const ServiceableCitiesPage = lazy(() => import('./pages/ServiceableCities'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -106,6 +107,7 @@ function App() {
             <Route path={ROUTES.SUBSCRIPTIONS} element={<SubscriptionsPage />} />
             <Route path={ROUTES.REVENUE} element={<RevenuePage />} />
             <Route path={ROUTES.MONETIZATION_SETTINGS} element={<MonetizationSettingsPage />} />
+            <Route path={ROUTES.BOOST_SETTINGS} element={<BoostSettingsPage />} />
 
             {/* Women-Led */}
             <Route path={ROUTES.WOMEN_LED} element={<WomenLedPage />} />
