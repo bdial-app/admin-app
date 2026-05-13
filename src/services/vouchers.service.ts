@@ -5,6 +5,10 @@ export interface VoucherFilters {
   page?: number;
   limit?: number;
   isActive?: string;
+  search?: string;
+  discountType?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface Voucher {
@@ -63,11 +67,15 @@ export const vouchersService = {
     if (filters.page) params.set('page', String(filters.page));
     if (filters.limit) params.set('limit', String(filters.limit));
     if (filters.isActive) params.set('isActive', filters.isActive);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.discountType) params.set('discountType', filters.discountType);
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
     const { data } = await api.get(`${URLS.VOUCHERS.LIST}?${params.toString()}`);
     const items = data?.vouchers ?? data?.items ?? data?.data ?? data ?? [];
     return {
       items,
-      meta: data?.meta ?? { total: data?.total ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 10, totalPages: Math.ceil((data?.total ?? 0) / (filters.limit ?? 10)) || 1 },
+      meta: data?.meta ?? { total: data?.total ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 25, totalPages: Math.ceil((data?.total ?? 0) / (filters.limit ?? 25)) || 1 },
     };
   },
 
