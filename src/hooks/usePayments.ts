@@ -6,6 +6,7 @@ export const paymentKeys = {
   lists: () => [...paymentKeys.all, 'list'] as const,
   list: (filters: PaymentFilters) => [...paymentKeys.lists(), filters] as const,
   revenue: () => [...paymentKeys.all, 'revenue'] as const,
+  analytics: () => [...paymentKeys.all, 'analytics'] as const,
 };
 
 export function usePayments(filters: PaymentFilters) {
@@ -14,4 +15,8 @@ export function usePayments(filters: PaymentFilters) {
 
 export function useRevenueStats() {
   return useQuery({ queryKey: paymentKeys.revenue(), queryFn: () => paymentsService.getRevenueStats() });
+}
+
+export function useRevenueAnalytics() {
+  return useQuery({ queryKey: paymentKeys.analytics(), queryFn: () => paymentsService.getRevenueAnalytics() });
 }

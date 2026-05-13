@@ -247,6 +247,7 @@ export const URLS = {
   PAYMENTS: {
     LIST: '/admin/payments',
     REVENUE_STATS: '/admin/payments/stats',
+    REVENUE_ANALYTICS: '/admin/payments/analytics',
   },
 
   // -- Subscriptions -----------------------------------

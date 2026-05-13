@@ -39,6 +39,36 @@ export interface RevenueStats {
   breakdown: { type: string; count: string; totalRevenue: string }[];
 }
 
+export interface RevenueAnalytics {
+  overview: {
+    totalRevenue: number;
+    totalTransactions: number;
+    mrr: number;
+    arr: number;
+    activeSubscriptions: number;
+    thisMonthRevenue: number;
+    lastMonthRevenue: number;
+    breakdown: { type: string; count: string; totalRevenue: string }[];
+  };
+  plans: {
+    totalRevenue: number;
+    mrr: number;
+    arr: number;
+    activeSubscriptions: number;
+    revenueByPlan: { planName: string; planSlug: string; count: string; revenue: string }[];
+    subsByInterval: { interval: string; count: string }[];
+    monthlyTrend: { month: string; count: string; revenue: string }[];
+    recentTransactions: Payment[];
+  };
+  deals: {
+    totalRevenue: number;
+    breakdown: { type: string; count: string; revenue: string }[];
+    monthlyTrend: { month: string; type: string; count: string; revenue: string }[];
+    topProviders: { brandName: string; providerId: string; count: string; revenue: string }[];
+    recentTransactions: Payment[];
+  };
+}
+
 export const paymentsService = {
   list: async (filters: PaymentFilters = {}) => {
     const { data } = await api.get(URLS.PAYMENTS.LIST, { params: filters });
@@ -51,6 +81,11 @@ export const paymentsService = {
 
   getRevenueStats: async (): Promise<RevenueStats> => {
     const { data } = await api.get(URLS.PAYMENTS.REVENUE_STATS);
+    return data;
+  },
+
+  getRevenueAnalytics: async (): Promise<RevenueAnalytics> => {
+    const { data } = await api.get(URLS.PAYMENTS.REVENUE_ANALYTICS);
     return data;
   },
 };
