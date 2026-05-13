@@ -94,7 +94,7 @@ export default function Revenue() {
           value={formatCurrency(overview.thisMonthRevenue)}
           icon={growthPct >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
           accent={growthPct >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}
-          trend={growthPct !== 0 ? `${growthPct > 0 ? '+' : ''}${growthPct.toFixed(1)}% vs last month` : undefined}
+          trend={growthPct !== 0 ? { value: Math.round(growthPct), label: 'vs last month' } : undefined}
         />
         <StatCard
           title="MRR"
