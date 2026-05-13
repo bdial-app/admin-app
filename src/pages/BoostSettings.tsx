@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Save, Rocket, IndianRupee, Eye, MousePointerClick, Clock, TrendingUp, Calculator, Info } from 'lucide-react';
+import { Save, Rocket, IndianRupee, Eye, MousePointerClick, Clock, TrendingUp, Calculator, Info, Package, Plus, Trash2, GripVertical } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { useSettings, useUpdateSettings } from '../hooks/useSettings';
@@ -14,10 +14,26 @@ const SPONSORSHIP_KEYS = [
   { key: 'sponsorship_cost_per_impression', label: 'Cost Per Impression (CPI)', description: 'Amount deducted from budget each time a boosted listing is shown', default: '0.10' },
 ];
 
-const PLANS = [
-  { name: 'Basic', budget: 499, duration: 7 },
-  { name: 'Standard', budget: 1499, duration: 14 },
-  { name: 'Premium', budget: 2999, duration: 30 },
+const DEFAULT_PLANS = [
+  { id: 'basic', name: 'Basic Boost', type: 'inline', price: 499, duration: 7, features: ['Appear in search results', 'Basic analytics', '~500 impressions'], recommended: false },
+  { id: 'standard', name: 'Standard Spotlight', type: 'carousel', price: 1499, duration: 14, features: ['Featured in carousel', 'Priority in search', 'Detailed analytics', '~2000 impressions'], recommended: true },
+  { id: 'premium', name: 'Premium Top Result', type: 'top_result', price: 2999, duration: 30, features: ['Always top of search', 'Carousel + inline placement', 'Full analytics dashboard', '~5000 impressions', 'Priority support'], recommended: false },
+];
+
+interface PlanConfig {
+  id: string;
+  name: string;
+  type: string;
+  price: number;
+  duration: number;
+  features: string[];
+  recommended: boolean;
+}
+
+const TYPE_OPTIONS = [
+  { value: 'inline', label: 'In-Feed' },
+  { value: 'carousel', label: 'Carousel' },
+  { value: 'top_result', label: 'Top Result' },
 ];
 
 // ─── Simulator Logic ───────────────────────────────────────────
@@ -73,6 +89,9 @@ export default function BoostSettings() {
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Plan editor
+  const [plans, setPlans] = useState<PlanConfig[]>(DEFAULT_PLANS);
+
   // Simulator inputs
   const [simBudget, setSimBudget] = useState(1499);
   const [simDuration, setSimDuration] = useState(14);
@@ -88,6 +107,16 @@ export default function BoostSettings() {
         }
       });
       setLocalValues(map);
+
+      // Load plans from settings
+      const plansSetting = allSettings.find((s: SystemSetting) => s.key === 'sponsorship_plans');
+      if (plansSetting) {
+        try {
+          const parsed = JSON.parse(plansSetting.value);
+          if (Array.isArray(parsed) && parsed.length > 0) setPlans(parsed);
+        } catch { /* keep defaults */ }
+      }
+
       setHasChanges(false);
     }
   }, [allSettings]);
@@ -101,11 +130,11 @@ export default function BoostSettings() {
   );
 
   const planPreviews = useMemo(
-    () => PLANS.map(plan => ({
+    () => plans.map(plan => ({
       ...plan,
-      result: simulate(plan.budget, plan.duration, cpc, cpi, simImpressions, simClicks),
+      result: simulate(plan.price, plan.duration, cpc, cpi, simImpressions, simClicks),
     })),
-    [cpc, cpi, simImpressions, simClicks],
+    [plans, cpc, cpi, simImpressions, simClicks],
   );
 
   const updateValue = (key: string, value: string) => {
@@ -113,8 +142,44 @@ export default function BoostSettings() {
     setHasChanges(true);
   };
 
+  const updatePlan = (index: number, field: keyof PlanConfig, value: any) => {
+    setPlans(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+    setHasChanges(true);
+  };
+
+  const addPlan = () => {
+    setPlans(prev => [...prev, {
+      id: `plan_${Date.now()}`,
+      name: 'New Plan',
+      type: 'inline',
+      price: 499,
+      duration: 7,
+      features: ['Feature 1'],
+      recommended: false,
+    }]);
+    setHasChanges(true);
+  };
+
+  const removePlan = (index: number) => {
+    if (plans.length <= 1) return;
+    setPlans(prev => prev.filter((_, i) => i !== index));
+    setHasChanges(true);
+  };
+
+  const toggleRecommended = (index: number) => {
+    setPlans(prev => prev.map((p, i) => ({ ...p, recommended: i === index })));
+    setHasChanges(true);
+  };
+
   const handleSave = () => {
-    const changes = Object.entries(localValues).map(([key, value]) => ({ key, value }));
+    const changes = [
+      ...Object.entries(localValues).map(([key, value]) => ({ key, value })),
+      { key: 'sponsorship_plans', value: JSON.stringify(plans) },
+    ];
     updateMutation.mutate(changes, { onSuccess: () => setHasChanges(false) });
   };
 
@@ -200,9 +265,102 @@ export default function BoostSettings() {
             <div className="p-5 rounded-xl border space-y-3" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)' }}>
               <HowItWorksRow emoji="👁" label="Impression" value={`₹${cpi.toFixed(2)} deducted`} description="Each time the listing appears in explore feed, search results, or home carousel" />
               <HowItWorksRow emoji="👆" label="Click" value={`₹${cpc.toFixed(2)} deducted`} description="When a user taps/clicks on the boosted listing to view the provider profile" />
-              <HowItWorksRow emoji="⏸" label="Paused" value="No charges" description="When a provider pauses their boost, no impressions or clicks are tracked" />
               <HowItWorksRow emoji="💰" label="Budget Exhausted" value="Auto-stops" description="Boost is automatically deactivated when spent_amount >= budget_amount" />
               <HowItWorksRow emoji="📅" label="Duration Expired" value="Auto-stops" description="Boost deactivates when end date is reached, even if budget remains" />
+            </div>
+          </Section>
+
+          {/* Plan Editor */}
+          <Section icon={<Package className="w-5 h-5" />} title="Plan Configuration" subtitle="Configure the boost plans shown to providers. Changes apply to new purchases only.">
+            <div className="space-y-4">
+              {plans.map((plan, index) => (
+                <div key={plan.id} className="p-5 rounded-xl border transition-all"
+                  style={{ background: 'var(--surface-0)', borderColor: plan.recommended ? 'var(--color-primary)' : 'var(--border-default)' }}>
+                  {/* Plan header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                        Plan {index + 1}
+                      </span>
+                      {plan.recommended && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                          style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+                          Recommended
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleRecommended(index)}
+                        className="text-[10px] px-2 py-1 rounded-md border transition-colors hover:opacity-80"
+                        style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}>
+                        {plan.recommended ? 'Unmark' : 'Set Recommended'}
+                      </button>
+                      {plans.length > 1 && (
+                        <button onClick={() => removePlan(index)}
+                          className="p-1 rounded-md transition-colors hover:bg-red-50"
+                          style={{ color: '#ef4444' }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Plan fields */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Name</label>
+                      <input type="text" value={plan.name}
+                        onChange={e => updatePlan(index, 'name', e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                        style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Type</label>
+                      <select value={plan.type}
+                        onChange={e => updatePlan(index, 'type', e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                        style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}>
+                        {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Price (₹)</label>
+                      <input type="number" min={100} step={50} value={plan.price}
+                        onChange={e => updatePlan(index, 'price', Number(e.target.value))}
+                        className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                        style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Duration (days)</label>
+                      <input type="number" min={1} max={31} step={1} value={plan.duration}
+                        onChange={e => updatePlan(index, 'duration', Number(e.target.value))}
+                        className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                        style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties} />
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                      Features (one per line)
+                    </label>
+                    <textarea
+                      value={plan.features.join('\n')}
+                      onChange={e => updatePlan(index, 'features', e.target.value.split('\n').filter(f => f.trim()))}
+                      rows={3}
+                      className="w-full px-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-2 transition-all resize-none"
+                      style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button onClick={addPlan}
+                className="w-full p-3 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 text-sm font-medium transition-all hover:opacity-80"
+                style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}>
+                <Plus className="w-4 h-4" /> Add Plan
+              </button>
             </div>
           </Section>
         </div>
@@ -268,12 +426,12 @@ export default function BoostSettings() {
           {/* Plan Previews */}
           <Section icon={<TrendingUp className="w-5 h-5" />} title="Plan Projections" subtitle={`Based on ${simImpressions} impressions/day and ${simClicks} clicks/day`}>
             <div className="space-y-3">
-              {planPreviews.map(({ name, budget, duration, result }) => (
-                <div key={name} className="p-4 rounded-xl border flex items-center justify-between"
+              {planPreviews.map(({ id, name, price, duration, result }) => (
+                <div key={id} className="p-4 rounded-xl border flex items-center justify-between"
                   style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)' }}>
                   <div>
                     <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>₹{budget} / {duration} days</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>₹{price} / {duration} days</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold" style={{ color: result.willExhaustBeforeEnd ? '#ef4444' : 'var(--color-primary)' }}>
@@ -289,7 +447,7 @@ export default function BoostSettings() {
                   <div className="w-16 ml-4">
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-primary-light)' }}>
                       <div className="h-full rounded-full" style={{
-                        width: `${Math.min(100, (result.totalCostPerDay * duration / budget) * 100)}%`,
+                        width: `${Math.min(100, (result.totalCostPerDay * duration / price) * 100)}%`,
                         background: result.willExhaustBeforeEnd ? '#ef4444' : 'var(--color-primary)',
                       }} />
                     </div>
