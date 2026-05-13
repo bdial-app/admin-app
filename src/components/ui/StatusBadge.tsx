@@ -1,4 +1,4 @@
-type StatusType = 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'paused' | 'deleted' | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed';
+type StatusType = 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'paused' | 'deleted' | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed' | 'action_taken' | 'dismissed' | 'under_review';
 
 interface StatusBadgeProps {
   status: string;
@@ -20,6 +20,9 @@ const config: Record<StatusType, { label: string; dot: string; bg: string; text:
   in_progress:   { label: 'In Progress',   dot: 'bg-amber-400',  bg: 'bg-amber-50',    text: 'text-amber-700'  },
   resolved:      { label: 'Resolved',      dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
   closed:        { label: 'Closed',        dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
+  action_taken:  { label: 'Action Taken',  dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
+  dismissed:     { label: 'Dismissed',     dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-600'   },
+  under_review:  { label: 'Under Review',  dot: 'bg-blue-400',   bg: 'bg-blue-50',     text: 'text-blue-700'   },
 };
 
 const StatusBadge = ({ status, size = 'sm', showDot = true }: StatusBadgeProps) => {
