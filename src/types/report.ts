@@ -16,16 +16,26 @@ export interface Report {
   // Relations
   reporter?: import('./user').User;
   reviewer?: import('./user').User;
+  // Hydrated target summary from report queue
+  targetSummary?: {
+    name: string;
+    imageUrl?: string;
+    status?: string;
+    totalReports: number;
+  };
 }
 
 export interface ReportDetail extends Report {
   reporterCredibility?: {
-    totalReports: number;
-    actionTakenReports: number;
-    dismissedReports: number;
+    totalFiled: number;
+    dismissedCount: number;
+    actionCount: number;
+    credibilityRatio: string;
   };
-  relatedReports?: Report[];
+  otherReportsOnTarget?: Report[];
   targetEntity?: Record<string, unknown>;
+  // Legacy fields kept for backwards compat
+  relatedReports?: Report[];
 }
 
 export interface ReportFilters {

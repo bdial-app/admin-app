@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { Eye, AlertTriangle, ShieldCheck, Ban, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, AlertTriangle, ShieldCheck, Ban, XCircle, User, Clock, FileWarning, Shield } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
-import { useReports, useReviewReport, useReportStats } from '../hooks/useReports';
+import { useReports, useReport, useReviewReport, useReportStats } from '../hooks/useReports';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { Report, ReportStatus } from '../types';
+import type { Report, ReportDetail, ReportStatus } from '../types';
 
 const LIMIT = 10;
 const STATUS_TABS: { label: string; value: ReportStatus | '' }[] = [
@@ -51,6 +51,7 @@ export default function Reports() {
   });
 
   const { data: stats } = useReportStats();
+  const { data: reportDetail } = useReport(selected?.id ?? '');
   const reviewMutation = useReviewReport();
 
   const handleReview = async () => {
@@ -75,33 +76,70 @@ export default function Reports() {
       key: 'entityType',
       header: 'Target',
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-flex px-2 py-0.5 text-xs font-medium rounded capitalize"
-            style={{
-              background:
-                row.entityType === 'provider' ? 'var(--color-primary-light)' :
-                row.entityType === 'product' ? 'var(--color-info-light)' :
-                'var(--color-warning-light)',
-              color:
-                row.entityType === 'provider' ? 'var(--color-primary)' :
-                row.entityType === 'product' ? 'var(--color-info-dark)' :
-                'var(--color-warning-dark)',
-            }}
-          >
-            {row.entityType}
-          </span>
+        <div className="flex items-center gap-2.5">
+          {row.targetSummary?.imageUrl ? (
+            <img
+              src={row.targetSummary.imageUrl}
+              alt=""
+              className="w-8 h-8 rounded-lg object-cover shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'var(--surface-2)' }}
+            >
+              <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {row.targetSummary?.name || row.entityId?.slice(0, 8) + '…'}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span
+                className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded capitalize"
+                style={{
+                  background:
+                    row.entityType === 'provider' ? 'var(--color-primary-light)' :
+                    row.entityType === 'product' ? 'var(--color-info-light)' :
+                    'var(--color-warning-light)',
+                  color:
+                    row.entityType === 'provider' ? 'var(--color-primary)' :
+                    row.entityType === 'product' ? 'var(--color-info-dark)' :
+                    'var(--color-warning-dark)',
+                }}
+              >
+                {row.entityType}
+              </span>
+              {(row.targetSummary?.totalReports ?? 0) >= 3 && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded"
+                  style={{ background: 'var(--color-danger-light, #fee2e2)', color: 'var(--color-danger, #dc2626)' }}
+                >
+                  <FileWarning className="w-3 h-3" />
+                  {row.targetSummary?.totalReports} reports
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       ),
     },
     {
       key: 'reason',
       header: 'Reason',
-      render: (row) => (
-        <span className="text-sm capitalize" style={{ color: 'var(--text-primary)' }}>
-          {row.reason?.replace(/_/g, ' ') || '—'}
-        </span>
-      ),
+      render: (row) => {
+        const isHighSeverity = ['fraud_scam', 'fraud', 'fake_business', 'fake_product', 'counterfeit'].includes(row.reason);
+        return (
+          <span
+            className={`text-sm capitalize ${isHighSeverity ? 'font-semibold' : ''}`}
+            style={{ color: isHighSeverity ? 'var(--color-danger, #dc2626)' : 'var(--text-primary)' }}
+          >
+            {row.reason?.replace(/_/g, ' ') || '—'}
+          </span>
+        );
+      },
     },
     {
       key: 'reporter',
@@ -229,16 +267,75 @@ export default function Reports() {
       >
         {selected && (
           <div className="space-y-5">
-            {/* Report Info */}
+            {/* Target Entity Card */}
+            {(selected.targetSummary || (reportDetail as ReportDetail)?.targetEntity) && (
+              <div className="p-4 rounded-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                <p className="text-xs font-medium uppercase mb-3" style={{ color: 'var(--text-muted)' }}>
+                  Reported Target
+                </p>
+                <div className="flex items-center gap-3">
+                  {selected.targetSummary?.imageUrl ? (
+                    <img
+                      src={selected.targetSummary.imageUrl}
+                      alt=""
+                      className="w-12 h-12 rounded-xl object-cover shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'var(--surface-2)' }}
+                    >
+                      <User className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {selected.targetSummary?.name || 'Unknown'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className="inline-flex px-2 py-0.5 text-[10px] font-medium rounded capitalize"
+                        style={{
+                          background:
+                            selected.entityType === 'provider' ? 'var(--color-primary-light)' :
+                            selected.entityType === 'product' ? 'var(--color-info-light)' :
+                            'var(--color-warning-light)',
+                          color:
+                            selected.entityType === 'provider' ? 'var(--color-primary)' :
+                            selected.entityType === 'product' ? 'var(--color-info-dark)' :
+                            'var(--color-warning-dark)',
+                        }}
+                      >
+                        {selected.entityType}
+                      </span>
+                      {selected.targetSummary?.status && (
+                        <StatusBadge status={selected.targetSummary.status} />
+                      )}
+                    </div>
+                  </div>
+                  {(selected.targetSummary?.totalReports ?? 0) > 0 && (
+                    <div className="text-center shrink-0">
+                      <p
+                        className="text-xl font-bold"
+                        style={{ color: (selected.targetSummary?.totalReports ?? 0) >= 3 ? 'var(--color-danger, #dc2626)' : 'var(--text-primary)' }}
+                      >
+                        {selected.targetSummary?.totalReports}
+                      </p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>total reports</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Report Info Grid */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Entity Type', value: selected.entityType },
                 { label: 'Reason', value: selected.reason?.replace(/_/g, ' ') },
                 { label: 'Status', value: selected.status },
-                { label: 'Action', value: selected.adminAction?.replace(/_/g, ' ') },
-                { label: 'Reporter', value: selected.reporter?.name || selected.reporter?.mobileNumber },
+                { label: 'Action Taken', value: selected.adminAction?.replace(/_/g, ' ') },
                 { label: 'Filed', value: formatDate(selected.createdAt) },
-                { label: 'Reviewed By', value: selected.reviewer?.name },
+                { label: 'Reporter', value: selected.reporter?.name || selected.reporter?.mobileNumber },
                 { label: 'Reviewed At', value: selected.reviewedAt ? formatDate(selected.reviewedAt) : null },
               ].map((field) => (
                 <div key={field.label}>
@@ -259,6 +356,73 @@ export default function Reports() {
                 <p className="text-sm leading-relaxed p-3 rounded-lg" style={{ background: 'var(--surface-1)', color: 'var(--text-secondary)' }}>
                   {selected.description}
                 </p>
+              </div>
+            )}
+
+            {/* Reporter Credibility */}
+            {(reportDetail as ReportDetail)?.reporterCredibility && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>
+                  <Shield className="w-3.5 h-3.5 inline mr-1" />
+                  Reporter Credibility
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'Total Filed', value: (reportDetail as ReportDetail).reporterCredibility!.totalFiled },
+                    { label: 'Actioned', value: (reportDetail as ReportDetail).reporterCredibility!.actionCount },
+                    { label: 'Dismissed', value: (reportDetail as ReportDetail).reporterCredibility!.dismissedCount },
+                    { label: 'Credibility', value: `${((parseFloat((reportDetail as ReportDetail).reporterCredibility!.credibilityRatio || '0')) * 100).toFixed(0)}%` },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="text-center p-2 rounded-lg"
+                      style={{ background: 'var(--surface-1)' }}
+                    >
+                      <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{stat.value}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Report History on this Target */}
+            {(reportDetail as ReportDetail)?.otherReportsOnTarget && (reportDetail as ReportDetail).otherReportsOnTarget!.length > 1 && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>
+                  <Clock className="w-3.5 h-3.5 inline mr-1" />
+                  Report History ({(reportDetail as ReportDetail).otherReportsOnTarget!.length} total on this target)
+                </p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {(reportDetail as ReportDetail).otherReportsOnTarget!.map((r: Report) => (
+                    <div
+                      key={r.id}
+                      className={`flex items-center justify-between p-2.5 rounded-lg text-sm ${r.id === selected.id ? 'ring-2' : ''}`}
+                      style={{
+                        background: 'var(--surface-1)',
+                        borderColor: 'var(--border-default)',
+                        ...(r.id === selected.id ? { ringColor: 'var(--color-primary)' } : {}),
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <StatusBadge status={r.status} />
+                        <span className="capitalize truncate" style={{ color: 'var(--text-primary)' }}>
+                          {r.reason?.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {r.adminAction && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded capitalize" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                            {r.adminAction}
+                          </span>
+                        )}
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {formatDate(r.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -286,23 +450,58 @@ export default function Reports() {
         variant={confirmAction?.action === 'dismiss' ? 'default' : 'danger'}
         isLoading={reviewMutation.isPending}
       >
-        <div className="mt-3">
-          <label className="block text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
-            Admin Notes (optional)
-          </label>
-          <textarea
-            value={adminNotes}
-            onChange={(e) => setAdminNotes(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg focus-ring"
-            style={{
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              resize: 'none',
-            }}
-            rows={3}
-            placeholder="Add notes about this decision…"
-          />
+        <div className="space-y-3 mt-3">
+          {/* Escalation hint */}
+          {confirmAction?.action === 'warn' && (confirmAction.report.targetSummary?.totalReports ?? 0) >= 3 && (
+            <div
+              className="flex items-start gap-2 p-3 rounded-lg text-sm"
+              style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#d97706' }} />
+              <div>
+                <p className="font-semibold" style={{ color: '#d97706' }}>
+                  This target has {confirmAction.report.targetSummary?.totalReports} reports
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#92400e' }}>
+                  Consider escalating to <strong>Suspend</strong> instead of Warning for repeated violations.
+                </p>
+              </div>
+            </div>
+          )}
+          {confirmAction?.action === 'suspend' && (confirmAction.report.targetSummary?.totalReports ?? 0) >= 5 && (
+            <div
+              className="flex items-start gap-2 p-3 rounded-lg text-sm"
+              style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)' }}
+            >
+              <Ban className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#dc2626' }} />
+              <div>
+                <p className="font-semibold" style={{ color: '#dc2626' }}>
+                  This target has {confirmAction.report.targetSummary?.totalReports} reports
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#991b1b' }}>
+                  With this many reports, you may want to consider a <strong>Ban</strong> to disable the user account entirely.
+                </p>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
+              Admin Notes (optional)
+            </label>
+            <textarea
+              value={adminNotes}
+              onChange={(e) => setAdminNotes(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg focus-ring"
+              style={{
+                background: 'var(--surface-1)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+                resize: 'none',
+              }}
+              rows={3}
+              placeholder="Add notes about this decision…"
+            />
+          </div>
         </div>
       </ConfirmDialog>
     </div>
