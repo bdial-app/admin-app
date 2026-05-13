@@ -11,7 +11,6 @@ import {
   useApproveProvider,
   useSuspendProvider,
   useUnsuspendProvider,
-  useUpdateProvider,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -46,7 +45,6 @@ export default function Providers() {
   const approveMutation = useApproveProvider();
   const suspendMutation = useSuspendProvider();
   const unsuspendMutation = useUnsuspendProvider();
-  const updateMutation = useUpdateProvider();
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
@@ -65,18 +63,6 @@ export default function Providers() {
       setSelectedProvider(null);
     } catch {
       toast.error(`Failed to ${confirmAction.type} provider`);
-    }
-  };
-
-  const handleToggleFeatured = async (provider: Provider) => {
-    try {
-      await updateMutation.mutateAsync({
-        id: provider.id,
-        body: { isFeatured: !provider.isFeatured },
-      });
-      toast.success(provider.isFeatured ? 'Removed from featured' : 'Marked as featured');
-    } catch {
-      toast.error('Failed to update provider');
     }
   };
 

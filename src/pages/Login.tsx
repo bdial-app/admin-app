@@ -5,7 +5,7 @@ import { sendOtp, verifyOtp } from '../store/slices/authSlice';
 import type { AppDispatch } from '../store/store';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import { Shield, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import logo from '../assets/logo.jpeg';
 
 const Login = () => {

@@ -23,6 +23,9 @@ const ENTITY_TYPES = [
   { label: 'Provider', value: 'provider' },
   { label: 'Product', value: 'product' },
   { label: 'Message', value: 'message' },
+  { label: 'Deal', value: 'deal' },
+  { label: 'Review', value: 'review' },
+  { label: 'Customer', value: 'customer' },
 ];
 
 const ACTION_OPTIONS: { label: string; value: 'dismiss' | 'warn' | 'suspend' | 'ban'; icon: typeof XCircle; variant: 'default' | 'danger' | 'warning' }[] = [
@@ -103,10 +106,16 @@ export default function Reports() {
                   background:
                     row.entityType === 'provider' ? 'var(--color-primary-light)' :
                     row.entityType === 'product' ? 'var(--color-info-light)' :
+                    row.entityType === 'deal' ? 'var(--color-success-light)' :
+                    row.entityType === 'review' ? 'var(--color-danger-light)' :
+                    row.entityType === 'customer' ? 'var(--surface-2)' :
                     'var(--color-warning-light)',
                   color:
                     row.entityType === 'provider' ? 'var(--color-primary)' :
                     row.entityType === 'product' ? 'var(--color-info-dark)' :
+                    row.entityType === 'deal' ? 'var(--color-success-dark)' :
+                    row.entityType === 'review' ? 'var(--color-danger)' :
+                    row.entityType === 'customer' ? 'var(--text-muted)' :
                     'var(--color-warning-dark)',
                 }}
               >
@@ -299,10 +308,16 @@ export default function Reports() {
                           background:
                             selected.entityType === 'provider' ? 'var(--color-primary-light)' :
                             selected.entityType === 'product' ? 'var(--color-info-light)' :
+                            selected.entityType === 'deal' ? 'var(--color-success-light)' :
+                            selected.entityType === 'review' ? 'var(--color-danger-light)' :
+                            selected.entityType === 'customer' ? 'var(--surface-2)' :
                             'var(--color-warning-light)',
                           color:
                             selected.entityType === 'provider' ? 'var(--color-primary)' :
                             selected.entityType === 'product' ? 'var(--color-info-dark)' :
+                            selected.entityType === 'deal' ? 'var(--color-success-dark)' :
+                            selected.entityType === 'review' ? 'var(--color-danger)' :
+                            selected.entityType === 'customer' ? 'var(--text-muted)' :
                             'var(--color-warning-dark)',
                         }}
                       >

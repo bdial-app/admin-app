@@ -6,13 +6,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import { usePayments } from '../hooks/usePayments';
 import type { Payment } from '../services/payments.service';
 
-const STATUS_COLORS: Record<string, string> = {
-  succeeded: 'bg-green-100 text-green-700',
-  pending: 'bg-yellow-100 text-yellow-700',
-  processing: 'bg-blue-100 text-blue-700',
-  failed: 'bg-red-100 text-red-700',
-  refunded: 'bg-purple-100 text-purple-700',
-};
+
 
 const TYPE_OPTIONS = ['', 'sponsorship', 'lead_unlock', 'subscription', 'badge', 'deal_unlock'];
 const STATUS_OPTIONS = ['', 'pending', 'processing', 'succeeded', 'failed', 'refunded'];

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Megaphone, Eye, DollarSign, MousePointerClick, BarChart3, Check, X, Search, TrendingUp, Clock, Calendar, MapPin, Target, Activity, Zap, AlertTriangle, Percent } from 'lucide-react';
+import { Megaphone, Eye, DollarSign, MousePointerClick, BarChart3, Check, X, Search, TrendingUp, Clock, MapPin, Target, Activity, AlertTriangle, Percent } from 'lucide-react';
 import { AreaChart, Area, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
@@ -533,7 +533,7 @@ export default function Sponsorships() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis dataKey="date" tickFormatter={(d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit' })} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                         <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                        <Tooltip formatter={(v: number) => [`₹${v.toFixed(2)}`, 'Spend']} contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }} />
+                        <Tooltip formatter={(v) => [`₹${Number(v ?? 0).toFixed(2)}`, 'Spend']} contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px' }} />
                         <Line type="monotone" dataKey="spend" stroke="#f59e0b" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
