@@ -722,8 +722,8 @@ export default function CreateProviderFlow() {
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
                     style={{
-                      background: parentSelected && !hasChildren ? 'var(--color-primary-light)' : 'transparent',
-                      color: 'var(--text-primary)',
+                      background: parentSelected && !hasChildren ? 'var(--color-primary)' : 'transparent',
+                      color: parentSelected && !hasChildren ? 'white' : 'var(--text-primary)',
                     }}
                   >
                     <span className="flex-1 text-xs font-semibold truncate">{cat.name}</span>

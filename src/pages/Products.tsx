@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -35,7 +36,7 @@ export default function Products() {
     if (!confirmDelete) return;
     try {
       await deleteMutation.mutateAsync(confirmDelete.id);
-      toast.success('Product deactivated');
+      toast.success('Product disabled');
       setConfirmDelete(null);
       setSelectedProduct(null);
     } catch {
@@ -46,7 +47,7 @@ export default function Products() {
   const handleToggleActive = async (product: Product) => {
     try {
       await updateMutation.mutateAsync({ id: product.id, body: { isActive: !product.isActive } });
-      toast.success(product.isActive ? 'Product deactivated' : 'Product activated');
+      toast.success(product.isActive ? 'Product disabled' : 'Product activated');
     } catch {
       toast.error('Failed to update product');
     }
@@ -88,20 +89,10 @@ export default function Products() {
         </span>
       ),
     },
-    {
+    {   
       key: 'isActive',
       header: 'Status',
-      render: (row) => (
-        <span
-          className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full"
-          style={{
-            background: row.isActive ? 'var(--color-success-light)' : 'var(--surface-2)',
-            color: row.isActive ? 'var(--color-success-dark)' : 'var(--text-muted)',
-          }}
-        >
-          {row.isActive ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (row) => <StatusBadge status={row.isActive ? 'active' : 'disabled'} />,
     },
     {
       key: 'displayOrder',
@@ -176,7 +167,7 @@ export default function Products() {
           >
             <option value="">All Products</option>
             <option value="true">Active</option>
-            <option value="false">Inactive</option>
+            <option value="false">Disabled</option>
           </select>
         }
       />
@@ -198,7 +189,7 @@ export default function Products() {
                   color: selectedProduct.isActive ? 'var(--text-secondary)' : 'white',
                 }}
               >
-                {selectedProduct.isActive ? 'Deactivate' : 'Activate'}
+                {selectedProduct.isActive ? 'Disable' : 'Activate'}
               </button>
               <button
                 onClick={() => setConfirmDelete(selectedProduct)}
@@ -218,7 +209,6 @@ export default function Products() {
               {[
                 { label: 'Name', value: selectedProduct.name },
                 { label: 'Price', value: formatPrice(selectedProduct.price) },
-                { label: 'Status', value: selectedProduct.isActive ? 'Active' : 'Inactive' },
                 { label: 'Display Order', value: selectedProduct.displayOrder?.toString() },
                 { label: 'Provider', value: selectedProduct.provider?.brandName },
               ].map((field) => (
@@ -231,6 +221,12 @@ export default function Products() {
                   </p>
                 </div>
               ))}
+              <div>
+                <p className="text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Status
+                </p>
+                <StatusBadge status={selectedProduct.isActive ? 'active' : 'disabled'} />
+              </div>
             </div>
 
             {selectedProduct.description && (

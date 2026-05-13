@@ -85,9 +85,33 @@ export default function Vouchers() {
     {
       key: 'actions', header: '', render: (v) => (
         <div className="flex gap-1">
-          <button onClick={() => { navigator.clipboard.writeText(v.code); toast.info('Copied!'); }} className="p-1 rounded hover:bg-gray-100" title="Copy code"><Copy size={14} /></button>
-          <button onClick={() => setViewRedemptions(v.id)} className="p-1 rounded hover:bg-gray-100" title="View redemptions"><Eye size={14} /></button>
-          <button onClick={() => handleToggle(v)} className="p-1 rounded hover:bg-gray-100" title="Toggle active">
+          <button
+            onClick={() => { navigator.clipboard.writeText(v.code); toast.info('Copied!'); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Copy code"
+          >
+            <Copy size={14} />
+          </button>
+          <button
+            onClick={() => setViewRedemptions(v.id)}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="View redemptions"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={() => handleToggle(v)}
+            className="p-1.5 rounded-lg transition-colors"
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Toggle active"
+          >
             {v.isActive ? <ToggleRight size={14} className="text-green-600" /> : <ToggleLeft size={14} className="text-gray-400" />}
           </button>
         </div>

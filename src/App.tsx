@@ -14,6 +14,7 @@ import Login from './pages/Login';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Users = lazy(() => import('./pages/Users'));
 const Providers = lazy(() => import('./pages/Providers'));
+const ProviderView = lazy(() => import('./pages/ProviderView'));
 const Verifications = lazy(() => import('./pages/Verifications'));
 const Reviews = lazy(() => import('./pages/Reviews'));
 const Categories = lazy(() => import('./pages/Categories'));
@@ -78,6 +79,7 @@ function App() {
 
             {/* Content */}
             <Route path={ROUTES.USERS} element={<Users />} />
+            <Route path={ROUTES.PROVIDER_VIEW} element={<ProviderView />} />
             <Route path={ROUTES.PROVIDERS} element={<Providers />} />
             <Route path={ROUTES.CATEGORIES} element={<Categories />} />
             <Route path={ROUTES.PRODUCTS} element={<Products />} />

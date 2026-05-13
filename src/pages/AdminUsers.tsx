@@ -4,6 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { useAdminUsers, useCreateAdminUser, useUpdateAdminUser, useRemoveAdminUser } from '../hooks/useAdminUsers';
 import { ROUTES } from '../utils/constants';
 import { useSelector } from 'react-redux';
@@ -130,10 +131,7 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full" style={{
-                      background: user.status === 'active' ? 'var(--color-success-light)' : 'var(--color-danger-light)',
-                      color: user.status === 'active' ? 'var(--color-success-dark)' : 'var(--color-danger-dark)',
-                    }}>{user.status}</span>
+                    <StatusBadge status={user.status} />
                   </td>
                   <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
                     {new Date(user.createdAt).toLocaleDateString()}

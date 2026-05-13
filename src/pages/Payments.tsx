@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
+import StatusBadge from '../components/ui/StatusBadge';
 import { usePayments } from '../hooks/usePayments';
 import type { Payment } from '../services/payments.service';
 
@@ -33,13 +34,7 @@ export default function Payments() {
     { key: 'type', header: 'Type', render: (p) => <span className="capitalize">{p.type?.replace('_', ' ')}</span> },
     { key: 'amount', header: 'Amount', render: (p) => `₹${p.amount?.toLocaleString()}` },
     { key: 'discountAmount', header: 'Discount', render: (p) => p.discountAmount ? `-₹${p.discountAmount}` : '—' },
-    {
-      key: 'status', header: 'Status', render: (p) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
-          {p.status}
-        </span>
-      ),
-    },
+    { key: 'status', header: 'Status', render: (p) => <StatusBadge status={p.status} /> },
     {
       key: 'stripeReceiptUrl', header: '', render: (p) => p.stripeReceiptUrl ? (
         <a href={p.stripeReceiptUrl} target="_blank" rel="noreferrer" className="p-1 rounded hover:bg-gray-100 inline-flex"><ExternalLink size={14} /></a>

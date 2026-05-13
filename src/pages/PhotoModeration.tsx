@@ -86,7 +86,8 @@ export default function PhotoModeration() {
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                   <button
                     onClick={() => setPreviewUrl(photo.imageUrl)}
-                    className="p-2 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-colors"
+                    className="p-2 rounded-lg transition-colors"
+                    style={{ background: 'var(--surface-0)', color: 'var(--text-secondary)' }}
                   >
                     <Eye className="w-4 h-4" />
                   </button>

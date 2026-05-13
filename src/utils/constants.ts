@@ -35,6 +35,7 @@ export const ROUTES = {
   BOOST_SETTINGS: '/boost-settings',
   WOMEN_LED: '/women-led',
   SERVICEABLE_CITIES: '/serviceable-cities',
+  PROVIDER_VIEW: '/providers/:id',
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';

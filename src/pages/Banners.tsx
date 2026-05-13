@@ -5,6 +5,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { FormField } from '../components/ui/FormField';
 import { useBanners, useCreateBanner, useUpdateBanner, useDeleteBanner } from '../hooks/useBanners';
 import { ROUTES } from '../utils/constants';
@@ -173,10 +174,10 @@ export default function Banners() {
         const now = new Date();
         const isScheduled = row.startsAt && new Date(row.startsAt) > now;
         const isExpired = row.endsAt && new Date(row.endsAt) < now;
-        const label = !row.isActive ? 'Inactive' : isExpired ? 'Expired' : isScheduled ? 'Scheduled' : 'Active';
-        const bg = !row.isActive ? 'var(--surface-2)' : isExpired ? 'var(--color-danger-light)' : isScheduled ? 'var(--color-info-light)' : 'var(--color-success-light)';
-        const color = !row.isActive ? 'var(--text-muted)' : isExpired ? 'var(--color-danger-dark)' : isScheduled ? 'var(--color-info-dark)' : 'var(--color-success-dark)';
-        return <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: bg, color }}>{label}</span>;
+        if (!row.isActive) return <StatusBadge status="disabled" />;
+        if (isExpired) return <StatusBadge status="expired" />;
+        if (isScheduled) return <StatusBadge status="scheduled" />;
+        return <StatusBadge status="active" />;
       },
     },
     {
@@ -194,9 +195,35 @@ export default function Banners() {
       className: 'w-24',
       render: (row) => (
         <div className="flex items-center gap-1">
-          <button onClick={(e) => { e.stopPropagation(); setSelected(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}><Pencil className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-danger)' }}><Trash2 className="w-4 h-4" /></button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelected(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Edit"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--color-danger)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       ),
     },
@@ -275,20 +302,33 @@ export default function Banners() {
             )}
             <div className="grid grid-cols-2 gap-3">
               {[
-                ['Status', selected.isActive ? 'Active' : 'Inactive'],
-                ['Order', String(selected.displayOrder)],
-                ['Tag', selected.tag || '—'],
-                ['CTA', selected.cta || '—'],
-                ['Starts', formatDate(selected.startsAt)],
-                ['Ends', formatDate(selected.endsAt)],
-                ['Link URL', selected.linkUrl || '—'],
-                ['Created', formatDate(selected.createdAt)],
-              ].map(([label, value]) => (
-                <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
-                  <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                { label: 'Order', value: String(selected.displayOrder) },
+                { label: 'Tag', value: selected.tag || '—' },
+                { label: 'CTA', value: selected.cta || '—' },
+                { label: 'Starts', value: formatDate(selected.startsAt) },
+                { label: 'Ends', value: formatDate(selected.endsAt) },
+                { label: 'Link URL', value: selected.linkUrl || '—' },
+                { label: 'Created', value: formatDate(selected.createdAt) },
+              ].map((field) => (
+                <div key={field.label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
+                  <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{field.value}</p>
                 </div>
               ))}
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    const now = new Date();
+                    const isScheduled = selected.startsAt && new Date(selected.startsAt) > now;
+                    const isExpired = selected.endsAt && new Date(selected.endsAt) < now;
+                    if (!selected.isActive) return <StatusBadge status="disabled" />;
+                    if (isExpired) return <StatusBadge status="expired" />;
+                    if (isScheduled) return <StatusBadge status="scheduled" />;
+                    return <StatusBadge status="active" />;
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         )}

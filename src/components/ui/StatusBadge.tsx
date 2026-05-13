@@ -1,4 +1,8 @@
-type StatusType = 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'paused' | 'deleted' | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed' | 'action_taken' | 'dismissed' | 'under_review';
+type StatusType =
+  | 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'paused' | 'deleted'
+  | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed'
+  | 'action_taken' | 'dismissed' | 'under_review'
+  | 'in_review' | 'unverified' | 'disabled' | 'succeeded' | 'verified' | 'expired' | 'scheduled';
 
 interface StatusBadgeProps {
   status: string;
@@ -6,36 +10,47 @@ interface StatusBadgeProps {
   showDot?: boolean;
 }
 
-const config: Record<StatusType, { label: string; dot: string; bg: string; text: string }> = {
-  pending:       { label: 'Pending',       dot: 'bg-amber-400',  bg: 'bg-amber-50',   text: 'text-amber-700'  },
-  approved:      { label: 'Approved',      dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
-  rejected:      { label: 'Rejected',      dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
-  active:        { label: 'Active',        dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
-  suspended:     { label: 'Suspended',     dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
-  paused:        { label: 'Paused',        dot: 'bg-amber-400',  bg: 'bg-amber-50',    text: 'text-amber-700'  },
-  deleted:       { label: 'Deleted',       dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
-  not_submitted: { label: 'Not Submitted', dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
-  flagged:       { label: 'Flagged',       dot: 'bg-orange-400', bg: 'bg-orange-50',   text: 'text-orange-700' },
-  open:          { label: 'Open',          dot: 'bg-red-400',    bg: 'bg-red-50',      text: 'text-red-700'    },
-  in_progress:   { label: 'In Progress',   dot: 'bg-amber-400',  bg: 'bg-amber-50',    text: 'text-amber-700'  },
-  resolved:      { label: 'Resolved',      dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
-  closed:        { label: 'Closed',        dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-500'   },
-  action_taken:  { label: 'Action Taken',  dot: 'bg-emerald-400',bg: 'bg-emerald-50',  text: 'text-emerald-700'},
-  dismissed:     { label: 'Dismissed',     dot: 'bg-gray-400',   bg: 'bg-gray-100',    text: 'text-gray-600'   },
-  under_review:  { label: 'Under Review',  dot: 'bg-blue-400',   bg: 'bg-blue-50',     text: 'text-blue-700'   },
+const config: Record<StatusType, { label: string; color: string; bg: string }> = {
+  pending:       { label: 'Pending',       color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
+  approved:      { label: 'Approved',      color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  rejected:      { label: 'Rejected',      color: '#FFFFFF',              bg: 'var(--color-danger)'        },
+  active:        { label: 'Active',        color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  verified:      { label: 'Verified',      color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  suspended:     { label: 'Suspended',     color: '#FFFFFF',              bg: 'var(--color-danger)'        },
+  paused:        { label: 'Paused',        color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
+  deleted:       { label: 'Deleted',       color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  not_submitted: { label: 'Not Submitted', color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  flagged:       { label: 'Flagged',       color: '#F97316',              bg: 'rgba(249, 115, 22, 0.1)'    },
+  open:          { label: 'Open',          color: 'var(--color-danger)',  bg: 'var(--color-danger-light)'  },
+  in_progress:   { label: 'In Progress',   color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
+  resolved:      { label: 'Resolved',      color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  closed:        { label: 'Closed',        color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  action_taken:  { label: 'Action Taken',  color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  dismissed:     { label: 'Dismissed',     color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  under_review:  { label: 'Under Review',  color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
+  in_review:     { label: 'In Review',     color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
+  unverified:    { label: 'Unverified',    color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  disabled:      { label: 'Disabled',      color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  succeeded:     { label: 'Succeeded',     color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  expired:       { label: 'Expired',       color: '#FFFFFF',              bg: 'var(--color-danger)'        },
+  scheduled:     { label: 'Scheduled',     color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
 };
 
 const StatusBadge = ({ status, size = 'sm', showDot = true }: StatusBadgeProps) => {
   const s = config[status as StatusType] ?? config.pending;
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-medium ${sizeClasses} ${s.bg} ${s.text}`}
-      style={{ transition: 'all 0.15s ease' }}
+      className={`inline-flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wider ${sizeClasses}`}
+      style={{
+        transition: 'all 0.15s ease',
+        background: s.bg,
+        color: s.color,
+      }}
     >
       {showDot && (
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.dot}`} />
+        <span className="inline-block w-1 h-1 rounded-full" style={{ background: s.color }} />
       )}
       {s.label}
     </span>
