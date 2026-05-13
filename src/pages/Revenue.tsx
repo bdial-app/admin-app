@@ -585,7 +585,8 @@ function RevenueModelCard({ title, subtitle, revenue, total, color, icon }: {
         </div>
         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${color}15`, color }}>{pct.toFixed(1)}%</span>
       </div>
-      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
+      <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>{title}</p>
+      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
       <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>{formatCurrency(revenue)}</p>
       <div className="mt-3 h-2 rounded-full" style={{ background: 'var(--surface-2)' }}>
         <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
