@@ -24,3 +24,23 @@ export interface SponsoredListing {
   updatedAt: string;
   provider?: import('./provider').Provider;
 }
+
+export interface SponsorshipDailyData {
+  date: string;
+  impressions: number;
+  clicks: number;
+  spend: number;
+}
+
+export interface SponsorshipAnalytics {
+  daily: SponsorshipDailyData[];
+  totals: {
+    impressions: number;
+    clicks: number;
+    spend: number;
+    avgDailyImpressions: number;
+    avgDailyClicks: number;
+  };
+  projectedDaysLeft: number | null;
+  period: number;
+}

@@ -120,6 +120,7 @@ export const URLS = {
     LIST: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
     UPDATE: (id: string) => `/admin/sponsorships/${id}`,
+    ANALYTICS: (id: string) => `/admin/sponsorships/${id}/analytics`,
     PENDING: '/admin/sponsorships/pending',
     APPROVE: (id: string) => `/admin/sponsorships/${id}/approve`,
     REJECT: (id: string) => `/admin/sponsorships/${id}/reject`,

@@ -66,4 +66,9 @@ export const sponsoredService = {
     const { data } = await api.patch(URLS.SPONSORED.REJECT(id), { adminNotes: notes });
     return data;
   },
+
+  getAnalytics: async (id: string, period: string = '7d'): Promise<import('../types/sponsored').SponsorshipAnalytics> => {
+    const { data } = await api.get(`${URLS.SPONSORED.ANALYTICS(id)}?period=${period}`);
+    return data;
+  },
 };

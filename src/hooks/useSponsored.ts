@@ -8,6 +8,7 @@ export const sponsoredKeys = {
   lists: () => [...sponsoredKeys.all, 'list'] as const,
   list: (filters: SponsoredFilters) => [...sponsoredKeys.lists(), filters] as const,
   detail: (id: string) => [...sponsoredKeys.all, 'detail', id] as const,
+  analytics: (id: string, period: string) => [...sponsoredKeys.all, 'analytics', id, period] as const,
   pending: () => [...sponsoredKeys.all, 'pending'] as const,
   stats: () => [...sponsoredKeys.all, 'stats'] as const,
 };
@@ -70,5 +71,13 @@ export function useRejectSponsorship() {
       toast.success('Sponsorship rejected');
     },
     onError: () => toast.error('Failed to reject sponsorship'),
+  });
+}
+
+export function useSponsorshipAnalytics(id: string, period: string = '7d') {
+  return useQuery({
+    queryKey: sponsoredKeys.analytics(id, period),
+    queryFn: () => sponsoredService.getAnalytics(id, period),
+    enabled: !!id,
   });
 }
