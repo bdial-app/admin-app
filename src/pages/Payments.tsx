@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   CreditCard, ExternalLink, Search, Filter, Calendar, X, TrendingUp,
-  IndianRupee, ArrowUpRight, ArrowDownRight, Receipt, Wallet, Clock,
-  CheckCircle2, XCircle, RefreshCw, Zap, ShieldCheck, Eye, Copy,
+  IndianRupee, ArrowUpRight, ArrowDownRight, Receipt, Clock,
+  CheckCircle2, XCircle, RefreshCw, Zap, Eye, Copy,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';

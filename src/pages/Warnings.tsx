@@ -4,7 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
-import StatusBadge from '../components/ui/StatusBadge';
+
 import { useWarnings, useCreateWarning } from '../hooks/useWarnings';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
