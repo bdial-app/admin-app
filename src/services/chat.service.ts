@@ -7,6 +7,10 @@ export interface ChatFilters {
   limit?: number;
   status?: string;
   search?: string;
+  type?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  hasRedacted?: string;
 }
 
 export interface ChatStats {

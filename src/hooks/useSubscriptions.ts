@@ -6,10 +6,15 @@ export const subscriptionKeys = {
   lists: () => [...subscriptionKeys.all, 'list'] as const,
   list: (filters: SubscriptionFilters) => [...subscriptionKeys.lists(), filters] as const,
   plans: () => [...subscriptionKeys.all, 'plans'] as const,
+  stats: () => [...subscriptionKeys.all, 'stats'] as const,
 };
 
 export function useSubscriptions(filters: SubscriptionFilters) {
   return useQuery({ queryKey: subscriptionKeys.list(filters), queryFn: () => subscriptionsService.list(filters) });
+}
+
+export function useSubscriptionStats() {
+  return useQuery({ queryKey: subscriptionKeys.stats(), queryFn: () => subscriptionsService.getStats() });
 }
 
 export function useSubscriptionPlans() {
@@ -20,7 +25,10 @@ export function useCreatePlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Partial<SubscriptionPlan>) => subscriptionsService.createPlan(body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: subscriptionKeys.plans() }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: subscriptionKeys.plans() });
+      qc.invalidateQueries({ queryKey: subscriptionKeys.stats() });
+    },
   });
 }
 
@@ -28,6 +36,9 @@ export function useUpdatePlan() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Partial<SubscriptionPlan> }) => subscriptionsService.updatePlan(id, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: subscriptionKeys.plans() }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: subscriptionKeys.plans() });
+      qc.invalidateQueries({ queryKey: subscriptionKeys.stats() });
+    },
   });
 }

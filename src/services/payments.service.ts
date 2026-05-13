@@ -6,23 +6,29 @@ export interface PaymentFilters {
   limit?: number;
   type?: string;
   status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  gateway?: string;
 }
 
 export interface Payment {
   id: string;
   providerId: string;
-  stripePaymentIntentId: string | null;
-  stripeCheckoutSessionId: string | null;
+  paymentGateway: 'razorpay' | 'apple';
+  gatewayOrderId: string | null;
+  gatewayPaymentId: string | null;
   amount: number;
   currency: string;
   status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'refunded';
-  type: 'sponsorship' | 'lead_unlock' | 'badge' | 'subscription' | 'deal_unlock';
-  metadata: Record<string, unknown>;
+  type: 'sponsorship' | 'lead_unlock' | 'badge' | 'subscription' | 'deal_unlock' | 'deal_creation';
+  metadata: Record<string, unknown> | null;
   voucherId: string | null;
   discountAmount: number;
-  stripeReceiptUrl: string | null;
+  receiptUrl: string | null;
   createdAt: string;
-  provider?: { brandName: string };
+  updatedAt: string;
+  provider?: { id: string; brandName: string; userId: string };
 }
 
 export interface RevenueStats {
@@ -35,16 +41,11 @@ export interface RevenueStats {
 
 export const paymentsService = {
   list: async (filters: PaymentFilters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.type) params.set('type', filters.type);
-    if (filters.status) params.set('status', filters.status);
-    const { data } = await api.get(`${URLS.PAYMENTS.LIST}?${params.toString()}`);
+    const { data } = await api.get(URLS.PAYMENTS.LIST, { params: filters });
     const items = data?.payments ?? data?.items ?? data?.data ?? data ?? [];
     return {
-      items,
-      meta: data?.meta ?? { total: data?.total ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 10, totalPages: Math.ceil((data?.total ?? 0) / (filters.limit ?? 10)) || 1 },
+      items: items as Payment[],
+      meta: data?.meta ?? { total: data?.total ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 20, totalPages: Math.ceil((data?.total ?? 0) / (filters.limit ?? 20)) || 1 },
     };
   },
 
