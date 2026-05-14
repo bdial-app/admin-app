@@ -345,29 +345,41 @@ export default function ProviderView() {
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: 'var(--border-light)' }}>
-                {reviews.map((r) => (
-                  <div key={r.id} className="p-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                          {r.reviewer?.name || 'Anonymous'}
-                        </span>
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className="w-3 h-3" style={{ color: i < r.rating ? '#f59e0b' : 'var(--border-default)', fill: i < r.rating ? '#f59e0b' : 'none' }} />
-                          ))}
+                {reviews.map((r) => {
+                  const rating = (r as any).starRating ?? (r as any).rating ?? 0;
+                  const text = (r as any).reviewText ?? (r as any).comment ?? null;
+                  const date = (r as any).postedAt ?? (r as any).createdAt ?? null;
+                  return (
+                    <div key={r.id} className="p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                            style={{ background: 'var(--color-info)' }}
+                          >
+                            {(r.reviewer?.name || '?')[0]?.toUpperCase()}
+                          </div>
+                          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {r.reviewer?.name || 'Anonymous'}
+                          </span>
+                          <div className="flex items-center gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} className="w-3 h-3" style={{ color: i < rating ? '#f59e0b' : 'var(--border-default)', fill: i < rating ? '#f59e0b' : 'none' }} />
+                            ))}
+                          </div>
+                          <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>{rating}/5</span>
                         </div>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(date ? String(date) : null)}</span>
                       </div>
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.createdAt)}</span>
+                      {text && <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{text}</p>}
+                      {r.replyText && (
+                        <div className="mt-2 pl-3 text-xs" style={{ borderLeft: '2px solid var(--border-default)', color: 'var(--text-muted)' }}>
+                          <span className="font-semibold">Provider reply:</span> {r.replyText}
+                        </div>
+                      )}
                     </div>
-                    {r.comment && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{r.comment}</p>}
-                    {r.replyText && (
-                      <div className="mt-2 pl-3 text-xs" style={{ borderLeft: '2px solid var(--border-default)', color: 'var(--text-muted)' }}>
-                        <span className="font-semibold">Provider reply:</span> {r.replyText}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -534,7 +546,7 @@ export default function ProviderView() {
               <p className="text-xs font-semibold uppercase mb-4" style={{ color: 'var(--text-muted)' }}>Rating Distribution</p>
               <div className="space-y-2">
                 {[5, 4, 3, 2, 1].map((star) => {
-                  const count = reviews.filter((r) => r.rating === star).length;
+                  const count = reviews.filter((r) => ((r as any).starRating ?? (r as any).rating) === star).length;
                   const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
                   return (
                     <div key={star} className="flex items-center gap-3">
