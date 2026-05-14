@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useUsers, useSuspendUser, useUnsuspendUser, useSoftDeleteUser } from '../hooks/useUsers';
 import { ROUTES } from '../utils/constants';
+import { PermissionGate } from '../components/auth/PermissionGate';
 import { toast } from 'react-toastify';
 import type { User, UserStatus } from '../types';
 
@@ -231,6 +232,7 @@ export default function Users() {
                 </button>
               )}
               {selectedUser.status === 'active' && (
+                <PermissionGate permission="users.suspend">
                 <button
                   onClick={() => setConfirmPause(selectedUser)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -239,8 +241,10 @@ export default function Users() {
                   <UserX className="w-4 h-4 inline mr-1.5" />
                   Pause
                 </button>
+                </PermissionGate>
               )}
               {selectedUser.status === 'paused' && (
+                <PermissionGate permission="users.suspend">
                 <button
                   onClick={() => setConfirmActivate(selectedUser)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -249,8 +253,10 @@ export default function Users() {
                   <Shield className="w-4 h-4 inline mr-1.5" />
                   Activate
                 </button>
+                </PermissionGate>
               )}
               {selectedUser.status !== 'deleted' && selectedUser.role !== 'admin' && (
+                <PermissionGate permission="users.delete">
                 <button
                   onClick={() => setConfirmDelete(selectedUser)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -259,6 +265,7 @@ export default function Users() {
                   <Trash2 className="w-4 h-4 inline mr-1.5" />
                   Delete
                 </button>
+                </PermissionGate>
               )}
             </>
           )

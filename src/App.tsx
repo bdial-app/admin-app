@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { lazy, Suspense } from 'react';
 import type { RootState } from './store/store';
 import { ROUTES } from './utils/constants';
+import { ProtectedRoute as RoleRoute } from './components/auth/ProtectedRoute';
 
 // Layout
 import AdminLayout from './components/layout/AdminLayout';
@@ -45,6 +46,7 @@ const BoostSettingsPage = lazy(() => import('./pages/BoostSettings'));
 const MonetizationSettingsPage = lazy(() => import('./pages/MonetizationSettings'));
 const WomenLedPage = lazy(() => import('./pages/WomenLed'));
 const ServiceableCitiesPage = lazy(() => import('./pages/ServiceableCities'));
+const UnauthorizedPage = lazy(() => import('./pages/Unauthorized'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
@@ -83,8 +85,8 @@ function App() {
             <Route path={ROUTES.PROVIDERS} element={<Providers />} />
             <Route path={ROUTES.CATEGORIES} element={<Categories />} />
             <Route path={ROUTES.PRODUCTS} element={<Products />} />
-            <Route path={ROUTES.CREATE_USER} element={<CreateUser />} />
-            <Route path={ROUTES.CREATE_PROVIDER} element={<CreateProviderFlow />} />
+            <Route path={ROUTES.CREATE_USER} element={<RoleRoute minRole="admin"><CreateUser /></RoleRoute>} />
+            <Route path={ROUTES.CREATE_PROVIDER} element={<RoleRoute minRole="admin"><CreateProviderFlow /></RoleRoute>} />
 
             {/* Moderation */}
             <Route path={ROUTES.REGISTRATIONS} element={<Verifications />} />
@@ -92,8 +94,8 @@ function App() {
             <Route path={ROUTES.REPORTS} element={<Reports />} />
             <Route path={ROUTES.BUG_REPORTS} element={<BugReports />} />
             <Route path={ROUTES.WARNINGS} element={<Warnings />} />
-            <Route path={ROUTES.CHAT_MODERATION} element={<ChatModeration />} />
-            <Route path={ROUTES.PHOTO_MODERATION} element={<PhotoModeration />} />
+            <Route path={ROUTES.CHAT_MODERATION} element={<RoleRoute minRole="moderator"><ChatModeration /></RoleRoute>} />
+            <Route path={ROUTES.PHOTO_MODERATION} element={<RoleRoute minRole="moderator"><PhotoModeration /></RoleRoute>} />
             <Route path={ROUTES.MODERATION_QUEUE} element={<ModerationQueuePage />} />
 
             {/* Marketing */}
@@ -107,9 +109,9 @@ function App() {
             <Route path={ROUTES.VOUCHERS} element={<Vouchers />} />
             <Route path={ROUTES.PAYMENTS} element={<PaymentsPage />} />
             <Route path={ROUTES.SUBSCRIPTIONS} element={<SubscriptionsPage />} />
-            <Route path={ROUTES.REVENUE} element={<RevenuePage />} />
-            <Route path={ROUTES.MONETIZATION_SETTINGS} element={<MonetizationSettingsPage />} />
-            <Route path={ROUTES.BOOST_SETTINGS} element={<BoostSettingsPage />} />
+            <Route path={ROUTES.REVENUE} element={<RoleRoute minRole="admin"><RevenuePage /></RoleRoute>} />
+            <Route path={ROUTES.MONETIZATION_SETTINGS} element={<RoleRoute minRole="super_admin"><MonetizationSettingsPage /></RoleRoute>} />
+            <Route path={ROUTES.BOOST_SETTINGS} element={<RoleRoute minRole="super_admin"><BoostSettingsPage /></RoleRoute>} />
 
             {/* Women-Led */}
             <Route path={ROUTES.WOMEN_LED} element={<WomenLedPage />} />
@@ -118,13 +120,16 @@ function App() {
             <Route path={ROUTES.SERVICEABLE_CITIES} element={<ServiceableCitiesPage />} />
 
             {/* Insights */}
-            <Route path={ROUTES.ANALYTICS} element={<Analytics />} />
+            <Route path={ROUTES.ANALYTICS} element={<RoleRoute minRole="admin"><Analytics /></RoleRoute>} />
 
             {/* System */}
-            <Route path={ROUTES.ADMIN_USERS} element={<AdminUsers />} />
-            <Route path={ROUTES.AUDIT_LOG} element={<AuditLog />} />
-            <Route path={ROUTES.SETTINGS} element={<SystemSettings />} />
-            <Route path={ROUTES.FEATURE_FLAGS} element={<FeatureFlags />} />
+            <Route path={ROUTES.ADMIN_USERS} element={<RoleRoute minRole="moderator"><AdminUsers /></RoleRoute>} />
+            <Route path={ROUTES.AUDIT_LOG} element={<RoleRoute minRole="admin"><AuditLog /></RoleRoute>} />
+            <Route path={ROUTES.SETTINGS} element={<RoleRoute minRole="super_admin"><SystemSettings /></RoleRoute>} />
+            <Route path={ROUTES.FEATURE_FLAGS} element={<RoleRoute minRole="super_admin"><FeatureFlags /></RoleRoute>} />
+
+            {/* Unauthorized */}
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

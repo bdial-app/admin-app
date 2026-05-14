@@ -6,6 +6,7 @@ import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
+import { PermissionGate } from '../components/auth/PermissionGate';
 import {
   useProviders,
   useApproveProvider,
@@ -216,6 +217,7 @@ export default function Providers() {
             <div className="flex gap-2 flex-wrap">
               {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review' || selectedProvider.status === 'unverified') && (
                 <>
+                  <PermissionGate permission="providers.approve">
                   <button
                     onClick={() => setConfirmAction({ type: 'approve', provider: selectedProvider })}
                     className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -224,6 +226,8 @@ export default function Providers() {
                     <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
                     Approve
                   </button>
+                  </PermissionGate>
+                  <PermissionGate permission="providers.approve">
                   <button
                     onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
                     className="px-4 py-2 text-sm font-medium rounded-lg"
@@ -232,9 +236,11 @@ export default function Providers() {
                     <XCircle className="w-4 h-4 inline mr-1.5" />
                     Reject
                   </button>
+                  </PermissionGate>
                 </>
               )}
               {selectedProvider.status === 'active' && (
+                <PermissionGate permission="providers.suspend">
                 <button
                   onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -242,8 +248,10 @@ export default function Providers() {
                 >
                   Suspend
                 </button>
+                </PermissionGate>
               )}
               {selectedProvider.status === 'suspended' && (
+                <PermissionGate permission="providers.suspend">
                 <button
                   onClick={() => setConfirmAction({ type: 'unsuspend', provider: selectedProvider })}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -252,6 +260,7 @@ export default function Providers() {
                   <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
                   Revoke Suspension
                 </button>
+                </PermissionGate>
               )}
             </div>
           )

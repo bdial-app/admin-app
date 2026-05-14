@@ -22,7 +22,7 @@ export const verifyOtp = createAsyncThunk(
   'auth/verifyOtp',
   async ({ mobileNumber, otp }: { mobileNumber: string, otp: string }, { rejectWithValue }) => {
     if (mobileNumber === MOCK_NUMBER && otp === MOCK_OTP) {
-      return { data: { accessToken: 'mock-token-dev', user: { id: 'mock-1', name: 'Admin Dev', role: 'admin' } } };
+      return { data: { accessToken: 'mock-token-dev', user: { id: 'mock-1', name: 'Admin Dev', role: 'super_admin' } } };
     }
     try {
       const response = await authService.verifyOtp(mobileNumber, otp);

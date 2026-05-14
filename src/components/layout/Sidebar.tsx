@@ -14,6 +14,8 @@ import { useDispatch } from 'react-redux';
 import { ROUTES } from '../../utils/constants';
 import { logout } from '../../store/slices/authSlice';
 import type { AppDispatch } from '../../store/store';
+import { usePermissionChecker } from '../../hooks/usePermissions';
+import type { AdminRole } from '../../types/roles';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -21,7 +23,7 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const sections = [
+const sections: { label: string; minRole?: AdminRole; items: { name: string; path: string; icon: any; badge?: boolean; minRole?: AdminRole }[] }[] = [
   {
     label: 'Overview',
     items: [
@@ -32,9 +34,9 @@ const sections = [
     label: 'Content',
     items: [
       { name: 'Users', path: ROUTES.USERS, icon: Users },
-      { name: 'Create User', path: ROUTES.CREATE_USER, icon: UserPlus },
+      { name: 'Create User', path: ROUTES.CREATE_USER, icon: UserPlus, minRole: 'admin' },
       { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store, badge: true },
-      { name: 'Create Provider', path: ROUTES.CREATE_PROVIDER, icon: PlusCircle },
+      { name: 'Create Provider', path: ROUTES.CREATE_PROVIDER, icon: PlusCircle, minRole: 'admin' },
       { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
       { name: 'Products', path: ROUTES.PRODUCTS, icon: Package },
     ],
@@ -47,8 +49,8 @@ const sections = [
       { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
       { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
       { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
-      { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare },
-      { name: 'Photos', path: ROUTES.PHOTO_MODERATION, icon: Camera },
+      { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare, minRole: 'moderator' },
+      { name: 'Photos', path: ROUTES.PHOTO_MODERATION, icon: Camera, minRole: 'moderator' },
       { name: 'Bug Reports', path: ROUTES.BUG_REPORTS, icon: Bug },
     ],
   },
@@ -68,9 +70,9 @@ const sections = [
       { name: 'Payments', path: ROUTES.PAYMENTS, icon: CreditCard },
       { name: 'Subscriptions', path: ROUTES.SUBSCRIPTIONS, icon: Crown },
       { name: 'Vouchers', path: ROUTES.VOUCHERS, icon: Ticket },
-      { name: 'Revenue', path: ROUTES.REVENUE, icon: DollarSign },
-      { name: 'Pricing Config', path: ROUTES.MONETIZATION_SETTINGS, icon: Coins },
-      { name: 'Boost Settings', path: ROUTES.BOOST_SETTINGS, icon: Rocket },
+      { name: 'Revenue', path: ROUTES.REVENUE, icon: DollarSign, minRole: 'admin' },
+      { name: 'Pricing Config', path: ROUTES.MONETIZATION_SETTINGS, icon: Coins, minRole: 'super_admin' },
+      { name: 'Boost Settings', path: ROUTES.BOOST_SETTINGS, icon: Rocket, minRole: 'super_admin' },
     ],
   },
   {
@@ -81,18 +83,20 @@ const sections = [
   },
   {
     label: 'Insights',
+    minRole: 'admin',
     items: [
-      { name: 'Analytics', path: ROUTES.ANALYTICS, icon: BarChart3 },
+      { name: 'Analytics', path: ROUTES.ANALYTICS, icon: BarChart3, minRole: 'admin' },
     ],
   },
   {
     label: 'System',
+    minRole: 'admin',
     items: [
       { name: 'Serviceable Cities', path: ROUTES.SERVICEABLE_CITIES, icon: MapPin },
-      { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog },
-      { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft },
-      { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText },
-      { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
+      { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog, minRole: 'moderator' },
+      { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft, minRole: 'super_admin' },
+      { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText, minRole: 'admin' },
+      { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings, minRole: 'super_admin' },
     ],
   },
 ];
@@ -101,6 +105,7 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
   const location = useLocation();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const { minRole } = usePermissionChecker();
 
   return (
     <div
@@ -159,7 +164,14 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-3 px-2.5">
-        {sections.map((section) => (
+        {sections.map((section) => {
+          // Filter section by role
+          if (section.minRole && !minRole(section.minRole)) return null;
+          // Filter items by role
+          const visibleItems = section.items.filter(item => !item.minRole || minRole(item.minRole));
+          if (visibleItems.length === 0) return null;
+
+          return (
           <div key={section.label} className="mb-4">
             {!collapsed && (
               <p
@@ -170,7 +182,7 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
               </p>
             )}
             <nav className="space-y-0.5">
-              {section.items.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
 
@@ -226,7 +238,8 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
               })}
             </nav>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div

@@ -15,6 +15,7 @@ import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct } from
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
 import { toast } from 'react-toastify';
+import { PermissionGate } from '../components/auth/PermissionGate';
 
 const LIMIT = 25;
 
@@ -251,6 +252,7 @@ export default function Products() {
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
+          <PermissionGate permission="products.update">
           <button
             onClick={(e) => { e.stopPropagation(); openEdit(row); }}
             className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
@@ -259,6 +261,8 @@ export default function Products() {
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
+          </PermissionGate>
+          <PermissionGate permission="products.update">
           <button
             onClick={(e) => { e.stopPropagation(); handleToggle(row); }}
             className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
@@ -269,6 +273,7 @@ export default function Products() {
               : <ToggleLeft className="w-4 h-4 text-gray-400" />
             }
           </button>
+          </PermissionGate>
         </div>
       ),
     },

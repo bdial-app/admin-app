@@ -10,6 +10,8 @@ import { ROUTES } from '../utils/constants';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
 import type { User } from '../types/user';
+import { ADMIN_ROLE_LABELS, ADMIN_ROLE_COLORS, ROLE_HIERARCHY, type AdminRole } from '../types/roles';
+import { useCurrentRole } from '../hooks/usePermissions';
 
 export default function AdminUsers() {
   const currentUser = useSelector((state: RootState) => state.auth.user);
@@ -23,26 +25,32 @@ export default function AdminUsers() {
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [removeTarget, setRemoveTarget] = useState<User | null>(null);
-  const [form, setForm] = useState({ mobileNumber: '', name: '', email: '', gender: 'female' });
-  const [editForm, setEditForm] = useState({ name: '', status: '' });
+  const [form, setForm] = useState({ mobileNumber: '', name: '', email: '', gender: 'female', adminRole: 'associate' as AdminRole });
+  const [editForm, setEditForm] = useState({ name: '', status: '', adminRole: '' as AdminRole | '' });
+  const currentRole = useCurrentRole();
+
+  // Roles this user can assign: all roles strictly below own level (super_admin can assign all)
+  const assignableRoles: AdminRole[] = (['associate', 'moderator', 'admin', 'super_admin'] as AdminRole[]).filter(
+    (r) => currentRole === 'super_admin' || (ROLE_HIERARCHY[r] || 0) < (ROLE_HIERARCHY[currentRole || ''] || 0),
+  );
 
   const handleCreate = () => {
     if (!form.mobileNumber || !form.name) return;
     createMutation.mutate(
-      { mobileNumber: form.mobileNumber, name: form.name, email: form.email || undefined, gender: form.gender },
-      { onSuccess: () => { setShowCreate(false); setForm({ mobileNumber: '', name: '', email: '', gender: 'female' }); } },
+      { mobileNumber: form.mobileNumber, name: form.name, email: form.email || undefined, gender: form.gender, adminRole: form.adminRole },
+      { onSuccess: () => { setShowCreate(false); setForm({ mobileNumber: '', name: '', email: '', gender: 'female', adminRole: 'associate' }); } },
     );
   };
 
   const handleEdit = (user: User) => {
     setEditUser(user);
-    setEditForm({ name: user.name, status: user.status });
+    setEditForm({ name: user.name, status: user.status, adminRole: (user.role as AdminRole) || '' });
   };
 
   const handleUpdate = () => {
     if (!editUser) return;
     updateMutation.mutate(
-      { id: editUser.id, name: editForm.name, status: editForm.status },
+      { id: editUser.id, name: editForm.name, status: editForm.status, ...(editForm.adminRole ? { adminRole: editForm.adminRole } : {}) },
       { onSuccess: () => setEditUser(null) },
     );
   };
@@ -97,6 +105,7 @@ export default function AdminUsers() {
               <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Name</th>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Contact</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Role</th>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Joined</th>
                 <th className="text-right px-4 py-3 font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
@@ -131,6 +140,11 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--surface-2)', color: ADMIN_ROLE_COLORS[user.role as AdminRole] || 'var(--text-secondary)' }}>
+                      {ADMIN_ROLE_LABELS[user.role as AdminRole] || user.role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     <StatusBadge status={user.status} />
                   </td>
                   <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -161,7 +175,7 @@ export default function AdminUsers() {
                 </tr>
               ))}
               {(!data?.items || data.items.length === 0) && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No admin users found</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No admin users found</td></tr>
               )}
             </tbody>
           </table>
@@ -204,6 +218,12 @@ export default function AdminUsers() {
               <option value="other">Other</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Role</label>
+            <select value={form.adminRole} onChange={(e) => setForm(f => ({ ...f, adminRole: e.target.value as AdminRole }))} className="w-full px-3 py-2 text-sm rounded-lg outline-none" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
+              {assignableRoles.map((r) => <option key={r} value={r}>{ADMIN_ROLE_LABELS[r]}</option>)}
+            </select>
+          </div>
           <button onClick={handleCreate} disabled={createMutation.isPending || !form.mobileNumber || !form.name} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50">
             {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             Add Admin
@@ -226,6 +246,14 @@ export default function AdminUsers() {
                 <option value="suspended">Suspended</option>
               </select>
             </div>
+            {currentRole && (ROLE_HIERARCHY[currentRole] || 0) >= ROLE_HIERARCHY['admin'] && (
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Role</label>
+              <select value={editForm.adminRole} onChange={(e) => setEditForm(f => ({ ...f, adminRole: e.target.value as AdminRole }))} className="w-full px-3 py-2 text-sm rounded-lg outline-none" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
+                {assignableRoles.map((r) => <option key={r} value={r}>{ADMIN_ROLE_LABELS[r]}</option>)}
+              </select>
+            </div>
+            )}
             <button onClick={handleUpdate} disabled={updateMutation.isPending} className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50">
               {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Changes
