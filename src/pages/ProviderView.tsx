@@ -3,22 +3,23 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle,
-  CheckCircle2, XCircle, Users, Eye, BarChart3, Gift,
+  CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { DetailPanel } from '../components/ui/DetailPanel';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
   useUnsuspendProvider, useProviderWarnings,
 } from '../hooks/useProviders';
-import { useProducts } from '../hooks/useProducts';
+import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { useReviews } from '../hooks/useReviews';
 import { useOffers } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { ProviderOffer } from '../types';
+import type { Product, ProviderOffer } from '../types';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
 
@@ -49,11 +50,34 @@ export default function ProviderView() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
   const [confirmAction, setConfirmAction] = useState<'approve' | 'suspend' | 'unsuspend' | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
 
   const { data: provider, isLoading } = useProvider(id || '');
   const approveMut = useApproveProvider();
   const suspendMut = useSuspendProvider();
   const unsuspendMut = useUnsuspendProvider();
+
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+
+  const handleToggleProductActive = async (product: Product) => {
+    try {
+      await updateProductMutation.mutateAsync({ id: product.id, body: { isActive: !product.isActive } });
+      toast.success(product.isActive ? 'Product disabled' : 'Product activated');
+      setSelectedProduct((prev) => prev?.id === product.id ? { ...prev, isActive: !product.isActive } : prev);
+    } catch { toast.error('Failed to update product'); }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!confirmDeleteProduct) return;
+    try {
+      await deleteProductMutation.mutateAsync(confirmDeleteProduct.id);
+      toast.success('Product deleted');
+      setConfirmDeleteProduct(null);
+      setSelectedProduct(null);
+    } catch { toast.error('Failed to delete product'); }
+  };
 
   // Products & Reviews for this provider
   const { data: productsData } = useProducts({ providerId: id, limit: 50 });
@@ -278,7 +302,14 @@ export default function ProviderView() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {products.map((p) => (
-                  <div key={p.id} className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
+                  <div
+                    key={p.id}
+                    className="rounded-lg overflow-hidden cursor-pointer transition-all"
+                    style={{ border: '1px solid var(--border-default)' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)'; }}
+                    onClick={() => setSelectedProduct(p)}
+                  >
                     {(p.photoUrl || p.photoUrls?.[0]) && (
                       <img src={p.photoUrl || p.photoUrls[0]} alt={p.name} className="w-full h-32 object-cover" />
                     )}
@@ -581,6 +612,86 @@ export default function ProviderView() {
           </>
         )}
       </div>
+
+      {/* ─── Product Detail Panel ─── */}
+      <DetailPanel
+        open={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        title={selectedProduct?.name || 'Product Detail'}
+        subtitle={selectedProduct?.provider?.brandName || provider.brandName}
+        actions={
+          selectedProduct && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleToggleProductActive(selectedProduct)}
+                className="px-4 py-2 text-sm font-medium rounded-lg"
+                style={{
+                  background: selectedProduct.isActive ? 'var(--surface-2)' : 'var(--color-success)',
+                  color: selectedProduct.isActive ? 'var(--text-secondary)' : 'white',
+                }}
+              >
+                {selectedProduct.isActive ? 'Disable' : 'Activate'}
+              </button>
+              <button
+                onClick={() => setConfirmDeleteProduct(selectedProduct)}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                style={{ background: 'var(--color-danger)' }}
+              >
+                <Trash2 className="w-4 h-4 inline mr-1.5" />
+                Delete
+              </button>
+            </div>
+          )
+        }
+      >
+        {selectedProduct && (
+          <div className="space-y-5">
+            {(selectedProduct.photoUrl || selectedProduct.photoUrls?.[0]) && (
+              <img
+                src={selectedProduct.photoUrl || selectedProduct.photoUrls[0]}
+                alt={selectedProduct.name}
+                className="w-full rounded-xl object-cover"
+                style={{ maxHeight: '200px' }}
+              />
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Name', value: selectedProduct.name },
+                { label: 'Price', value: selectedProduct.price != null ? `₹${selectedProduct.price.toLocaleString()}` : '—' },
+                { label: 'Display Order', value: selectedProduct.displayOrder?.toString() },
+                { label: 'Provider', value: selectedProduct.provider?.brandName || provider.brandName },
+              ].map((field) => (
+                <div key={field.label}>
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{field.value || '—'}</p>
+                </div>
+              ))}
+              <div>
+                <p className="text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Status</p>
+                <StatusBadge status={selectedProduct.isActive ? 'active' : 'disabled'} />
+              </div>
+            </div>
+            {selectedProduct.description && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Description</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{selectedProduct.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </DetailPanel>
+
+      {/* ─── Product Delete Confirmation ─── */}
+      <ConfirmDialog
+        open={!!confirmDeleteProduct}
+        onClose={() => setConfirmDeleteProduct(null)}
+        onConfirm={handleDeleteProduct}
+        title="Delete Product"
+        description={`Are you sure you want to delete "${confirmDeleteProduct?.name || 'this product'}"?`}
+        confirmLabel="Delete Product"
+        variant="danger"
+        isLoading={deleteProductMutation.isPending}
+      />
 
       {/* ─── Confirm Dialog ─── */}
       <ConfirmDialog
