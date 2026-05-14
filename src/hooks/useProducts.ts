@@ -8,12 +8,20 @@ export const productKeys = {
   lists: () => [...productKeys.all, 'list'] as const,
   list: (filters: ProductFilters) => [...productKeys.lists(), filters] as const,
   detail: (id: string) => [...productKeys.all, 'detail', id] as const,
+  stats: () => [...productKeys.all, 'stats'] as const,
 };
 
 export function useProducts(filters: ProductFilters) {
   return useQuery({
     queryKey: productKeys.list(filters),
     queryFn: () => productsService.list(filters),
+  });
+}
+
+export function useProductStats() {
+  return useQuery({
+    queryKey: productKeys.stats(),
+    queryFn: () => productsService.stats(),
   });
 }
 

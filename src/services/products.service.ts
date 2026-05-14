@@ -1,7 +1,7 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
-import type { Product, ProductFilters } from '../types';
+import type { Product, ProductFilters, ProductStats } from '../types';
 import type { BulkActionPayload } from '../types';
 
 export const productsService = {
@@ -14,16 +14,27 @@ export const productsService = {
     if (filters.isActive !== undefined && filters.isActive !== '') {
       params.set('isActive', String(filters.isActive));
     }
+    if (filters.productType) params.set('productType', filters.productType);
+    if (filters.priceMin) params.set('priceMin', filters.priceMin);
+    if (filters.priceMax) params.set('priceMax', filters.priceMax);
+    if (filters.hasImages) params.set('hasImages', filters.hasImages);
+    if (filters.sortBy) params.set('sortBy', filters.sortBy);
+    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
     const { data } = await api.get(`${URLS.PRODUCTS.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
       meta: data?.meta ?? {
         total: data?.total ?? 0,
         page: data?.page ?? filters.page ?? 1,
-        limit: data?.limit ?? filters.limit ?? 10,
+        limit: data?.limit ?? filters.limit ?? 25,
         totalPages: data?.totalPages ?? 1,
       },
     };
+  },
+
+  stats: async (): Promise<ProductStats> => {
+    const { data } = await api.get(URLS.PRODUCTS.STATS);
+    return data;
   },
 
   getById: async (id: string): Promise<Product> => {

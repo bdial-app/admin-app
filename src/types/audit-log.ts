@@ -20,10 +20,14 @@ export interface AuditLogFilters {
   entityType?: string;
   startDate?: string;
   endDate?: string;
+  search?: string;
 }
 
 export interface AuditLogStats {
   total: number;
   thisWeek: number;
+  today: number;
+  uniqueAdmins: number;
   actionBreakdown: { action: string; count: number }[];
+  entityBreakdown: { entityType: string; count: number }[];
 }
