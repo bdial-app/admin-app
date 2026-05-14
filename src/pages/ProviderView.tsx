@@ -12,7 +12,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
-  useUnsuspendProvider, useProviderWarnings,
+  useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
 } from '../hooks/useProviders';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { useReviews } from '../hooks/useReviews';
@@ -25,7 +25,7 @@ type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'ac
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: 'overview', label: 'Overview', icon: Eye },
-  { key: 'products', label: 'Products', icon: Package },
+  { key: 'products', label: 'Catalogue', icon: Package },
   { key: 'reviews', label: 'Reviews', icon: MessageSquare },
   { key: 'photos', label: 'Photos', icon: Camera },
   { key: 'deals', label: 'Deals', icon: Gift },
@@ -52,11 +52,20 @@ export default function ProviderView() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'suspend' | 'unsuspend' | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
+  const [editingSocial, setEditingSocial] = useState(false);
+  const [socialForm, setSocialForm] = useState({
+    websiteUrl: '',
+    instagramHandle: '',
+    facebookHandle: '',
+    youtubeHandle: '',
+    whatsappNumber: '',
+  });
 
   const { data: provider, isLoading } = useProvider(id || '');
   const approveMut = useApproveProvider();
   const suspendMut = useSuspendProvider();
   const unsuspendMut = useUnsuspendProvider();
+  const updateProviderMut = useUpdateProvider();
 
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
@@ -67,6 +76,14 @@ export default function ProviderView() {
       toast.success(product.isActive ? 'Product disabled' : 'Product activated');
       setSelectedProduct((prev) => prev?.id === product.id ? { ...prev, isActive: !product.isActive } : prev);
     } catch { toast.error('Failed to update product'); }
+  };
+
+  const handleToggleProductHero = async (product: Product) => {
+    try {
+      await updateProductMutation.mutateAsync({ id: product.id, body: { isHero: !product.isHero } });
+      toast.success(product.isHero ? 'Removed hero status' : 'Marked as hero product');
+      setSelectedProduct((prev) => prev?.id === product.id ? { ...prev, isHero: !product.isHero } : prev);
+    } catch { toast.error('Failed to update hero status'); }
   };
 
   const handleDeleteProduct = async () => {
@@ -272,6 +289,122 @@ export default function ProviderView() {
               </div>
             </div>
 
+            {/* Online Presence */}
+            <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
+                <button
+                  onClick={() => {
+                    if (!editingSocial) {
+                      setSocialForm({
+                        websiteUrl: provider.websiteUrl || '',
+                        instagramHandle: provider.instagramHandle || '',
+                        facebookHandle: provider.facebookHandle || '',
+                        youtubeHandle: provider.youtubeHandle || '',
+                        whatsappNumber: provider.whatsappNumber || '',
+                      });
+                    }
+                    setEditingSocial(!editingSocial);
+                  }}
+                  className="text-xs font-medium px-2.5 py-1 rounded-md"
+                  style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}
+                >
+                  {editingSocial ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+
+              {!editingSocial ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {provider.websiteUrl ? (
+                    <div className="flex items-center gap-2">
+                      {provider.websiteLogoUrl && <img src={provider.websiteLogoUrl} alt="" className="w-5 h-5 rounded object-contain" />}
+                      <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Website</span>
+                      <a href={provider.websiteUrl.startsWith('http') ? provider.websiteUrl : `https://${provider.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium truncate hover:underline" style={{ color: 'var(--color-primary)' }}>
+                        {provider.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Website</span>
+                      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Instagram</span>
+                    {provider.instagramHandle ? (
+                      <a href={`https://instagram.com/${provider.instagramHandle}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#E4405F' }}>@{provider.instagramHandle}</a>
+                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Facebook</span>
+                    {provider.facebookHandle ? (
+                      <a href={provider.facebookHandle.startsWith('http') ? provider.facebookHandle : `https://facebook.com/${provider.facebookHandle}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#1877F2' }}>{provider.facebookHandle}</a>
+                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>YouTube</span>
+                    {provider.youtubeHandle ? (
+                      <a href={provider.youtubeHandle.startsWith('http') ? provider.youtubeHandle : `https://youtube.com/@${provider.youtubeHandle.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#FF0000' }}>{provider.youtubeHandle}</a>
+                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>WhatsApp</span>
+                    {provider.whatsappNumber ? (
+                      <a href={`https://wa.me/${provider.whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#25D366' }}>{provider.whatsappNumber}</a>
+                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[
+                    { key: 'websiteUrl' as const, label: 'Website URL', placeholder: 'https://example.com' },
+                    { key: 'instagramHandle' as const, label: 'Instagram Handle', placeholder: 'yourhandle (without @)' },
+                    { key: 'facebookHandle' as const, label: 'Facebook', placeholder: 'Page name or URL' },
+                    { key: 'youtubeHandle' as const, label: 'YouTube', placeholder: '@channel or URL' },
+                    { key: 'whatsappNumber' as const, label: 'WhatsApp Number', placeholder: '+966XXXXXXXXX' },
+                  ].map((f) => (
+                    <div key={f.key}>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
+                      <input
+                        type="text"
+                        value={socialForm[f.key]}
+                        onChange={(e) => setSocialForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        placeholder={f.placeholder}
+                        className="w-full px-3 py-2 text-sm rounded-lg"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={async () => {
+                      if (!id) return;
+                      try {
+                        await updateProviderMut.mutateAsync({
+                          id,
+                          body: {
+                            websiteUrl: socialForm.websiteUrl || null,
+                            instagramHandle: socialForm.instagramHandle?.replace(/^@/, '') || null,
+                            facebookHandle: socialForm.facebookHandle || null,
+                            youtubeHandle: socialForm.youtubeHandle || null,
+                            whatsappNumber: socialForm.whatsappNumber || null,
+                          },
+                        });
+                        toast.success('Online presence updated');
+                        setEditingSocial(false);
+                      } catch {
+                        toast.error('Failed to update');
+                      }
+                    }}
+                    disabled={updateProviderMut.isPending}
+                    className="px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
+                    {updateProviderMut.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Categories */}
             {provider.providerCategories && provider.providerCategories.length > 0 && (
               <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
@@ -291,42 +424,159 @@ export default function ProviderView() {
         {/* ══ PRODUCTS ══ */}
         {tab === 'products' && (
           <div className="rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-            <div className="p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{products.length} Products</p>
+            {/* Header with count + type breakdown */}
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {products.length} {products.length === 1 ? 'Item' : 'Items'}
+                </p>
+                {products.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    {products.filter(p => p.productType !== 'service').length > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full" style={{ background: '#f59e0b18', color: '#d97706' }}>
+                        📦 {products.filter(p => p.productType !== 'service').length} Products
+                      </span>
+                    )}
+                    {products.filter(p => p.productType === 'service').length > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-teal-50 text-teal-600">
+                        🛠️ {products.filter(p => p.productType === 'service').length} Services
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+
             {products.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No products yet</p>
+              <div className="text-center py-16">
+                <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                  <Package className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
+                </div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No products or services yet</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Items added by this provider will appear here</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                {products.map((p) => (
-                  <div
-                    key={p.id}
-                    className="rounded-lg overflow-hidden cursor-pointer transition-all"
-                    style={{ border: '1px solid var(--border-default)' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)'; }}
-                    onClick={() => setSelectedProduct(p)}
-                  >
-                    {(p.photoUrl || p.photoUrls?.[0]) && (
-                      <img src={p.photoUrl || p.photoUrls[0]} alt={p.name} className="w-full h-32 object-cover" />
-                    )}
-                    <div className="p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                        <StatusBadge status={p.isActive ? 'active' : 'suspended'} size="sm" showDot={false} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 p-5">
+                {products.map((p) => {
+                  const isService = p.productType === 'service';
+                  const hasImage = !!(p.photoUrl || p.photoUrls?.[0]);
+                  return (
+                    <div
+                      key={p.id}
+                      className="group rounded-xl overflow-hidden cursor-pointer transition-all duration-200"
+                      style={{
+                        background: 'var(--surface-0)',
+                        border: `1px solid ${p.isHero ? '#7c3aed30' : 'var(--border-default)'}`,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+                        (e.currentTarget as HTMLElement).style.borderColor = p.isHero ? '#7c3aed' : 'var(--color-primary)';
+                        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                        (e.currentTarget as HTMLElement).style.borderColor = p.isHero ? '#7c3aed30' : 'var(--border-default)';
+                        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                      }}
+                      onClick={() => setSelectedProduct(p)}
+                    >
+                      {/* Image area */}
+                      <div className="relative aspect-[16/10] overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                        {hasImage ? (
+                          <img
+                            src={p.photoUrl || p.photoUrls[0]}
+                            alt={p.name}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-1.5">
+                            <Package className="w-8 h-8 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                            <span className="text-[10px] font-medium opacity-40" style={{ color: 'var(--text-muted)' }}>No image</span>
+                          </div>
+                        )}
+
+                        {/* Overlay badges */}
+                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between pointer-events-none">
+                          <div className="flex flex-col gap-1">
+                            {p.isHero && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg text-white shadow-sm backdrop-blur-sm" style={{ background: 'rgba(124,58,237,0.9)' }}>
+                                <Star className="w-2.5 h-2.5" style={{ fill: 'white' }} /> Hero
+                              </span>
+                            )}
+                            {isService && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg text-white shadow-sm backdrop-blur-sm" style={{ background: 'rgba(20,184,166,0.9)' }}>
+                                🛠️ Service
+                              </span>
+                            )}
+                          </div>
+                          {!p.isActive && (
+                            <span className="px-2 py-1 text-[10px] font-bold rounded-lg text-white shadow-sm backdrop-blur-sm" style={{ background: 'rgba(239,68,68,0.85)' }}>
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Photo count badge */}
+                        {p.photoUrls?.length > 1 && (
+                          <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-white backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                            <Camera className="w-3 h-3" /> {p.photoUrls.length}
+                          </div>
+                        )}
                       </div>
-                      {p.price != null && (
-                        <p className="text-sm font-bold mt-1" style={{ color: 'var(--color-primary)' }}>₹{p.price.toLocaleString()}</p>
-                      )}
-                      {p.description && (
-                        <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{p.description}</p>
-                      )}
+
+                      {/* Card body */}
+                      <div className="p-4">
+                        {/* Title row */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="text-[13px] font-semibold leading-snug line-clamp-2" style={{ color: 'var(--text-primary)' }}>
+                            {p.name}
+                          </h4>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleProductHero(p); }}
+                            className="shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+                            title={p.isHero ? 'Remove hero' : 'Make hero'}
+                          >
+                            <Star className="w-3.5 h-3.5" style={{ color: p.isHero ? '#7c3aed' : 'var(--text-muted)', fill: p.isHero ? '#7c3aed' : 'none' }} />
+                          </button>
+                        </div>
+
+                        {/* Description */}
+                        {p.description && (
+                          <p className="text-[11px] leading-relaxed line-clamp-2 mb-3" style={{ color: 'var(--text-muted)' }}>
+                            {p.description}
+                          </p>
+                        )}
+
+                        {/* Bottom meta row */}
+                        <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+                          <div>
+                            {p.price != null ? (
+                              <p className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>
+                                ₹{p.price.toLocaleString()}
+                              </p>
+                            ) : (
+                              <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Price on request
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full"
+                              style={{
+                                background: isService ? '#14b8a615' : '#f59e0b12',
+                                color: isService ? '#0d9488' : '#b45309',
+                              }}
+                            >
+                              {isService ? '🛠️ Service' : '📦 Product'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -634,6 +884,17 @@ export default function ProviderView() {
         actions={
           selectedProduct && (
             <div className="flex gap-2">
+              <button
+                onClick={() => handleToggleProductHero(selectedProduct)}
+                className="px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-1.5"
+                style={{
+                  background: selectedProduct.isHero ? '#7c3aed' : 'var(--surface-2)',
+                  color: selectedProduct.isHero ? 'white' : 'var(--text-secondary)',
+                }}
+              >
+                <Star className="w-3.5 h-3.5" style={{ fill: selectedProduct.isHero ? 'white' : 'none' }} />
+                {selectedProduct.isHero ? 'Hero' : 'Make Hero'}
+              </button>
               <button
                 onClick={() => handleToggleProductActive(selectedProduct)}
                 className="px-4 py-2 text-sm font-medium rounded-lg"

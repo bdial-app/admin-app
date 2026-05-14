@@ -8,6 +8,7 @@ export interface Product {
   photoUrl: string | null;
   photoUrls: string[];
   isActive: boolean;
+  isHero: boolean;
   displayOrder: number;
   productType: 'product' | 'service';
   provider?: import('./provider').Provider;
@@ -28,7 +29,7 @@ export interface ProductFilters {
   search?: string;
   providerId?: string;
   isActive?: boolean | '';
-  productType?: string;
+  productType?: 'product' | 'service' | '';
   priceMin?: string;
   priceMax?: string;
   hasImages?: string;

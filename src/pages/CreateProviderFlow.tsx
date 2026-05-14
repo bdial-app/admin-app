@@ -26,6 +26,7 @@ interface ProductEntry {
   description: string;
   price: string;
   currency: string;
+  productType: 'product' | 'service';
   imageFiles: File[];
   imagePreviews: string[];
 }
@@ -211,7 +212,7 @@ export default function CreateProviderFlow() {
 
   // ── Product management ──────────────────────────────────
   const addProduct = useCallback(() => {
-    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR', imageFiles: [], imagePreviews: [] }]);
+    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR', productType: 'product', imageFiles: [], imagePreviews: [] }]);
   }, []);
 
   const updateProduct = useCallback((idx: number, field: keyof Omit<ProductEntry, 'imageFiles' | 'imagePreviews'>, value: string) => {
@@ -319,6 +320,7 @@ export default function CreateProviderFlow() {
             description: p.description.trim() || undefined,
             price: p.price ? parseFloat(p.price) : undefined,
             currency: p.currency || 'INR',
+            productType: p.productType || 'product',
           })),
         syncLocation,
         skipUserOtp,
@@ -800,7 +802,7 @@ export default function CreateProviderFlow() {
                 {/* Product header */}
                 <div className="flex items-center justify-between px-4 py-2" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--border-default)' }}>
                   <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    Product {idx + 1}{product.name.trim() ? ` — ${product.name.trim()}` : ''}
+                    {product.productType === 'service' ? '🛠️ Service' : '📦 Product'} {idx + 1}{product.name.trim() ? ` — ${product.name.trim()}` : ''}
                   </span>
                   <button type="button" onClick={() => removeProduct(idx)}
                     className="p-1 rounded transition-colors" style={{ color: 'var(--color-danger)' }}>
@@ -809,6 +811,23 @@ export default function CreateProviderFlow() {
                 </div>
 
                 <div className="p-4 space-y-4">
+                  {/* Type toggle */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Type</label>
+                    <div className="flex gap-2">
+                      {(['product', 'service'] as const).map((t) => (
+                        <button key={t} type="button" onClick={() => updateProduct(idx, 'productType', t)}
+                          className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border-2 transition-all ${
+                            product.productType === t
+                              ? t === 'service' ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-amber-50 border-amber-400 text-amber-700'
+                              : 'border-gray-200 text-gray-500'
+                          }`}>
+                          {t === 'product' ? '📦 Product' : '🛠️ Service'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Text fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>

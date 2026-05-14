@@ -42,6 +42,7 @@ export interface AdminCreateProviderWithUserPayload {
     description?: string;
     price?: number;
     currency?: string;
+    productType?: 'product' | 'service';
   }>;
   syncLocation?: boolean;
   skipUserOtp?: boolean;

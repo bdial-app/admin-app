@@ -3,7 +3,7 @@ import {
   Search, Filter, X, Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
   CheckCircle2, XCircle, ShoppingBag, Wrench,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Star,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
@@ -81,6 +81,13 @@ export default function Products() {
     } catch { toast.error('Failed to update'); }
   };
 
+  const handleToggleHero = async (product: Product) => {
+    try {
+      await updateMutation.mutateAsync({ id: product.id, body: { isHero: !product.isHero } });
+      toast.success(product.isHero ? 'Removed hero status' : 'Marked as hero product');
+    } catch { toast.error('Failed to update hero status'); }
+  };
+
   const handleDelete = async () => {
     if (!confirmDelete) return;
     try {
@@ -92,7 +99,7 @@ export default function Products() {
   };
 
   // ─── Edit form state ──────────────────
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '' });
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service' });
 
   const openEdit = (p: Product) => {
     setEditForm({
@@ -100,6 +107,7 @@ export default function Products() {
       description: p.description || '',
       price: p.price?.toString() || '',
       displayOrder: p.displayOrder?.toString() || '0',
+      productType: (p.productType as 'product' | 'service') || 'product',
     });
     setEditProduct(p);
   };
@@ -114,6 +122,7 @@ export default function Products() {
           description: editForm.description || null,
           price: editForm.price ? Number(editForm.price) : null,
           displayOrder: Number(editForm.displayOrder) || 0,
+          productType: editForm.productType || 'product',
         },
       });
       toast.success('Product updated');
@@ -214,6 +223,20 @@ export default function Products() {
           </div>
         );
       },
+    },
+    {
+      key: 'hero',
+      header: 'Hero',
+      render: (row) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggleHero(row); }}
+          className="p-1 rounded-md transition-colors"
+          title={row.isHero ? 'Remove hero status' : 'Make hero product'}
+          style={{ color: row.isHero ? '#7c3aed' : 'var(--text-muted)' }}
+        >
+          <Star className="w-4 h-4" style={{ fill: row.isHero ? '#7c3aed' : 'none' }} />
+        </button>
+      ),
     },
     {
       key: 'order',
@@ -612,6 +635,15 @@ export default function Products() {
                     {selectedProduct.isActive ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                     {selectedProduct.isActive ? 'Active' : 'Disabled'}
                   </span>
+                  {selectedProduct.isHero && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded"
+                      style={{ background: '#7c3aed15', color: '#7c3aed' }}
+                    >
+                      <Star className="w-3 h-3" style={{ fill: '#7c3aed' }} />
+                      Hero
+                    </span>
+                  )}
                 </div>
               </div>
               <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
@@ -678,6 +710,21 @@ export default function Products() {
       >
         {editProduct && (
           <div className="p-5 space-y-5">
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Type</label>
+              <div className="flex gap-2">
+                {(['product', 'service'] as const).map((t) => (
+                  <button key={t} type="button" onClick={() => setEditForm({ ...editForm, productType: t })}
+                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border-2 transition-all ${
+                      editForm.productType === t
+                        ? t === 'service' ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-amber-50 border-amber-400 text-amber-700'
+                        : 'border-gray-200 text-gray-500'
+                    }`}>
+                    {t === 'product' ? '📦 Product' : '🛠️ Service'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <FormField label="Product Name" required>
               <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input w-full" />
             </FormField>
@@ -700,7 +747,26 @@ export default function Products() {
                 <input type="number" value={editForm.displayOrder} onChange={(e) => setEditForm({ ...editForm, displayOrder: e.target.value })} className="input w-full" min={0} />
               </FormField>
             </div>
-          </div>
+            {/* Hero Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Hero Product</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Featured in "Best Products This Week" on home feed</p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleToggleHero(editProduct)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
+                style={{
+                  background: editProduct.isHero ? '#7c3aed' : 'var(--surface-2)',
+                  color: editProduct.isHero ? 'white' : 'var(--text-secondary)',
+                }}
+              >
+                {editProduct.isHero ? 'Remove' : 'Make Hero'}
+              </button>
+            </div>          </div>
         )}
       </DetailPanel>
 

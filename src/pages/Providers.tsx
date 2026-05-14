@@ -326,6 +326,34 @@ export default function Providers() {
               ))}
             </div>
 
+            {/* Online Presence (quick view) */}
+            {(selectedProvider.websiteUrl || selectedProvider.instagramHandle || selectedProvider.facebookHandle || selectedProvider.youtubeHandle || selectedProvider.whatsappNumber) && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProvider.websiteUrl && (
+                    <a href={selectedProvider.websiteUrl.startsWith('http') ? selectedProvider.websiteUrl : `https://${selectedProvider.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: 'var(--color-primary)' }}>
+                      🌐 {selectedProvider.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 25)}
+                    </a>
+                  )}
+                  {selectedProvider.instagramHandle && (
+                    <a href={`https://instagram.com/${selectedProvider.instagramHandle}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: '#E4405F' }}>
+                      IG @{selectedProvider.instagramHandle}
+                    </a>
+                  )}
+                  {selectedProvider.facebookHandle && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#1877F2' }}>FB</span>
+                  )}
+                  {selectedProvider.youtubeHandle && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#FF0000' }}>YT</span>
+                  )}
+                  {selectedProvider.whatsappNumber && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#25D366' }}>WA</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Categories */}
             {selectedProvider.providerCategories && selectedProvider.providerCategories.length > 0 && (
               <div>
