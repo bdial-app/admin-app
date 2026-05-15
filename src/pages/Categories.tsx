@@ -124,9 +124,9 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const list = await categoriesService.list();
-      const arr = (list as any)?.data ?? list ?? [];
-      setCategories(Array.isArray(arr) ? arr : []);
+      const tree = await categoriesService.tree();
+      const arr = Array.isArray(tree) ? tree : [];
+      setCategories(arr);
     } catch { console.error('Failed to fetch categories'); }
     finally { setLoading(false); }
   };

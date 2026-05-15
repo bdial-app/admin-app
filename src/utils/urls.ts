@@ -54,7 +54,7 @@ export const URLS = {
     UPDATE: (id: string) => `/categories/${id}`,
     TOP_LEVEL: '/categories/top-level',
     TREE: '/categories/tree',
-    SUBCATEGORIES: (parentId: string) => `/categories/${parentId}/subcategories`,
+    SUBCATEGORIES: (parentId: string) => `/categories/${parentId}/sub-categories`,
     UPLOAD_ICON: (id: string) => `/categories/${id}/icon`,
     UPLOAD_IMAGE: (id: string) => `/categories/${id}/image`,
   },
