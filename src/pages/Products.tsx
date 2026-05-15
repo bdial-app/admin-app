@@ -53,7 +53,7 @@ export default function Products() {
     limit: LIMIT,
     search: search || undefined,
     isActive: statusFilter === 'true' ? true : statusFilter === 'false' ? false : '',
-    productType: typeFilter || undefined,
+    productType: (typeFilter as 'product' | 'service' | '' | undefined) || undefined,
     priceMin: priceMin || undefined,
     priceMax: priceMax || undefined,
     hasImages: hasImages || undefined,

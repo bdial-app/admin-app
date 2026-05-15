@@ -151,7 +151,7 @@ const Categories = () => {
     clearStaged();
     const newCat: Category = {
       id: Math.random().toString(36).substr(2, 9), parentId: null, name: '', slug: '',
-      description: '', icon: null, iconStorageKey: null, imageUrl: null,
+      description: '', icon: null, iconColor: null, iconStorageKey: null, imageUrl: null,
       isActive: true, displayOrder: categories.length + 1, createdAt: new Date().toISOString(), children: [],
     };
     setSelectedCategory(newCat); setFormData(newCat); setIsEditing(true);
@@ -162,7 +162,7 @@ const Categories = () => {
     clearStaged();
     const newCat: Category = {
       id: Math.random().toString(36).substr(2, 9), parentId: selectedCategory.id, name: '', slug: '',
-      description: '', icon: null, iconStorageKey: null, imageUrl: null,
+      description: '', icon: null, iconColor: null, iconStorageKey: null, imageUrl: null,
       isActive: true, displayOrder: (selectedCategory.children?.length || 0) + 1, createdAt: new Date().toISOString(), children: [],
     };
     setExpandedNodes(prev => ({ ...prev, [selectedCategory.id]: true }));
