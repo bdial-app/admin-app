@@ -7,6 +7,7 @@ export interface Category {
   icon: string | null;
   iconStorageKey: string | null;
   imageUrl: string | null;
+  iconColor: string | null;
   isActive: boolean;
   displayOrder: number;
   keywords: string[] | null;
@@ -26,4 +27,6 @@ export interface CategoryFormData {
   isActive?: boolean;
   displayOrder?: number;
   keywords?: string[];
+  icon?: string;
+  iconColor?: string;
 }

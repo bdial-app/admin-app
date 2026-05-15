@@ -2,11 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Folder, FolderOpen, Plus, Save, Edit3, Loader2, X,
   ToggleLeft, ToggleRight, Upload, Trash2, ImageIcon, ChevronRight, Search,
+  Palette, Sparkles,
 } from 'lucide-react';
+import { DynamicIcon } from 'lucide-react/dynamic';
 import { categoriesService } from '../services/categories.service';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
+import LucideIconPicker from '../components/LucideIconPicker';
+import ColorPicker, { GRADIENT_PALETTE } from '../components/ColorPicker';
 
 interface Category {
   id: string;
@@ -17,6 +21,7 @@ interface Category {
   icon: string | null;
   iconStorageKey: string | null;
   imageUrl: string | null;
+  iconColor: string | null;
   isActive: boolean;
   displayOrder: number;
   createdAt: string;
@@ -25,7 +30,8 @@ interface Category {
 
 /* ─── Helpers ──────────────────────────────────────────── */
 const isNewCategory = (cat: Category) => cat.id.length < 15;
-const categoryThumb = (cat: Category) => cat.icon || cat.imageUrl || null;
+const isUrl = (s: string | null) => s && (s.startsWith('http') || s.startsWith('/'));
+const categoryThumb = (cat: Category) => (isUrl(cat.icon) ? cat.icon : null) || cat.imageUrl || null;
 
 /* ─── Reusable upload zone ─────────────────────────────── */
 function UploadZone({
@@ -103,6 +109,7 @@ const Categories = () => {
   const [stagedImage, setStagedImage] = useState<File | null>(null);
   const [stagedIconPreview, setStagedIconPreview] = useState<string | null>(null);
   const [stagedImagePreview, setStagedImagePreview] = useState<string | null>(null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
   useEffect(() => { fetchCategories(); }, []);
 
@@ -172,6 +179,8 @@ const Categories = () => {
       name: formData.name, description: formData.description || '',
       isActive: formData.isActive, displayOrder: formData.displayOrder,
       parentId: selectedCategory.parentId,
+      icon: formData.icon || null,
+      iconColor: formData.iconColor || null,
     };
 
     try {
@@ -323,6 +332,18 @@ const Categories = () => {
               {thumb ? (
                 <img src={thumb} alt="" className="w-7 h-7 rounded-lg object-cover flex-shrink-0"
                   style={{ border: '1px solid var(--border-light)' }} />
+              ) : node.icon && !isUrl(node.icon) ? (
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                  GRADIENT_PALETTE[node.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                }`}>
+                  <DynamicIcon
+                    // @ts-expect-error dynamic name
+                    name={node.icon}
+                    size={14}
+                    className="text-white"
+                    strokeWidth={2}
+                  />
+                </div>
               ) : (
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: 'var(--surface-2)' }}>
@@ -540,9 +561,67 @@ const Categories = () => {
                       </div>
                     </div>
 
-                    {/* Media section */}
+                    {/* Icon Selection (Lucide) + Color */}
                     <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.5rem' }}>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>Media</h4>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
+                        <Sparkles className="w-3.5 h-3.5 inline-block mr-1" /> Category Icon
+                      </h4>
+
+                      {/* Icon preview + pick button */}
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${
+                          GRADIENT_PALETTE[formData.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                        } flex items-center justify-center shadow-sm`}>
+                          {formData.icon ? (
+                            <DynamicIcon
+                              // @ts-expect-error dynamic name
+                              name={formData.icon}
+                              size={24}
+                              className="text-white drop-shadow-sm"
+                              strokeWidth={1.8}
+                            />
+                          ) : (
+                            <span className="text-lg font-bold text-white/80">
+                              {formData.name?.[0]?.toUpperCase() || '?'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowIconPicker(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                            style={{ background: 'var(--sidebar-active)', color: 'var(--color-primary)' }}
+                          >
+                            <Palette className="w-3.5 h-3.5" />
+                            {formData.icon ? 'Change Icon' : 'Pick Icon'}
+                          </button>
+                          {formData.icon && (
+                            <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                              {formData.icon}
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, icon: null })}
+                                className="ml-2 text-red-400 hover:text-red-600"
+                              >
+                                ✕ clear
+                              </button>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Color picker */}
+                      <ColorPicker
+                        value={formData.iconColor}
+                        iconName={formData.icon}
+                        onChange={(color) => setFormData({ ...formData, iconColor: color })}
+                      />
+                    </div>
+
+                    {/* Media section (image uploads) */}
+                    <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.5rem' }}>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>Custom Images (Optional Override)</h4>
                       <div className="grid grid-cols-2 gap-5">
                         <UploadZone
                           label="Icon" hint="PNG or SVG, small square" accept="image/png,image/svg+xml"
@@ -716,6 +795,15 @@ const Categories = () => {
           )}
         </div>
       </div>
+
+      {/* Icon Picker Modal */}
+      {showIconPicker && (
+        <LucideIconPicker
+          value={formData.icon}
+          onChange={(name) => setFormData({ ...formData, icon: name })}
+          onClose={() => setShowIconPicker(false)}
+        />
+      )}
     </div>
   );
 };
