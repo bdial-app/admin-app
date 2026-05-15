@@ -1,4 +1,4 @@
-import { DynamicIcon } from "lucide-react/dynamic";
+import IconByName from './IconByName';
 
 export const GRADIENT_PALETTE: Record<
   string,
@@ -56,8 +56,7 @@ export default function ColorPicker({
               }`}
             >
               {iconName ? (
-                <DynamicIcon
-                  // @ts-expect-error dynamic name
+                <IconByName
                   name={iconName}
                   size={16}
                   className="text-white drop-shadow-sm"

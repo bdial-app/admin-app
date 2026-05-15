@@ -4,7 +4,7 @@ import {
   ToggleLeft, ToggleRight, Upload, Trash2, ImageIcon, ChevronRight, Search,
   Palette, Sparkles,
 } from 'lucide-react';
-import { DynamicIcon } from 'lucide-react/dynamic';
+import IconByName from '../components/IconByName';
 import { categoriesService } from '../services/categories.service';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -336,8 +336,7 @@ const Categories = () => {
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
                   GRADIENT_PALETTE[node.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
                 }`}>
-                  <DynamicIcon
-                    // @ts-expect-error dynamic name
+                  <IconByName
                     name={node.icon}
                     size={14}
                     className="text-white"
@@ -573,8 +572,7 @@ const Categories = () => {
                           GRADIENT_PALETTE[formData.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
                         } flex items-center justify-center shadow-sm`}>
                           {formData.icon ? (
-                            <DynamicIcon
-                              // @ts-expect-error dynamic name
+                            <IconByName
                               name={formData.icon}
                               size={24}
                               className="text-white drop-shadow-sm"
