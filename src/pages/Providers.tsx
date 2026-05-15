@@ -14,6 +14,8 @@ import {
   useUnsuspendProvider,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
+import IconByName from '../components/IconByName';
+import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { toast } from 'react-toastify';
 import type { Provider, ProviderStatus } from '../types';
 
@@ -364,9 +366,16 @@ export default function Providers() {
                   {selectedProvider.providerCategories.map((pc) => (
                     <span
                       key={pc.id || pc.category?.id}
-                      className="px-2 py-1 text-xs font-medium rounded-md"
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md"
                       style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                     >
+                      {pc.category?.icon && (
+                        <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                          GRADIENT_PALETTE[pc.category.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                        }`}>
+                          <IconByName name={pc.category.icon} size={10} className="text-white" strokeWidth={2.5} />
+                        </span>
+                      )}
                       {pc.category?.name || 'Unknown'}
                     </span>
                   ))}

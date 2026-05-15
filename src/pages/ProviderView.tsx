@@ -18,6 +18,8 @@ import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/usePro
 import { useReviews } from '../hooks/useReviews';
 import { useOffers } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
+import IconByName from '../components/IconByName';
+import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
 
@@ -411,7 +413,14 @@ export default function ProviderView() {
                 <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Categories</p>
                 <div className="flex flex-wrap gap-2">
                   {provider.providerCategories.map((pc) => (
-                    <span key={pc.id} className="px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                    <span key={pc.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                      {pc.category?.icon && (
+                        <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                          GRADIENT_PALETTE[pc.category.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                        }`}>
+                          <IconByName name={pc.category.icon} size={11} className="text-white" strokeWidth={2.5} />
+                        </span>
+                      )}
                       {pc.category?.name || 'Unknown'}
                     </span>
                   ))}

@@ -16,6 +16,8 @@ import {
 import { adminCreateService } from '../services/admin-create.service';
 import { useUsers } from '../hooks/useUsers';
 import { useCategoryTree } from '../hooks/useCategories';
+import IconByName from '../components/IconByName';
+import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Gender, User as UserType } from '../types';
@@ -728,6 +730,13 @@ export default function CreateProviderFlow() {
                       color: parentSelected && !hasChildren ? 'white' : 'var(--text-primary)',
                     }}
                   >
+                    {cat.icon && (
+                      <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                        GRADIENT_PALETTE[cat.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                      }`}>
+                        <IconByName name={cat.icon} size={11} className="text-white" strokeWidth={2.5} />
+                      </span>
+                    )}
                     <span className="flex-1 text-xs font-semibold truncate">{cat.name}</span>
                     {selectedChildCount > 0 && hasChildren && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
@@ -750,7 +759,7 @@ export default function CreateProviderFlow() {
                             key={child.id}
                             type="button"
                             onClick={() => toggleCategory(child.id)}
-                            className="px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors"
                             style={{
                               background: sel ? 'var(--color-primary)' : 'var(--surface-1)',
                               color: sel ? 'white' : 'var(--text-secondary)',
@@ -758,6 +767,13 @@ export default function CreateProviderFlow() {
                             }}
                           >
                             {sel && <CheckCircle className="w-3 h-3 inline mr-1" />}
+                            {child.icon && (
+                              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                                GRADIENT_PALETTE[child.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                              }`}>
+                                <IconByName name={child.icon} size={8} className="text-white" strokeWidth={2.5} />
+                              </span>
+                            )}
                             {child.name}
                           </button>
                         );
