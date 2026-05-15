@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Folder, FolderOpen, Plus, Save, Edit3, Loader2, X,
   ToggleLeft, ToggleRight, Upload, Trash2, ImageIcon, ChevronRight, Search,
-  Palette, Sparkles,
+  Palette, Sparkles, Tag,
 } from 'lucide-react';
 import IconByName from '../components/IconByName';
 import { categoriesService } from '../services/categories.service';
@@ -11,22 +11,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import LucideIconPicker from '../components/LucideIconPicker';
 import ColorPicker, { GRADIENT_PALETTE } from '../components/ColorPicker';
-
-interface Category {
-  id: string;
-  parentId: string | null;
-  name: string;
-  slug: string;
-  description: string | null;
-  icon: string | null;
-  iconStorageKey: string | null;
-  imageUrl: string | null;
-  iconColor: string | null;
-  isActive: boolean;
-  displayOrder: number;
-  createdAt: string;
-  children?: Category[];
-}
+import type { Category } from '../types/category';
 
 /* ─── Helpers ──────────────────────────────────────────── */
 const isNewCategory = (cat: Category) => cat.id.length < 15;
@@ -152,7 +137,7 @@ const Categories = () => {
     const newCat: Category = {
       id: Math.random().toString(36).substr(2, 9), parentId: null, name: '', slug: '',
       description: '', icon: null, iconColor: null, iconStorageKey: null, imageUrl: null,
-      isActive: true, displayOrder: categories.length + 1, createdAt: new Date().toISOString(), children: [],
+      isActive: true, displayOrder: categories.length + 1, keywords: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), children: [],
     };
     setSelectedCategory(newCat); setFormData(newCat); setIsEditing(true);
   };
@@ -163,7 +148,7 @@ const Categories = () => {
     const newCat: Category = {
       id: Math.random().toString(36).substr(2, 9), parentId: selectedCategory.id, name: '', slug: '',
       description: '', icon: null, iconColor: null, iconStorageKey: null, imageUrl: null,
-      isActive: true, displayOrder: (selectedCategory.children?.length || 0) + 1, createdAt: new Date().toISOString(), children: [],
+      isActive: true, displayOrder: (selectedCategory.children?.length || 0) + 1, keywords: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), children: [],
     };
     setExpandedNodes(prev => ({ ...prev, [selectedCategory.id]: true }));
     setSelectedCategory(newCat); setFormData(newCat); setIsEditing(true);
@@ -181,6 +166,7 @@ const Categories = () => {
       parentId: selectedCategory.parentId,
       icon: formData.icon || null,
       iconColor: formData.iconColor || null,
+      keywords: formData.keywords ?? [],
     };
 
     try {
@@ -633,6 +619,61 @@ const Categories = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Keywords */}
+                    <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.5rem' }}>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
+                        <Tag className="w-3.5 h-3.5 inline-block mr-1" /> Keywords
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(formData.keywords ?? []).map((kw, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg"
+                            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                            {kw}
+                            <button type="button" onClick={() => {
+                              const updated = [...(formData.keywords ?? [])];
+                              updated.splice(i, 1);
+                              setFormData({ ...formData, keywords: updated });
+                            }}
+                              className="ml-0.5 hover:text-red-500 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 max-w-sm">
+                        <input
+                          type="text"
+                          placeholder="Type a keyword and press Enter…"
+                          className="flex-1 px-3 py-2 text-sm rounded-lg outline-none"
+                          style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !(formData.keywords ?? []).includes(val)) {
+                                setFormData({ ...formData, keywords: [...(formData.keywords ?? []), val] });
+                                (e.target as HTMLInputElement).value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <button type="button" onClick={() => {
+                          const input = document.querySelector<HTMLInputElement>('[placeholder="Type a keyword and press Enter…"]');
+                          if (input) {
+                            const val = input.value.trim();
+                            if (val && !(formData.keywords ?? []).includes(val)) {
+                              setFormData({ ...formData, keywords: [...(formData.keywords ?? []), val] });
+                              input.value = '';
+                            }
+                          }
+                        }}
+                          className="px-3 py-2 text-xs font-medium rounded-lg transition-colors"
+                          style={{ background: 'var(--sidebar-active)', color: 'var(--color-primary)' }}>
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   /* ─── View Mode ─── */
@@ -696,6 +737,29 @@ const Categories = () => {
                           {new Date(selectedCategory.createdAt).toLocaleDateString()}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Keywords */}
+                    <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.5rem' }}>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider mb-3 flex items-center gap-2"
+                        style={{ color: 'var(--text-muted)' }}>
+                        <Tag className="w-3.5 h-3.5" />
+                        Keywords ({selectedCategory.keywords?.length || 0})
+                      </h4>
+                      {selectedCategory.keywords && selectedCategory.keywords.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCategory.keywords.map((kw, i) => (
+                            <span key={i} className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg"
+                              style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                          No keywords. Click <strong>Edit</strong> to add keywords.
+                        </p>
+                      )}
                     </div>
 
                     {/* Sub-categories */}
