@@ -11,6 +11,7 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
+import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
 import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -99,7 +100,7 @@ export default function Products() {
   };
 
   // ─── Edit form state ──────────────────
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service' });
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service', categoryId: '', subcategoryId: '' });
 
   const openEdit = (p: Product) => {
     setEditForm({
@@ -108,6 +109,8 @@ export default function Products() {
       price: p.price?.toString() || '',
       displayOrder: p.displayOrder?.toString() || '0',
       productType: (p.productType as 'product' | 'service') || 'product',
+      categoryId: p.categoryId || '',
+      subcategoryId: p.subcategoryId || '',
     });
     setEditProduct(p);
   };
@@ -123,6 +126,8 @@ export default function Products() {
           price: editForm.price ? Number(editForm.price) : null,
           displayOrder: Number(editForm.displayOrder) || 0,
           productType: editForm.productType || 'product',
+          categoryId: editForm.categoryId || null,
+          subcategoryId: editForm.subcategoryId || null,
         },
       });
       toast.success('Product updated');
@@ -746,8 +751,13 @@ export default function Products() {
               <FormField label="Display Order">
                 <input type="number" value={editForm.displayOrder} onChange={(e) => setEditForm({ ...editForm, displayOrder: e.target.value })} className="input w-full" min={0} />
               </FormField>
-            </div>
-            {/* Hero Toggle */}
+            </div>            {/* Category picker */}
+            <SearchableCategoryPicker
+              categoryId={editForm.categoryId}
+              subcategoryId={editForm.subcategoryId}
+              onCategoryChange={(id) => setEditForm({ ...editForm, categoryId: id, subcategoryId: '' })}
+              onSubcategoryChange={(id) => setEditForm({ ...editForm, subcategoryId: id })}
+            />            {/* Hero Toggle */}
             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />

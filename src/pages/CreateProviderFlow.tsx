@@ -18,6 +18,7 @@ import { useUsers } from '../hooks/useUsers';
 import { useCategoryTree } from '../hooks/useCategories';
 import IconByName from '../components/IconByName';
 import { GRADIENT_PALETTE } from '../components/ColorPicker';
+import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Gender, User as UserType } from '../types';
@@ -29,6 +30,8 @@ interface ProductEntry {
   price: string;
   currency: string;
   productType: 'product' | 'service';
+  categoryId: string;
+  subcategoryId: string;
   imageFiles: File[];
   imagePreviews: string[];
 }
@@ -214,11 +217,18 @@ export default function CreateProviderFlow() {
 
   // ── Product management ──────────────────────────────────
   const addProduct = useCallback(() => {
-    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR', productType: 'product', imageFiles: [], imagePreviews: [] }]);
+    setProducts((prev) => [...prev, { name: '', description: '', price: '', currency: 'INR', productType: 'product', categoryId: '', subcategoryId: '', imageFiles: [], imagePreviews: [] }]);
   }, []);
 
   const updateProduct = useCallback((idx: number, field: keyof Omit<ProductEntry, 'imageFiles' | 'imagePreviews'>, value: string) => {
-    setProducts((prev) => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+    setProducts((prev) => prev.map((p, i) => {
+      if (i !== idx) return p;
+      // Reset subcategoryId when parent category changes
+      if (field === 'categoryId' && value !== p.categoryId) {
+        return { ...p, [field]: value, subcategoryId: '' };
+      }
+      return { ...p, [field]: value };
+    }));
   }, []);
 
   const addProductImages = useCallback((idx: number, files: File[]) => {
@@ -323,6 +333,8 @@ export default function CreateProviderFlow() {
             price: p.price ? parseFloat(p.price) : undefined,
             currency: p.currency || 'INR',
             productType: p.productType || 'product',
+            categoryId: p.categoryId || undefined,
+            subcategoryId: p.subcategoryId || undefined,
           })),
         syncLocation,
         skipUserOtp,
@@ -865,6 +877,14 @@ export default function CreateProviderFlow() {
                         placeholder="Basic men's haircut" className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
                     </div>
                   </div>
+
+                  {/* Category picker */}
+                  <SearchableCategoryPicker
+                    categoryId={product.categoryId}
+                    subcategoryId={product.subcategoryId}
+                    onCategoryChange={(id) => updateProduct(idx, 'categoryId', id)}
+                    onSubcategoryChange={(id) => updateProduct(idx, 'subcategoryId', id)}
+                  />
 
                   {/* Image upload */}
                   <div>

@@ -11,6 +11,9 @@ export interface Product {
   isHero: boolean;
   displayOrder: number;
   productType: 'product' | 'service';
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+  keywords?: string[] | null;
   provider?: import('./provider').Provider;
 }
 

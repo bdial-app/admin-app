@@ -32,6 +32,14 @@ export function useCategoryTree() {
   });
 }
 
+export function useSubCategories(parentId: string | null) {
+  return useQuery({
+    queryKey: categoryKeys.subcategories(parentId || ''),
+    queryFn: () => categoriesService.subcategories(parentId!),
+    enabled: !!parentId,
+  });
+}
+
 export function useCategory(id: string) {
   return useQuery({
     queryKey: categoryKeys.detail(id),

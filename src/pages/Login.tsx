@@ -95,15 +95,15 @@ const Login = () => {
 
         <div className="relative z-10 max-w-md">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Trust Engine<br />for your Community
+            Community Commerce<br />Command Center
           </h2>
           <p className="text-white/70 text-base leading-relaxed">
-            Manage verified business listings, user documents, and community moderation from one powerful admin panel.
+            Verify providers, moderate content, empower Women-Led businesses, and keep the Bohra community marketplace trusted — all from one panel.
           </p>
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2 mt-8">
-            {['Listing Approvals', 'Aadhaar Verification', 'Review Moderation', 'User Management'].map((f) => (
+            {['Provider Approvals', 'Identity Verification', 'Women-Led Badges', 'Content Moderation', 'Sponsorships', 'Push Campaigns'].map((f) => (
               <span
                 key={f}
                 className="px-3 py-1.5 text-xs font-medium rounded-full text-white/90 bg-white/10 backdrop-blur-sm border border-white/10"
