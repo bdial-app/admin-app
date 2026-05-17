@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
@@ -10,6 +10,7 @@ import { StatCard } from '../components/ui/StatCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { DetailPanel } from '../components/ui/DetailPanel';
+import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
   useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
@@ -18,8 +19,6 @@ import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/usePro
 import { useReviews } from '../hooks/useReviews';
 import { useOffers } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
-import IconByName from '../components/IconByName';
-import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
 
@@ -54,6 +53,9 @@ export default function ProviderView() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'suspend' | 'unsuspend' | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
+  const [productCategoryId, setProductCategoryId] = useState('');
+  const [productSubcategoryId, setProductSubcategoryId] = useState('');
+  const [categoryDirty, setCategoryDirty] = useState(false);
   const [editingSocial, setEditingSocial] = useState(false);
   const [socialForm, setSocialForm] = useState({
     websiteUrl: '',
@@ -71,6 +73,30 @@ export default function ProviderView() {
 
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
+
+  // Sync category state when product panel opens
+  useEffect(() => {
+    if (selectedProduct) {
+      setProductCategoryId(selectedProduct.categoryId || '');
+      setProductSubcategoryId(selectedProduct.subcategoryId || '');
+      setCategoryDirty(false);
+    }
+  }, [selectedProduct]);
+
+  const handleSaveProductCategory = async () => {
+    if (!selectedProduct) return;
+    try {
+      await updateProductMutation.mutateAsync({
+        id: selectedProduct.id,
+        body: {
+          categoryId: productCategoryId || null,
+          subcategoryId: productSubcategoryId || null,
+        },
+      });
+      toast.success('Product category updated');
+      setCategoryDirty(false);
+    } catch { toast.error('Failed to update category'); }
+  };
 
   const handleToggleProductActive = async (product: Product) => {
     try {
@@ -413,14 +439,7 @@ export default function ProviderView() {
                 <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Categories</p>
                 <div className="flex flex-wrap gap-2">
                   {provider.providerCategories.map((pc) => (
-                    <span key={pc.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                      {pc.category?.icon && (
-                        <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
-                          GRADIENT_PALETTE[pc.category.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
-                        }`}>
-                          <IconByName name={pc.category.icon} size={11} className="text-white" strokeWidth={2.5} />
-                        </span>
-                      )}
+                    <span key={pc.id} className="px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
                       {pc.category?.name || 'Unknown'}
                     </span>
                   ))}
@@ -959,6 +978,26 @@ export default function ProviderView() {
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{selectedProduct.description}</p>
               </div>
             )}
+            {/* Category assignment */}
+            <div className="pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+              <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Category</p>
+              <SearchableCategoryPicker
+                categoryId={productCategoryId}
+                subcategoryId={productSubcategoryId}
+                onCategoryChange={(id) => { setProductCategoryId(id); setProductSubcategoryId(''); setCategoryDirty(true); }}
+                onSubcategoryChange={(id) => { setProductSubcategoryId(id); setCategoryDirty(true); }}
+              />
+              {categoryDirty && (
+                <button
+                  onClick={handleSaveProductCategory}
+                  disabled={updateProductMutation.isPending}
+                  className="mt-3 px-4 py-2 text-xs font-semibold rounded-lg text-white disabled:opacity-50"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {updateProductMutation.isPending ? 'Saving…' : 'Save Category'}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </DetailPanel>
