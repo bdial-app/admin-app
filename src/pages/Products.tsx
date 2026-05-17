@@ -11,7 +11,6 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
 import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -54,7 +53,7 @@ export default function Products() {
     limit: LIMIT,
     search: search || undefined,
     isActive: statusFilter === 'true' ? true : statusFilter === 'false' ? false : '',
-    productType: (typeFilter as 'product' | 'service' | '' | undefined) || undefined,
+    productType: typeFilter || undefined,
     priceMin: priceMin || undefined,
     priceMax: priceMax || undefined,
     hasImages: hasImages || undefined,
@@ -100,7 +99,7 @@ export default function Products() {
   };
 
   // ─── Edit form state ──────────────────
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service', categoryId: '', subcategoryId: '' });
+  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service' });
 
   const openEdit = (p: Product) => {
     setEditForm({
@@ -109,8 +108,6 @@ export default function Products() {
       price: p.price?.toString() || '',
       displayOrder: p.displayOrder?.toString() || '0',
       productType: (p.productType as 'product' | 'service') || 'product',
-      categoryId: p.categoryId || '',
-      subcategoryId: p.subcategoryId || '',
     });
     setEditProduct(p);
   };
@@ -126,8 +123,6 @@ export default function Products() {
           price: editForm.price ? Number(editForm.price) : null,
           displayOrder: Number(editForm.displayOrder) || 0,
           productType: editForm.productType || 'product',
-          categoryId: editForm.categoryId || null,
-          subcategoryId: editForm.subcategoryId || null,
         },
       });
       toast.success('Product updated');
@@ -361,7 +356,7 @@ export default function Products() {
           <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Types</p>
             <div className="flex-1 flex gap-2">
-              {stats.typeBreakdown.map(t => {
+              {(stats.typeBreakdown ?? []).map(t => {
                 const isService = t.type === 'service';
                 return (
                   <button
@@ -385,7 +380,7 @@ export default function Products() {
           <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
             <p className="text-xs font-bold uppercase tracking-wider flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Top</p>
             <div className="flex-1 flex flex-wrap gap-1.5">
-              {stats.topProviders.slice(0, 5).map((p, i) => (
+              {(stats.topProviders ?? []).slice(0, 5).map((p, i) => (
                 <span key={p.providerId} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg" style={{ background: 'var(--surface-1)', color: 'var(--text-secondary)' }}>
                   <span className="font-bold" style={{ color: i < 3 ? '#f59e0b' : 'var(--text-muted)' }}>#{i + 1}</span>
                   {p.brandName} <span className="opacity-60">({p.count})</span>
@@ -751,13 +746,8 @@ export default function Products() {
               <FormField label="Display Order">
                 <input type="number" value={editForm.displayOrder} onChange={(e) => setEditForm({ ...editForm, displayOrder: e.target.value })} className="input w-full" min={0} />
               </FormField>
-            </div>            {/* Category picker */}
-            <SearchableCategoryPicker
-              categoryId={editForm.categoryId}
-              subcategoryId={editForm.subcategoryId}
-              onCategoryChange={(id) => setEditForm({ ...editForm, categoryId: id, subcategoryId: '' })}
-              onSubcategoryChange={(id) => setEditForm({ ...editForm, subcategoryId: id })}
-            />            {/* Hero Toggle */}
+            </div>
+            {/* Hero Toggle */}
             <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />
