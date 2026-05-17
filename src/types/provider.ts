@@ -33,6 +33,7 @@ export interface Provider {
   facebookHandle?: string | null;
   youtubeHandle?: string | null;
   whatsappNumber?: string | null;
+  linkedinHandle?: string | null;
   // Relations (optionally loaded)
   user?: User;
   providerCategories?: ProviderCategory[];

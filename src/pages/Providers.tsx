@@ -329,7 +329,7 @@ export default function Providers() {
             </div>
 
             {/* Online Presence (quick view) */}
-            {(selectedProvider.websiteUrl || selectedProvider.instagramHandle || selectedProvider.facebookHandle || selectedProvider.youtubeHandle || selectedProvider.whatsappNumber) && (
+            {(selectedProvider.websiteUrl || selectedProvider.instagramHandle || selectedProvider.facebookHandle || selectedProvider.youtubeHandle || selectedProvider.whatsappNumber || selectedProvider.linkedinHandle) && (
               <div>
                 <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
                 <div className="flex flex-wrap gap-2">
@@ -351,6 +351,11 @@ export default function Providers() {
                   )}
                   {selectedProvider.whatsappNumber && (
                     <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#25D366' }}>WA</span>
+                  )}
+                  {selectedProvider.linkedinHandle && (
+                    <a href={selectedProvider.linkedinHandle.startsWith('http') ? selectedProvider.linkedinHandle : `https://linkedin.com/in/${selectedProvider.linkedinHandle}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: '#0A66C2' }}>
+                      LI
+                    </a>
                   )}
                 </div>
               </div>
