@@ -38,7 +38,7 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'' | 'product' | 'service'>('');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [hasImages, setHasImages] = useState('');
@@ -361,7 +361,7 @@ export default function Products() {
                 return (
                   <button
                     key={t.type}
-                    onClick={() => { setTypeFilter(typeFilter === t.type ? '' : t.type); setPage(1); }}
+                    onClick={() => { setTypeFilter(typeFilter === t.type ? '' : t.type as '' | 'product' | 'service'); setPage(1); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
                       background: typeFilter === t.type ? (isService ? '#6366f115' : 'var(--color-success-light)') : 'var(--surface-1)',
@@ -457,7 +457,7 @@ export default function Products() {
               <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Type</label>
               <select
                 value={typeFilter}
-                onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+                onChange={(e) => { setTypeFilter(e.target.value as '' | 'product' | 'service'); setPage(1); }}
                 className="px-3 py-2 text-sm rounded-lg focus-ring"
                 style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
               >
