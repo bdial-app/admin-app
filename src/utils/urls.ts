@@ -274,14 +274,4 @@ export const URLS = {
     REQUEST_STATS: '/admin/city-requests/stats',
     REQUEST_INSIGHTS: '/admin/city-requests/insights',
   },
-
-  // -- Google Reviews ----------------------------------
-  GOOGLE_REVIEWS: {
-    PROVIDERS: '/admin/google-reviews/providers',
-    TRUST_OVERVIEW: '/admin/google-reviews/trust-overview',
-    VERIFY: (id: string) => `/admin/google-reviews/${id}/verify`,
-    CONFIRM: (id: string) => `/admin/google-reviews/${id}/confirm`,
-    UNLINK: (id: string) => `/admin/google-reviews/${id}/unlink`,
-    REFRESH: (id: string) => `/admin/google-reviews/${id}/refresh`,
-  },
 };
