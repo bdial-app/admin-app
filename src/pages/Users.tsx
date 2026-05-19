@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Eye, UserX, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, UserX, Shield, UserPlus, Store, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
-import { useUsers, useSuspendUser, useUpdateUser } from '../hooks/useUsers';
+import { useUsers, useSuspendUser, useUnsuspendUser, useSoftDeleteUser } from '../hooks/useUsers';
 import { ROUTES } from '../utils/constants';
+import { PermissionGate } from '../components/auth/PermissionGate';
 import { toast } from 'react-toastify';
 import type { User, UserStatus } from '../types';
 
@@ -23,11 +25,14 @@ const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function Users() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<UserStatus | ''>('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [confirmSuspend, setConfirmSuspend] = useState<User | null>(null);
+  const [confirmPause, setConfirmPause] = useState<User | null>(null);
+  const [confirmActivate, setConfirmActivate] = useState<User | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
 
   const { data, isLoading } = useUsers({
     page,
@@ -37,26 +42,42 @@ export default function Users() {
   });
 
   const suspendMutation = useSuspendUser();
-  const updateMutation = useUpdateUser();
+  const unsuspendMutation = useUnsuspendUser();
+  const deleteMutation = useSoftDeleteUser();
 
-  const handleSuspend = async () => {
-    if (!confirmSuspend) return;
+  const handlePause = async () => {
+    if (!confirmPause) return;
     try {
-      await suspendMutation.mutateAsync(confirmSuspend.id);
-      toast.success('User suspended');
-      setConfirmSuspend(null);
+      await suspendMutation.mutateAsync(confirmPause.id);
+      toast.success('User paused');
+      setConfirmPause(null);
       setSelectedUser(null);
     } catch {
-      toast.error('Failed to suspend user');
+      toast.error('Failed to pause user');
     }
   };
 
-  const handleActivate = async (user: User) => {
+  const handleActivate = async () => {
+    if (!confirmActivate) return;
     try {
-      await updateMutation.mutateAsync({ id: user.id, body: { status: 'active' as UserStatus } });
+      await unsuspendMutation.mutateAsync(confirmActivate.id);
       toast.success('User activated');
+      setConfirmActivate(null);
+      setSelectedUser(null);
     } catch {
       toast.error('Failed to activate user');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deleteMutation.mutateAsync(confirmDelete.id);
+      toast.success('User deleted');
+      setConfirmDelete(null);
+      setSelectedUser(null);
+    } catch {
+      toast.error('Failed to delete user');
     }
   };
 
@@ -150,6 +171,16 @@ export default function Users() {
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Users' },
         ]}
+        actions={
+          <button
+            onClick={() => navigate(ROUTES.CREATE_USER)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            <UserPlus className="w-4 h-4" />
+            Create User
+          </button>
+        }
       />
 
       <DataTable<User>
@@ -190,25 +221,51 @@ export default function Users() {
         actions={
           selectedUser && (
             <>
-              {selectedUser.status === 'active' && (
+              {selectedUser.status === 'active' && !selectedUser.provider && (
                 <button
-                  onClick={() => setConfirmSuspend(selectedUser)}
+                  onClick={() => navigate(`${ROUTES.CREATE_PROVIDER}?mobile=${selectedUser.mobileNumber}`)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
-                  style={{ background: 'var(--color-danger)' }}
+                  style={{ background: 'var(--color-primary)' }}
                 >
-                  <UserX className="w-4 h-4 inline mr-1.5" />
-                  Suspend
+                  <Store className="w-4 h-4 inline mr-1.5" />
+                  Make Provider
                 </button>
               )}
-              {selectedUser.status === 'suspended' && (
+              {selectedUser.status === 'active' && (
+                <PermissionGate permission="users.suspend">
                 <button
-                  onClick={() => handleActivate(selectedUser)}
+                  onClick={() => setConfirmPause(selectedUser)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-warning, #f59e0b)' }}
+                >
+                  <UserX className="w-4 h-4 inline mr-1.5" />
+                  Pause
+                </button>
+                </PermissionGate>
+              )}
+              {selectedUser.status === 'paused' && (
+                <PermissionGate permission="users.suspend">
+                <button
+                  onClick={() => setConfirmActivate(selectedUser)}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
                   style={{ background: 'var(--color-success)' }}
                 >
                   <Shield className="w-4 h-4 inline mr-1.5" />
                   Activate
                 </button>
+                </PermissionGate>
+              )}
+              {selectedUser.status !== 'deleted' && selectedUser.role !== 'admin' && (
+                <PermissionGate permission="users.delete">
+                <button
+                  onClick={() => setConfirmDelete(selectedUser)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                >
+                  <Trash2 className="w-4 h-4 inline mr-1.5" />
+                  Delete
+                </button>
+                </PermissionGate>
               )}
             </>
           )
@@ -262,16 +319,40 @@ export default function Users() {
         )}
       </DetailPanel>
 
-      {/* Suspend Confirmation */}
+      {/* Pause Confirmation */}
       <ConfirmDialog
-        open={!!confirmSuspend}
-        onClose={() => setConfirmSuspend(null)}
-        onConfirm={handleSuspend}
-        title="Suspend User"
-        description={`Are you sure you want to suspend ${confirmSuspend?.name || 'this user'}? They will be unable to access the platform.`}
-        confirmLabel="Suspend User"
+        open={!!confirmPause}
+        onClose={() => setConfirmPause(null)}
+        onConfirm={handlePause}
+        title="Pause User"
+        description={`Are you sure you want to pause ${confirmPause?.name || 'this user'}? They will be blocked from logging in, their provider will be hidden, and their chats will be deactivated. This is reversible.`}
+        confirmLabel="Pause User"
         variant="danger"
         isLoading={suspendMutation.isPending}
+      />
+
+      {/* Activate Confirmation */}
+      <ConfirmDialog
+        open={!!confirmActivate}
+        onClose={() => setConfirmActivate(null)}
+        onConfirm={handleActivate}
+        title="Activate User"
+        description={`Are you sure you want to re-activate ${confirmActivate?.name || 'this user'}? They will regain full access, their provider will be restored, and chats reactivated.`}
+        confirmLabel="Activate"
+        variant="default"
+        isLoading={unsuspendMutation.isPending}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete User"
+        description={`Are you sure you want to permanently delete ${confirmDelete?.name || 'this user'}? This will soft-delete their account and disable their provider. This action cannot be easily reversed.`}
+        confirmLabel="Delete User"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

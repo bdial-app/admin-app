@@ -3,6 +3,7 @@ import {
   Users, Store, Package, Star, ShieldCheck, AlertTriangle,
   ArrowRight, Loader2, Search, MessageSquare, TrendingUp,
   Image, Megaphone, Gift, UserPlus, Bell, Send, Eye,
+  DollarSign, CreditCard, Heart, Zap,
 } from 'lucide-react';
 import { StatCard } from '../components/ui/StatCard';
 import { useDashboardStats, useDashboardTimeSeries } from '../hooks/useDashboard';
@@ -11,7 +12,7 @@ import { ROUTES } from '../utils/constants';
 import { useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar,
+  BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 
 const formatDate = (label: unknown): string => {
@@ -62,6 +63,7 @@ export default function Dashboard() {
     { title: 'Pending Verifications', count: stats?.pendingVerifications ?? 0, icon: ShieldCheck, color: 'var(--color-info)', bg: 'var(--color-info-light)', route: ROUTES.REGISTRATIONS },
     { title: 'Pending Providers', count: stats?.pendingProviders ?? 0, icon: Store, color: 'var(--color-warning)', bg: 'var(--color-warning-light)', route: ROUTES.PROVIDERS },
     { title: 'Open Reports', count: stats?.openReports ?? 0, icon: AlertTriangle, color: 'var(--color-danger)', bg: 'var(--color-danger-light)', route: ROUTES.REPORTS },
+    { title: 'Women-Led Pending', count: stats?.womenLedPending ?? 0, icon: Heart, color: '#9333EA', bg: '#F3E8FF', route: ROUTES.WOMEN_LED },
   ];
 
   const marketingStats = [
@@ -88,7 +90,7 @@ export default function Dashboard() {
       {/* Action Required */}
       <div>
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Requires Attention</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {actionCards.map((card) => (
             <button
               key={card.title}
@@ -200,6 +202,148 @@ export default function Dashboard() {
           {marketingStats.map((m) => (<StatCard key={m.title} {...m} />))}
         </div>
       </div>
+
+      {/* Monetization & Revenue */}
+      <div>
+        <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Monetization</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <StatCard title="Total Revenue" value={`₹${(stats?.totalRevenue ?? 0).toLocaleString()}`} icon={<DollarSign className="w-5 h-5" />} accent="var(--color-success)" onClick={() => navigate(ROUTES.REVENUE)} />
+          <StatCard title="Revenue (30d)" value={`₹${(stats?.revenueThisMonth ?? 0).toLocaleString()}`} icon={<TrendingUp className="w-5 h-5" />} accent="#10B981" />
+          <StatCard title="Payments" value={(stats?.totalPayments ?? 0).toLocaleString()} icon={<CreditCard className="w-5 h-5" />} accent="var(--color-info)" onClick={() => navigate(ROUTES.PAYMENTS)} />
+          <StatCard title="Active Subs" value={stats?.activeSubscriptions ?? 0} icon={<Zap className="w-5 h-5" />} accent="#8B5CF6" onClick={() => navigate(ROUTES.SUBSCRIPTIONS)} />
+          <StatCard title="Pending Sponsorships" value={stats?.pendingSponsorships ?? 0} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.SPONSORSHIPS)} />
+        </div>
+      </div>
+
+      {/* Lead Funnel & Ad Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Lead Funnel Pie */}
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Lead Funnel</p>
+          {stats?.leadBreakdown && (stats.leadBreakdown.hot + stats.leadBreakdown.warm + stats.leadBreakdown.cold) > 0 ? (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width={140} height={140}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Hot', value: stats.leadBreakdown.hot },
+                      { name: 'Warm', value: stats.leadBreakdown.warm },
+                      { name: 'Cold', value: stats.leadBreakdown.cold },
+                    ]}
+                    cx="50%" cy="50%" innerRadius={35} outerRadius={60}
+                    paddingAngle={3} dataKey="value"
+                  >
+                    <Cell fill="#EF4444" />
+                    <Cell fill="#F59E0B" />
+                    <Cell fill="#6B7280" />
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#EF4444' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Hot — {stats.leadBreakdown.hot}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#F59E0B' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Warm — {stats.leadBreakdown.warm}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#6B7280' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Cold — {stats.leadBreakdown.cold}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs py-8 text-center" style={{ color: 'var(--text-muted)' }}>No lead data yet</p>
+          )}
+        </div>
+
+        {/* Ad Performance */}
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Ad Performance</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.adImpressions ?? 0).toLocaleString()}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Impressions</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.adClicks ?? 0).toLocaleString()}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Clicks</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold" style={{ color: stats?.adCtr && stats.adCtr > 2 ? 'var(--color-success)' : 'var(--text-primary)' }}>{stats?.adCtr ?? 0}%</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>CTR</p>
+            </div>
+          </div>
+          <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Messages Sent</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.totalMessages ?? 0).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* City Distribution */}
+      {(stats?.topCities?.length ?? 0) > 0 && (
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Provider Distribution by City</p>
+          <div className="space-y-2">
+            {stats?.topCities?.map((c: any) => {
+              const maxCount = stats?.topCities?.[0]?.count || 1;
+              return (
+                <div key={c.city} className="flex items-center gap-3">
+                  <span className="text-xs font-medium w-24 truncate" style={{ color: 'var(--text-secondary)' }}>{c.city}</span>
+                  <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background: 'var(--surface-1)' }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${(c.count / maxCount) * 100}%`, background: 'var(--color-primary)' }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold w-8 text-right" style={{ color: 'var(--text-primary)' }}>{c.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Lead & Conversation Trends */}
+      {timeSeries && (timeSeries.leadVolume?.length > 0 || timeSeries.conversationVolume?.length > 0) && (
+        <div>
+          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Engagement Trends</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {timeSeries.leadVolume?.length > 0 && (
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Lead Volume</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={timeSeries.leadVolume}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="count" stroke="#EC4899" fill="#EC4899" fillOpacity={0.1} strokeWidth={2} name="Leads" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {timeSeries.conversationVolume?.length > 0 && (
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Conversation Volume</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={timeSeries.conversationVolume}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="count" stroke="#06B6D4" fill="#06B6D4" fillOpacity={0.1} strokeWidth={2} name="Conversations" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notification Stats */}
       {notifStats && (

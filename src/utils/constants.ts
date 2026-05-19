@@ -22,6 +22,21 @@ export const ROUTES = {
   SETTINGS: '/settings',
   NOTIFICATIONS: '/notifications',
   BUG_REPORTS: '/bug-reports-admin',
+  CREATE_USER: '/create-user',
+  CREATE_PROVIDER: '/create-provider',
+  PHOTO_MODERATION: '/photo-moderation',
+  FEATURE_FLAGS: '/feature-flags',
+  MODERATION_QUEUE: '/moderation-queue',
+  VOUCHERS: '/vouchers',
+  SUBSCRIPTIONS: '/subscriptions',
+  PAYMENTS: '/payments',
+  REVENUE: '/revenue',
+  MONETIZATION_SETTINGS: '/monetization-settings',
+  BOOST_SETTINGS: '/boost-settings',
+  WOMEN_LED: '/women-led',
+  SERVICEABLE_CITIES: '/serviceable-cities',
+  PROVIDER_VIEW: '/providers/:id',
+  GOOGLE_REVIEWS: '/google-reviews',
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';

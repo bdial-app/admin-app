@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { Plus, Eye, Pencil, Trash2, GripVertical } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Eye, Pencil, Trash2, GripVertical, Upload, X, ChevronDown, ChevronUp } from 'lucide-react';
+import ColorPicker from 'react-best-gradient-color-picker';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import StatusBadge from '../components/ui/StatusBadge';
 import { FormField } from '../components/ui/FormField';
 import { useBanners, useCreateBanner, useUpdateBanner, useDeleteBanner } from '../hooks/useBanners';
 import { ROUTES } from '../utils/constants';
@@ -39,6 +41,10 @@ export default function Banners() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<Partial<PromoBanner>>(emptyBanner);
   const [confirmDelete, setConfirmDelete] = useState<PromoBanner | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showGradientPicker, setShowGradientPicker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useBanners({ page, limit: LIMIT, isActive: isActive || undefined });
   const createMutation = useCreateBanner();
@@ -47,6 +53,9 @@ export default function Banners() {
 
   const openCreate = () => {
     setForm(emptyBanner);
+    setImageFile(null);
+    setImagePreview(null);
+    setShowGradientPicker(false);
     setCreating(true);
     setEditMode(false);
     setSelected(null);
@@ -54,6 +63,9 @@ export default function Banners() {
 
   const openEdit = (banner: PromoBanner) => {
     setForm({ ...banner });
+    setImageFile(null);
+    setImagePreview(banner.imageUrl || null);
+    setShowGradientPicker(false);
     setEditMode(true);
     setCreating(false);
     setSelected(null);
@@ -63,17 +75,39 @@ export default function Banners() {
     if (!form.title?.trim()) { toast.error('Title is required'); return; }
     try {
       if (editMode && form.id) {
-        await updateMutation.mutateAsync({ id: form.id, body: form });
+        await updateMutation.mutateAsync({ id: form.id, body: form, imageFile });
         toast.success('Banner updated');
       } else {
-        await createMutation.mutateAsync(form);
+        await createMutation.mutateAsync({ body: form, imageFile });
         toast.success('Banner created');
       }
       setEditMode(false);
       setCreating(false);
+      setImageFile(null);
+      setImagePreview(null);
     } catch {
       toast.error('Failed to save banner');
     }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error('Image must be under 15MB'); return; }
+    setImageFile(file);
+    // Revoke previous blob URL to prevent memory leak
+    if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    // Revoke blob URL to prevent memory leak
+    if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview(null);
+    setForm(prev => ({ ...prev, imageUrl: null }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDelete = async () => {
@@ -96,12 +130,16 @@ export default function Banners() {
       header: 'Banner',
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg"
-            style={{ background: row.gradient || 'var(--color-primary-light)' }}
-          >
-            {row.emoji || '🖼️'}
-          </div>
+          {row.imageUrl ? (
+            <img src={row.imageUrl} alt={row.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+          ) : (
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg"
+              style={{ background: row.gradient || 'var(--color-primary-light)' }}
+            >
+              {row.emoji || '🖼️'}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{row.title}</p>
             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{row.subtitle || '—'}</p>
@@ -136,10 +174,10 @@ export default function Banners() {
         const now = new Date();
         const isScheduled = row.startsAt && new Date(row.startsAt) > now;
         const isExpired = row.endsAt && new Date(row.endsAt) < now;
-        const label = !row.isActive ? 'Inactive' : isExpired ? 'Expired' : isScheduled ? 'Scheduled' : 'Active';
-        const bg = !row.isActive ? 'var(--surface-2)' : isExpired ? 'var(--color-danger-light)' : isScheduled ? 'var(--color-info-light)' : 'var(--color-success-light)';
-        const color = !row.isActive ? 'var(--text-muted)' : isExpired ? 'var(--color-danger-dark)' : isScheduled ? 'var(--color-info-dark)' : 'var(--color-success-dark)';
-        return <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: bg, color }}>{label}</span>;
+        if (!row.isActive) return <StatusBadge status="disabled" />;
+        if (isExpired) return <StatusBadge status="expired" />;
+        if (isScheduled) return <StatusBadge status="scheduled" />;
+        return <StatusBadge status="active" />;
       },
     },
     {
@@ -157,9 +195,35 @@ export default function Banners() {
       className: 'w-24',
       render: (row) => (
         <div className="flex items-center gap-1">
-          <button onClick={(e) => { e.stopPropagation(); setSelected(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}><Eye className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); openEdit(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}><Pencil className="w-4 h-4" /></button>
-          <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-danger)' }}><Trash2 className="w-4 h-4" /></button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelected(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Edit"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }}
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--color-danger)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       ),
     },
@@ -224,30 +288,47 @@ export default function Banners() {
         {selected && (
           <div className="space-y-4">
             {/* Preview */}
-            <div className="rounded-xl p-6 text-center" style={{ background: selected.gradient || 'var(--color-primary-light)' }}>
-              {selected.emoji && <p className="text-3xl mb-2">{selected.emoji}</p>}
-              <p className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{selected.title}</p>
-              {selected.subtitle && <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{selected.subtitle}</p>}
-              {selected.cta && (
-                <span className="inline-block mt-3 px-4 py-1.5 text-xs font-medium rounded-full" style={{ background: 'rgba(0,0,0,0.1)' }}>{selected.cta}</span>
-              )}
-            </div>
+            {selected.imageUrl ? (
+              <img src={selected.imageUrl} alt={selected.title} className="w-full rounded-xl object-cover max-h-48" />
+            ) : (
+              <div className="rounded-xl p-6 text-center" style={{ background: selected.gradient || 'var(--color-primary-light)' }}>
+                {selected.emoji && <p className="text-3xl mb-2">{selected.emoji}</p>}
+                <p className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{selected.title}</p>
+                {selected.subtitle && <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{selected.subtitle}</p>}
+                {selected.cta && (
+                  <span className="inline-block mt-3 px-4 py-1.5 text-xs font-medium rounded-full" style={{ background: 'rgba(0,0,0,0.1)' }}>{selected.cta}</span>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               {[
-                ['Status', selected.isActive ? 'Active' : 'Inactive'],
-                ['Order', String(selected.displayOrder)],
-                ['Tag', selected.tag || '—'],
-                ['CTA', selected.cta || '—'],
-                ['Starts', formatDate(selected.startsAt)],
-                ['Ends', formatDate(selected.endsAt)],
-                ['Link URL', selected.linkUrl || '—'],
-                ['Created', formatDate(selected.createdAt)],
-              ].map(([label, value]) => (
-                <div key={label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{label}</p>
-                  <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                { label: 'Order', value: String(selected.displayOrder) },
+                { label: 'Tag', value: selected.tag || '—' },
+                { label: 'CTA', value: selected.cta || '—' },
+                { label: 'Starts', value: formatDate(selected.startsAt) },
+                { label: 'Ends', value: formatDate(selected.endsAt) },
+                { label: 'Link URL', value: selected.linkUrl || '—' },
+                { label: 'Created', value: formatDate(selected.createdAt) },
+              ].map((field) => (
+                <div key={field.label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
+                  <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{field.value}</p>
                 </div>
               ))}
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    const now = new Date();
+                    const isScheduled = selected.startsAt && new Date(selected.startsAt) > now;
+                    const isExpired = selected.endsAt && new Date(selected.endsAt) < now;
+                    if (!selected.isActive) return <StatusBadge status="disabled" />;
+                    if (isExpired) return <StatusBadge status="expired" />;
+                    if (isScheduled) return <StatusBadge status="scheduled" />;
+                    return <StatusBadge status="active" />;
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -276,6 +357,41 @@ export default function Banners() {
           <FormField label="Subtitle">
             <input type="text" value={form.subtitle || ''} onChange={(e) => updateField('subtitle', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
           </FormField>
+          <FormField label="Banner Image">
+            <div className="space-y-2">
+              {imagePreview ? (
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="w-full h-36 object-cover rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-1 rounded-full text-white"
+                    style={{ background: 'rgba(0,0,0,0.6)' }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-36 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors"
+                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}
+                >
+                  <Upload className="w-6 h-6" />
+                  <span className="text-sm">Click to upload image</span>
+                  <span className="text-xs">PNG, JPG, WebP — max 5MB</span>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+          </FormField>
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Emoji">
               <input type="text" value={form.emoji || ''} onChange={(e) => updateField('emoji', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
@@ -284,8 +400,44 @@ export default function Banners() {
               <input type="text" value={form.tag || ''} onChange={(e) => updateField('tag', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
             </FormField>
           </div>
-          <FormField label="Gradient CSS">
-            <input type="text" value={form.gradient || ''} onChange={(e) => updateField('gradient', e.target.value)} placeholder="e.g. linear-gradient(135deg, #667eea 0%, #764ba2 100%)" className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+          <FormField label="Gradient">
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowGradientPicker(!showGradientPicker)}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg border"
+                style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+              >
+                <div
+                  className="w-8 h-8 rounded-md flex-shrink-0 border"
+                  style={{ background: form.gradient || '#e5e7eb', borderColor: 'var(--border-default)' }}
+                />
+                <span className="truncate flex-1 text-left" style={{ color: form.gradient ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {form.gradient || 'Pick a gradient or solid color…'}
+                </span>
+                {showGradientPicker ? <ChevronUp className="w-4 h-4 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 flex-shrink-0" />}
+              </button>
+              {showGradientPicker && (
+                <div className="p-3 rounded-lg border" style={{ borderColor: 'var(--border-default)', background: 'var(--surface-0)' }}>
+                  <ColorPicker
+                    value={form.gradient || 'linear-gradient(90deg, rgba(96,165,250,1) 0%, rgba(168,85,247,1) 100%)'}
+                    onChange={(val: string) => updateField('gradient', val)}
+                    width={280}
+                    height={160}
+                  />
+                  {form.gradient && (
+                    <button
+                      type="button"
+                      onClick={() => updateField('gradient', null)}
+                      className="mt-2 text-xs px-2 py-1 rounded"
+                      style={{ color: 'var(--color-danger)', background: 'var(--color-danger-light)' }}
+                    >
+                      Clear gradient
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </FormField>
           <FormField label="CTA Text">
             <input type="text" value={form.cta || ''} onChange={(e) => updateField('cta', e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />

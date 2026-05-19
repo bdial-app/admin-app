@@ -1,14 +1,9 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import { authService } from '../../services/authService';
 
-// TODO: Remove mock bypass before production
-const MOCK_NUMBER = '1234567890';
-const MOCK_OTP = '0000';
-
 export const sendOtp = createAsyncThunk(
   'auth/sendOtp',
   async (mobileNumber: string, { rejectWithValue }) => {
-    if (mobileNumber === MOCK_NUMBER) return { message: 'Mock OTP sent' };
     try {
       const response = await authService.sendOtp(mobileNumber);
       return response;
@@ -21,9 +16,6 @@ export const sendOtp = createAsyncThunk(
 export const verifyOtp = createAsyncThunk(
   'auth/verifyOtp',
   async ({ mobileNumber, otp }: { mobileNumber: string, otp: string }, { rejectWithValue }) => {
-    if (mobileNumber === MOCK_NUMBER && otp === MOCK_OTP) {
-      return { data: { accessToken: 'mock-token-dev', user: { id: 'mock-1', name: 'Admin Dev', role: 'admin' } } };
-    }
     try {
       const response = await authService.verifyOtp(mobileNumber, otp);
       return response;
@@ -47,8 +39,9 @@ interface AuthState {
   error: string | null;
 }
 
+const storedUser = localStorage.getItem('user');
 const initialState: AuthState = {
-  user: null,
+  user: storedUser ? JSON.parse(storedUser) : null,
   token: localStorage.getItem('token'),
   isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
@@ -67,12 +60,14 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.isAuthenticated = true;
       localStorage.setItem('token', action.payload.token);
+      localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     },
   },
   extraReducers: (builder) => {
@@ -114,6 +109,7 @@ const authSlice = createSlice({
           state.token = token;
           state.isAuthenticated = true;
           localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(state.user));
         } else if (token) {
           // Fallback if no user object exists
           state.token = token;

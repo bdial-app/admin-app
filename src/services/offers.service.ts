@@ -52,4 +52,19 @@ export const offersService = {
     const { data } = await api.get(URLS.OFFERS.STATS);
     return data;
   },
+
+  getPending: async (): Promise<ProviderOffer[]> => {
+    const { data } = await api.get(URLS.OFFERS.PENDING);
+    return data;
+  },
+
+  approve: async (id: string, notes?: string): Promise<ProviderOffer> => {
+    const { data } = await api.patch(URLS.OFFERS.APPROVE(id), { adminNotes: notes });
+    return data;
+  },
+
+  reject: async (id: string, notes?: string): Promise<ProviderOffer> => {
+    const { data } = await api.patch(URLS.OFFERS.REJECT(id), { adminNotes: notes });
+    return data;
+  },
 };

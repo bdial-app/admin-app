@@ -14,6 +14,7 @@ export const auditLogService = {
         entityType: filters.entityType || undefined,
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
+        search: filters.search || undefined,
       },
     }).then(r => r.data),
 

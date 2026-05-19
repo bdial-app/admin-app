@@ -1,4 +1,4 @@
-import type { DiscountType } from './enums';
+import type { DiscountType, ApprovalStatus } from './enums';
 
 export interface ProviderOffer {
   id: string;
@@ -12,6 +12,10 @@ export interface ProviderOffer {
   startsAt: string;
   endsAt: string;
   isActive: boolean;
+  approvalStatus: ApprovalStatus;
+  adminNotes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
   usageCount: number;
   usageLimit: number | null;
   createdAt: string;

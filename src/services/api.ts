@@ -21,13 +21,19 @@ api.interceptors.request.use(
   }
 );
 
+// Track whether we're already handling a 401 to avoid multiple redirects
+let isLoggingOut = false;
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized
+    if (error.response?.status === 401 && !isLoggingOut) {
+      isLoggingOut = true;
+      // Clear all auth state from localStorage
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('user');
+      // Redirect — use replace to prevent back-button returning to a broken state
+      window.location.replace('/login');
     }
     return Promise.reject(error);
   }

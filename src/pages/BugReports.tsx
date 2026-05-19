@@ -8,6 +8,7 @@ import { useBugReports, useUpdateBugReport } from '../hooks/useBugReports';
 import { toast } from 'react-toastify';
 import type { BugReport, BugCategory, BugReportStatus } from '../types';
 import { BUG_CATEGORY_LABELS, BUG_STATUS_LABELS } from '../types';
+import { ROUTES } from '@/utils/constants';
 
 const LIMIT = 20;
 
@@ -73,7 +74,7 @@ export default function BugReports() {
     {
       key: 'createdAt',
       header: 'Submitted',
-      render: (row) => <span className="text-sm text-muted-foreground">{formatDate(row.createdAt)}</span>,
+      render: (row) => <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{formatDate(row.createdAt)}</span>,
     },
     {
       key: 'category',
@@ -100,7 +101,7 @@ export default function BugReports() {
       key: 'reporterId',
       header: 'Reporter',
       render: (row) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {row.reporterId ? row.reporterId.slice(0, 8) + '…' : 'Anonymous'}
         </span>
       ),
@@ -116,7 +117,10 @@ export default function BugReports() {
       render: (row) => (
         <button
           onClick={(e) => { e.stopPropagation(); handleSelect(row); }}
-          className="p-1.5 rounded hover:bg-accent transition-colors"
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           title="View details"
         >
           <Eye className="w-4 h-4" />
@@ -128,21 +132,23 @@ export default function BugReports() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bug Reports"
-        description="Review and manage bug reports submitted by users"
-      />
+              title="Bug Reports"
+              description="Review and manage bug reports submitted by users"
+              breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Bug Reports' }]}
+            />
 
       {/* Status Tabs */}
-      <div className="flex gap-1 flex-wrap">
+      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-1)' }}>
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => { setStatus(tab.value); setPage(1); }}
-            className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-              status === tab.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-accent'
-            }`}
+            className="px-4 py-1.5 text-[13px] rounded-lg font-semibold transition-all"
+            style={{
+              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
+              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
+            }}
           >
             {tab.label}
           </button>
@@ -154,14 +160,19 @@ export default function BugReports() {
         <select
           value={category}
           onChange={(e) => { setCategory(e.target.value as BugCategory | ''); setPage(1); }}
-          className="text-sm border rounded-md px-3 py-1.5 bg-background"
+          className="text-sm rounded-md px-3 py-1.5 outline-none transition-all focus:ring-1 focus:ring-primary"
+          style={{
+            background: 'var(--surface-0)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-primary)',
+          }}
         >
           {CATEGORY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
         {data && (
-          <span className="text-sm text-muted-foreground">{data.total} report{data.total !== 1 ? 's' : ''}</span>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{data.total} report{data.total !== 1 ? 's' : ''}</span>
         )}
       </div>
 
@@ -180,39 +191,39 @@ export default function BugReports() {
           <div className="space-y-4 p-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-muted-foreground">Category</span>
+                <span style={{ color: 'var(--text-muted)' }}>Category</span>
                 <p className="font-medium">{BUG_CATEGORY_LABELS[selected.category]}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Status</span>
+                <span style={{ color: 'var(--text-muted)' }}>Status</span>
                 <p className="mt-0.5"><StatusBadge status={selected.status} /></p>
               </div>
               <div>
-                <span className="text-muted-foreground">Submitted</span>
+                <span style={{ color: 'var(--text-muted)' }}>Submitted</span>
                 <p className="font-medium">{formatDate(selected.createdAt)}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Reporter</span>
+                <span style={{ color: 'var(--text-muted)' }}>Reporter</span>
                 <p className="font-medium">{selected.reporterId ?? 'Anonymous'}</p>
               </div>
             </div>
 
             <div>
-              <span className="text-sm text-muted-foreground">Description</span>
-              <p className="mt-1 text-sm bg-muted rounded p-2 whitespace-pre-wrap">{selected.description}</p>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Description</span>
+              <p className="mt-1 text-sm rounded-lg p-3 whitespace-pre-wrap" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.description}</p>
             </div>
 
             {selected.stepsToReproduce && (
               <div>
-                <span className="text-sm text-muted-foreground">Steps to Reproduce</span>
-                <p className="mt-1 text-sm bg-muted rounded p-2 whitespace-pre-wrap">{selected.stepsToReproduce}</p>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Steps to Reproduce</span>
+                <p className="mt-1 text-sm rounded-lg p-3 whitespace-pre-wrap" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.stepsToReproduce}</p>
               </div>
             )}
 
             {selected.deviceInfo && (
               <div>
-                <span className="text-sm text-muted-foreground">Device Info</span>
-                <p className="mt-1 text-sm bg-muted rounded p-2 font-mono text-xs">{selected.deviceInfo}</p>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Device Info</span>
+                <p className="mt-1 text-sm font-mono text-xs rounded-lg p-3" style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}>{selected.deviceInfo}</p>
               </div>
             )}
 
@@ -224,7 +235,8 @@ export default function BugReports() {
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as BugReportStatus)}
-                  className="mt-1 w-full text-sm border rounded-md px-3 py-1.5 bg-background"
+                  className="mt-1 w-full text-sm rounded-lg px-3 py-2"
+                  style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                 >
                   {(Object.keys(BUG_STATUS_LABELS) as BugReportStatus[]).map((s) => (
                     <option key={s} value={s}>{BUG_STATUS_LABELS[s]}</option>
@@ -239,7 +251,8 @@ export default function BugReports() {
                   onChange={(e) => setAdminNotes(e.target.value)}
                   rows={3}
                   placeholder="Add internal notes…"
-                  className="mt-1 w-full text-sm border rounded-md px-3 py-2 bg-background resize-none"
+                  className="mt-1 w-full text-sm rounded-lg px-3 py-2 resize-none"
+                  style={{ background: 'var(--surface-1)', color: 'var(--text-primary)', border: '1px solid var(--border-default)' }}
                 />
               </div>
 

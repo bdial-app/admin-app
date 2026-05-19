@@ -17,7 +17,7 @@ export function useAdminUsers(filters: AdminUserFilters = {}) {
 export function useCreateAdminUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { mobileNumber: string; name: string; email?: string; gender?: string }) =>
+    mutationFn: (body: { mobileNumber: string; name: string; email?: string; gender?: string; adminRole?: string }) =>
       adminUsersService.create(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminUserKeys.all });
@@ -30,7 +30,7 @@ export function useCreateAdminUser() {
 export function useUpdateAdminUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; status?: string }) =>
+    mutationFn: ({ id, ...body }: { id: string; name?: string; status?: string; adminRole?: string }) =>
       adminUsersService.update(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminUserKeys.all });

@@ -7,6 +7,10 @@ export interface WarningFilters {
   limit?: number;
   providerId?: string;
   warningType?: string;
+  search?: string;
+  isRead?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export const warningsService = {

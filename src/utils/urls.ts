@@ -1,4 +1,4 @@
-﻿export const URLS = {
+export const URLS = {
   // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   AUTH: {
     SEND_OTP: '/admin-auth/send-otp',
@@ -16,21 +16,35 @@
     LIST: '/admin/users',
     DETAIL: (id: string) => `/admin/users/${id}`,
     UPDATE: (id: string) => `/admin/users/${id}`,
-    SUSPEND: (id: string) => `/admin/users/${id}/suspend`,
+    SUSPEND: (id: string) => `/admin/users/${id}/pause`,
+    UNSUSPEND: (id: string) => `/admin/users/${id}/unpause`,
+    DELETE: (id: string) => `/admin/users/${id}`,
+    BULK_ACTION: '/admin/users/bulk-action',
     STATS: '/admin/users/stats',
     ACTIVITY: (id: string) => `/admin/users/${id}/activity`,
   },
 
-  // â”€â”€ Admin Providers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Admin Providers ──────────────────────────────────────
   PROVIDERS: {
     LIST: '/admin/providers',
     PENDING: '/admin/providers/pending',
     DETAIL: (id: string) => `/admin/providers/${id}`,
     APPROVE: (id: string) => `/admin/providers/${id}/approve`,
     SUSPEND: (id: string) => `/admin/providers/${id}/suspend`,
+    UNSUSPEND: (id: string) => `/admin/providers/${id}/unsuspend`,
+    DISABLE: (id: string) => `/admin/providers/${id}/disable`,
+    ENABLE: (id: string) => `/admin/providers/${id}/enable`,
+    DELETE: (id: string) => `/admin/providers/${id}`,
+    FEATURE: (id: string) => `/admin/providers/${id}/feature`,
     UPDATE: (id: string) => `/admin/providers/${id}`,
+    UPDATE_CONTACT: (id: string) => `/admin/providers/${id}/contact-number`,
+    BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
+    WOMEN_LED_PENDING: '/admin/providers/women-led/pending',
+    WOMEN_LED_APPROVE: (id: string) => `/admin/providers/${id}/women-led/approve`,
+    WOMEN_LED_REJECT: (id: string) => `/admin/providers/${id}/women-led/reject`,
+    WOMEN_LED_ANALYTICS: '/admin/analytics/women-led',
   },
 
   // â”€â”€ Admin Categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -40,7 +54,8 @@
     DETAIL: (id: string) => `/categories/${id}`,
     UPDATE: (id: string) => `/categories/${id}`,
     TOP_LEVEL: '/categories/top-level',
-    SUBCATEGORIES: (parentId: string) => `/categories/${parentId}/subcategories`,
+    TREE: '/categories/tree',
+    SUBCATEGORIES: (parentId: string) => `/categories/${parentId}/sub-categories`,
     UPLOAD_ICON: (id: string) => `/categories/${id}/icon`,
     UPLOAD_IMAGE: (id: string) => `/categories/${id}/image`,
   },
@@ -51,7 +66,9 @@
     DETAIL: (id: string) => `/admin/products/${id}`,
     UPDATE: (id: string) => `/admin/products/${id}`,
     DELETE: (id: string) => `/admin/products/${id}`,
+    BULK_ACTION: '/admin/products/bulk-action',
     STATS: '/admin/products/stats',
+    UPLOAD_IMAGES: (id: string) => `/admin/products/${id}/images`,
   },
 
   // â”€â”€ Admin Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -63,7 +80,15 @@
     REMOVE: (id: string) => `/admin/reviews/${id}/remove`,
     STATS: '/admin/reviews/stats',
   },
-
+  // â"€â"€ Admin Google Reviews â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  GOOGLE_REVIEWS: {
+    PROVIDERS: '/admin/google-reviews/providers',
+    TRUST_OVERVIEW: '/admin/google-reviews/trust-overview',
+    VERIFY: (id: string) => `/admin/google-reviews/verify/${id}`,
+    CONFIRM: (id: string) => `/admin/google-reviews/confirm/${id}`,
+    UNLINK: (id: string) => `/admin/google-reviews/unlink/${id}`,
+    REFRESH: (id: string) => `/admin/google-reviews/refresh/${id}`,
+  },
   // â”€â”€ Admin Verifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   VERIFICATIONS: {
     LIST: '/admin/verifications',
@@ -104,6 +129,10 @@
     LIST: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
     UPDATE: (id: string) => `/admin/sponsorships/${id}`,
+    ANALYTICS: (id: string) => `/admin/sponsorships/${id}/analytics`,
+    PENDING: '/admin/sponsorships/pending',
+    APPROVE: (id: string) => `/admin/sponsorships/${id}/approve`,
+    REJECT: (id: string) => `/admin/sponsorships/${id}/reject`,
     STATS: '/admin/sponsorships/stats',
   },
 
@@ -113,6 +142,9 @@
     DETAIL: (id: string) => `/admin/offers/${id}`,
     UPDATE: (id: string) => `/admin/offers/${id}`,
     DELETE: (id: string) => `/admin/offers/${id}`,
+    PENDING: '/admin/offers/pending',
+    APPROVE: (id: string) => `/admin/offers/${id}/approve`,
+    REJECT: (id: string) => `/admin/offers/${id}/reject`,
     STATS: '/admin/offers/stats',
   },
 
@@ -169,12 +201,77 @@
     SEND: '/admin/notifications/send',
     BATCHES: '/admin/notifications/batches',
     BATCH_DETAIL: (id: string) => `/admin/notifications/batches/${id}`,
-    STATS: '/admin/notifications/stats',
-  },
+    STATS: '/admin/notifications/stats',    TEMPLATES: '/admin/notifications/templates',
+    TEMPLATE_DETAIL: (id: string) => `/admin/notifications/templates/${id}`,
+    TEMPLATE_TOGGLE: (id: string) => `/admin/notifications/templates/${id}/toggle`,  },
   // -- Admin Bug Reports --------------------------------
   BUG_REPORTS: {
     LIST: '/admin/bug-reports',
     DETAIL: (id: string) => `/admin/bug-reports/${id}`,
     UPDATE: (id: string) => `/admin/bug-reports/${id}`,
+  },
+
+  // -- Admin Create User/Provider ----------------------
+  ADMIN_CREATE: {
+    CREATE_USER: '/admin/create-user',
+    CREATE_PROVIDER_WITH_USER: '/admin/create-provider-with-user',
+    CHECK_USER: (mobileNumber: string) => `/admin/check-user/${mobileNumber}`,
+    SEND_OTP: '/admin/otp/send',
+    VERIFY_OTP: '/admin/otp/verify',
+  },
+
+  // -- Photo Moderation --------------------------------
+  PHOTOS: {
+    LIST: '/admin/photos',
+    DELETE: (id: string) => `/admin/photos/${id}`,
+  },
+
+  // -- Feature Flags -----------------------------------
+  FEATURE_FLAGS: {
+    LIST: '/admin/feature-flags',
+    UPDATE: '/admin/feature-flags',
+  },
+
+  // -- CSV Export --------------------------------------
+  EXPORT: {
+    CSV: (entity: string) => `/admin/export/${entity}`,
+  },
+
+  // -- Moderation Queue --------------------------------
+  MODERATION: {
+    QUEUE: '/admin/moderation/queue',
+  },
+
+  // -- Vouchers ----------------------------------------
+  VOUCHERS: {
+    LIST: '/admin/vouchers',
+    CREATE: '/admin/vouchers',
+    UPDATE: (id: string) => `/admin/vouchers/${id}`,
+    DETAIL: (id: string) => `/admin/vouchers/${id}`,
+    REDEMPTIONS: (id: string) => `/admin/vouchers/${id}/redemptions`,
+    STATS: '/admin/vouchers/stats',
+  },
+
+  // -- Payments ----------------------------------------
+  PAYMENTS: {
+    LIST: '/admin/payments',
+    REVENUE_STATS: '/admin/payments/stats',
+    REVENUE_ANALYTICS: '/admin/payments/analytics',
+  },
+
+  // -- Subscriptions -----------------------------------
+  SUBSCRIPTIONS: {
+    LIST: '/admin/subscriptions',
+    STATS: '/admin/subscriptions/stats',
+    PLANS: '/admin/subscription-plans',
+    UPDATE_PLAN: (id: string) => `/admin/subscription-plans/${id}`,
+  },
+
+  // -- Serviceable Cities ------------------------------
+  SERVICEABLE_CITIES: {
+    LIST: '/admin/serviceable-cities',
+    UPDATE: (id: string) => `/admin/serviceable-cities/${id}`,
+    REQUEST_STATS: '/admin/city-requests/stats',
+    REQUEST_INSIGHTS: '/admin/city-requests/insights',
   },
 };

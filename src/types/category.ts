@@ -7,8 +7,10 @@ export interface Category {
   icon: string | null;
   iconStorageKey: string | null;
   imageUrl: string | null;
+  iconColor: string | null;
   isActive: boolean;
   displayOrder: number;
+  keywords: string[] | null;
   createdAt: string;
   updatedAt: string;
   // Relations
@@ -24,4 +26,7 @@ export interface CategoryFormData {
   parentId?: string | null;
   isActive?: boolean;
   displayOrder?: number;
+  keywords?: string[];
+  icon?: string;
+  iconColor?: string;
 }

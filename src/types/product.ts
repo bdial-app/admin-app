@@ -8,7 +8,12 @@ export interface Product {
   photoUrl: string | null;
   photoUrls: string[];
   isActive: boolean;
+  isHero: boolean;
   displayOrder: number;
+  productType: 'product' | 'service';
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+  keywords?: string[] | null;
   provider?: import('./provider').Provider;
 }
 
@@ -27,4 +32,23 @@ export interface ProductFilters {
   search?: string;
   providerId?: string;
   isActive?: boolean | '';
+  productType?: 'product' | 'service' | '';
+  priceMin?: string;
+  priceMax?: string;
+  hasImages?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+export interface ProductStats {
+  total: number;
+  active: number;
+  inactive: number;
+  withImages: number;
+  withoutImages: number;
+  withPrice: number;
+  withoutPrice: number;
+  avgPrice: number;
+  typeBreakdown: { type: string; count: number }[];
+  topProviders: { brandName: string; providerId: string; count: number }[];
 }

@@ -5,7 +5,8 @@ import { sendOtp, verifyOtp } from '../store/slices/authSlice';
 import type { AppDispatch } from '../store/store';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import { Shield, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import logo from '../assets/logo.jpeg';
 
 const Login = () => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -85,24 +86,24 @@ const Login = () => {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="text-white/90 text-lg font-bold">Bohri Connect</span>
+            <span className="text-white/90 text-lg font-bold">Tijarah</span>
           </div>
         </div>
 
         <div className="relative z-10 max-w-md">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-            Trust Engine<br />for your Community
+            Community Commerce<br />Command Center
           </h2>
           <p className="text-white/70 text-base leading-relaxed">
-            Manage verified business listings, user documents, and community moderation from one powerful admin panel.
+            Verify providers, moderate content, empower Women-Led businesses, and keep the Bohra community marketplace trusted — all from one panel.
           </p>
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2 mt-8">
-            {['Listing Approvals', 'Aadhaar Verification', 'Review Moderation', 'User Management'].map((f) => (
+            {['Provider Approvals', 'Identity Verification', 'Women-Led Badges', 'Content Moderation', 'Sponsorships', 'Push Campaigns'].map((f) => (
               <span
                 key={f}
                 className="px-3 py-1.5 text-xs font-medium rounded-full text-white/90 bg-white/10 backdrop-blur-sm border border-white/10"
@@ -114,7 +115,7 @@ const Login = () => {
         </div>
 
         <p className="relative z-10 text-white/40 text-xs">
-          © {new Date().getFullYear()} Bohri Connect. All rights reserved.
+          © {new Date().getFullYear()} Tijarah. All rights reserved.
         </p>
       </div>
 
@@ -123,11 +124,11 @@ const Login = () => {
         <div className="w-full max-w-sm">
           {/* Mobile brand (shown on mobile only) */}
           <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="w-4.5 h-4.5 text-white" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Tijarah Logo" className="w-full h-full object-cover" />
             </div>
             <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-              Bohri Connect
+              Tijarah
             </span>
           </div>
 

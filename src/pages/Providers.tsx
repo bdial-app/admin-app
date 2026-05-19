@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { Eye, CheckCircle2, XCircle, Star, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
+import { PermissionGate } from '../components/auth/PermissionGate';
 import {
   useProviders,
   useApproveProvider,
   useSuspendProvider,
-  useUpdateProvider,
+  useUnsuspendProvider,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
+import IconByName from '../components/IconByName';
+import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { toast } from 'react-toastify';
 import type { Provider, ProviderStatus } from '../types';
 
@@ -19,8 +23,7 @@ const LIMIT = 10;
 const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Unverified', value: 'unverified' },
-  { label: 'In Review', value: 'in_review' },
-  { label: 'Active', value: 'active' },
+  { label: 'Verified', value: 'active' },
   { label: 'Suspended', value: 'suspended' },
 ];
 
@@ -28,11 +31,12 @@ const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 export default function Providers() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ProviderStatus | ''>('');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend'; provider: Provider } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
 
   const { data, isLoading } = useProviders({
     page,
@@ -43,7 +47,7 @@ export default function Providers() {
 
   const approveMutation = useApproveProvider();
   const suspendMutation = useSuspendProvider();
-  const updateMutation = useUpdateProvider();
+  const unsuspendMutation = useUnsuspendProvider();
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
@@ -51,6 +55,9 @@ export default function Providers() {
       if (confirmAction.type === 'approve') {
         await approveMutation.mutateAsync(confirmAction.provider.id);
         toast.success('Provider approved');
+      } else if (confirmAction.type === 'unsuspend') {
+        await unsuspendMutation.mutateAsync(confirmAction.provider.id);
+        toast.success('Suspension revoked');
       } else {
         await suspendMutation.mutateAsync(confirmAction.provider.id);
         toast.success('Provider suspended');
@@ -59,18 +66,6 @@ export default function Providers() {
       setSelectedProvider(null);
     } catch {
       toast.error(`Failed to ${confirmAction.type} provider`);
-    }
-  };
-
-  const handleToggleFeatured = async (provider: Provider) => {
-    try {
-      await updateMutation.mutateAsync({
-        id: provider.id,
-        body: { isFeatured: !provider.isFeatured },
-      });
-      toast.success(provider.isFeatured ? 'Removed from featured' : 'Marked as featured');
-    } catch {
-      toast.error('Failed to update provider');
     }
   };
 
@@ -151,7 +146,7 @@ export default function Providers() {
         <button
           className="p-1.5 rounded-lg transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          onClick={(e) => { e.stopPropagation(); setSelectedProvider(row); }}
+          onClick={(e) => { e.stopPropagation(); navigate(`/providers/${row.id}`); }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
         >
@@ -170,6 +165,16 @@ export default function Providers() {
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Providers' },
         ]}
+        actions={
+          <button
+            onClick={() => navigate(ROUTES.CREATE_PROVIDER)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create Provider
+          </button>
+        }
       />
 
       {/* Status Tabs */}
@@ -200,7 +205,7 @@ export default function Providers() {
         searchPlaceholder="Search by business name, owner, or mobile…"
         searchValue={search}
         rowKey={(row) => row.id}
-        onRowClick={setSelectedProvider}
+        onRowClick={(row) => navigate(`/providers/${row.id}`)}
       />
 
       {/* Provider Detail Panel */}
@@ -211,9 +216,10 @@ export default function Providers() {
         subtitle={selectedProvider?.user?.name || undefined}
         actions={
           selectedProvider && (
-            <div className="flex gap-2">
-              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review') && (
+            <div className="flex gap-2 flex-wrap">
+              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review' || selectedProvider.status === 'unverified') && (
                 <>
+                  <PermissionGate permission="providers.approve">
                   <button
                     onClick={() => setConfirmAction({ type: 'approve', provider: selectedProvider })}
                     className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -222,6 +228,8 @@ export default function Providers() {
                     <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
                     Approve
                   </button>
+                  </PermissionGate>
+                  <PermissionGate permission="providers.approve">
                   <button
                     onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
                     className="px-4 py-2 text-sm font-medium rounded-lg"
@@ -230,9 +238,11 @@ export default function Providers() {
                     <XCircle className="w-4 h-4 inline mr-1.5" />
                     Reject
                   </button>
+                  </PermissionGate>
                 </>
               )}
               {selectedProvider.status === 'active' && (
+                <PermissionGate permission="providers.suspend">
                 <button
                   onClick={() => setConfirmAction({ type: 'suspend', provider: selectedProvider })}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white"
@@ -240,18 +250,20 @@ export default function Providers() {
                 >
                   Suspend
                 </button>
+                </PermissionGate>
               )}
-              <button
-                onClick={() => handleToggleFeatured(selectedProvider)}
-                className="px-4 py-2 text-sm font-medium rounded-lg"
-                style={{
-                  background: selectedProvider.isFeatured ? 'var(--surface-2)' : 'var(--color-warning-light)',
-                  color: selectedProvider.isFeatured ? 'var(--text-secondary)' : 'var(--color-warning-dark)',
-                }}
-              >
-                <Star className="w-4 h-4 inline mr-1.5" />
-                {selectedProvider.isFeatured ? 'Unfeature' : 'Feature'}
-              </button>
+              {selectedProvider.status === 'suspended' && (
+                <PermissionGate permission="providers.suspend">
+                <button
+                  onClick={() => setConfirmAction({ type: 'unsuspend', provider: selectedProvider })}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: 'var(--color-success)' }}
+                >
+                  <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+                  Revoke Suspension
+                </button>
+                </PermissionGate>
+              )}
             </div>
           )
         }
@@ -316,6 +328,39 @@ export default function Providers() {
               ))}
             </div>
 
+            {/* Online Presence (quick view) */}
+            {(selectedProvider.websiteUrl || selectedProvider.instagramHandle || selectedProvider.facebookHandle || selectedProvider.youtubeHandle || selectedProvider.whatsappNumber || selectedProvider.linkedinHandle) && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedProvider.websiteUrl && (
+                    <a href={selectedProvider.websiteUrl.startsWith('http') ? selectedProvider.websiteUrl : `https://${selectedProvider.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: 'var(--color-primary)' }}>
+                      🌐 {selectedProvider.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').slice(0, 25)}
+                    </a>
+                  )}
+                  {selectedProvider.instagramHandle && (
+                    <a href={`https://instagram.com/${selectedProvider.instagramHandle}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: '#E4405F' }}>
+                      IG @{selectedProvider.instagramHandle}
+                    </a>
+                  )}
+                  {selectedProvider.facebookHandle && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#1877F2' }}>FB</span>
+                  )}
+                  {selectedProvider.youtubeHandle && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#FF0000' }}>YT</span>
+                  )}
+                  {selectedProvider.whatsappNumber && (
+                    <span className="text-xs font-medium px-2 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: '#25D366' }}>WA</span>
+                  )}
+                  {selectedProvider.linkedinHandle && (
+                    <a href={selectedProvider.linkedinHandle.startsWith('http') ? selectedProvider.linkedinHandle : `https://linkedin.com/in/${selectedProvider.linkedinHandle}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2 py-1 rounded-md hover:underline" style={{ background: 'var(--surface-2)', color: '#0A66C2' }}>
+                      LI
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Categories */}
             {selectedProvider.providerCategories && selectedProvider.providerCategories.length > 0 && (
               <div>
@@ -326,9 +371,16 @@ export default function Providers() {
                   {selectedProvider.providerCategories.map((pc) => (
                     <span
                       key={pc.id || pc.category?.id}
-                      className="px-2 py-1 text-xs font-medium rounded-md"
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md"
                       style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
                     >
+                      {pc.category?.icon && (
+                        <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                          GRADIENT_PALETTE[pc.category.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                        }`}>
+                          <IconByName name={pc.category.icon} size={10} className="text-white" strokeWidth={2.5} />
+                        </span>
+                      )}
                       {pc.category?.name || 'Unknown'}
                     </span>
                   ))}
@@ -339,20 +391,34 @@ export default function Providers() {
         )}
       </DetailPanel>
 
-      {/* Confirm Approve / Suspend */}
+      {/* Confirm Approve / Suspend / Unsuspend */}
       <ConfirmDialog
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleConfirmAction}
-        title={confirmAction?.type === 'approve' ? 'Approve Provider' : 'Suspend Provider'}
+        title={
+          confirmAction?.type === 'approve'
+            ? 'Approve Provider'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend Provider'
+        }
         description={
           confirmAction?.type === 'approve'
             ? `Are you sure you want to approve "${confirmAction.provider.brandName}"? They will become visible on the platform.`
-            : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
+            : confirmAction?.type === 'unsuspend'
+              ? `Are you sure you want to revoke the suspension for "${confirmAction?.provider.brandName}"? Their profile will become active again.`
+              : `Are you sure you want to suspend "${confirmAction?.provider.brandName}"? Their listing will be hidden.`
         }
-        confirmLabel={confirmAction?.type === 'approve' ? 'Approve' : 'Suspend'}
-        variant={confirmAction?.type === 'approve' ? 'default' : 'danger'}
-        isLoading={approveMutation.isPending || suspendMutation.isPending}
+        confirmLabel={
+          confirmAction?.type === 'approve'
+            ? 'Approve'
+            : confirmAction?.type === 'unsuspend'
+              ? 'Revoke Suspension'
+              : 'Suspend'
+        }
+        variant={confirmAction?.type === 'suspend' ? 'danger' : 'default'}
+        isLoading={approveMutation.isPending || suspendMutation.isPending || unsuspendMutation.isPending}
       />
     </div>
   );

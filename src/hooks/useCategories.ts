@@ -6,6 +6,7 @@ export const categoryKeys = {
   all: ['categories'] as const,
   list: () => [...categoryKeys.all, 'list'] as const,
   topLevel: () => [...categoryKeys.all, 'top-level'] as const,
+  tree: () => [...categoryKeys.all, 'tree'] as const,
   detail: (id: string) => [...categoryKeys.all, 'detail', id] as const,
   subcategories: (parentId: string) => [...categoryKeys.all, 'subs', parentId] as const,
 };
@@ -21,6 +22,21 @@ export function useTopLevelCategories() {
   return useQuery({
     queryKey: categoryKeys.topLevel(),
     queryFn: () => categoriesService.topLevel(),
+  });
+}
+
+export function useCategoryTree() {
+  return useQuery({
+    queryKey: categoryKeys.tree(),
+    queryFn: () => categoriesService.tree(),
+  });
+}
+
+export function useSubCategories(parentId: string | null) {
+  return useQuery({
+    queryKey: categoryKeys.subcategories(parentId || ''),
+    queryFn: () => categoriesService.subcategories(parentId!),
+    enabled: !!parentId,
   });
 }
 

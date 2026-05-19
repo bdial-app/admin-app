@@ -1,6 +1,7 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { Category, CategoryFormData } from '../types';
+import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
 
 export const categoriesService = {
   list: async (): Promise<Category[]> => {
@@ -30,6 +31,41 @@ export const categoriesService = {
 
   subcategories: async (parentId: string): Promise<Category[]> => {
     const { data } = await api.get(URLS.CATEGORIES.SUBCATEGORIES(parentId));
+    return data;
+  },
+
+  tree: async (): Promise<Category[]> => {
+    const { data } = await api.get(URLS.CATEGORIES.TREE);
+    return data;
+  },
+
+  uploadIcon: async (id: string, file: File): Promise<Category> => {
+    const compressed = await compressImageFile(file, COMPRESS_PRESETS.icon);
+    const form = new FormData();
+    form.append('icon', compressed);
+    const { data } = await api.post(URLS.CATEGORIES.UPLOAD_ICON(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  deleteIcon: async (id: string): Promise<Category> => {
+    const { data } = await api.delete(URLS.CATEGORIES.UPLOAD_ICON(id));
+    return data;
+  },
+
+  uploadImage: async (id: string, file: File): Promise<Category> => {
+    const compressed = await compressImageFile(file, COMPRESS_PRESETS.banner);
+    const form = new FormData();
+    form.append('image', compressed);
+    const { data } = await api.post(URLS.CATEGORIES.UPLOAD_IMAGE(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  deleteImage: async (id: string): Promise<Category> => {
+    const { data } = await api.delete(URLS.CATEGORIES.UPLOAD_IMAGE(id));
     return data;
   },
 };

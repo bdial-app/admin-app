@@ -26,6 +26,14 @@ export interface Provider {
   updatedAt: string;
   averageRating?: number;
   totalReviews?: number;
+  // Online presence
+  websiteUrl?: string | null;
+  websiteLogoUrl?: string | null;
+  instagramHandle?: string | null;
+  facebookHandle?: string | null;
+  youtubeHandle?: string | null;
+  whatsappNumber?: string | null;
+  linkedinHandle?: string | null;
   // Relations (optionally loaded)
   user?: User;
   providerCategories?: ProviderCategory[];

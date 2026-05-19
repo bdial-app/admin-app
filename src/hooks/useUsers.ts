@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../services/users.service';
-import type { UserFilters, User } from '../types';
+import type { UserFilters, User, BulkActionPayload } from '../types';
+import { toast } from 'react-toastify';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -43,5 +44,41 @@ export function useSuspendUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: userKeys.all });
     },
+  });
+}
+
+export function useUnsuspendUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => usersService.unsuspend(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: userKeys.all });
+      toast.success('User unsuspended');
+    },
+    onError: () => toast.error('Failed to unsuspend user'),
+  });
+}
+
+export function useSoftDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => usersService.softDelete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: userKeys.all });
+      toast.success('User deleted');
+    },
+    onError: () => toast.error('Failed to delete user'),
+  });
+}
+
+export function useBulkUserAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: BulkActionPayload) => usersService.bulkAction(payload),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: userKeys.all });
+      toast.success(`Bulk action applied to ${data.affected} users`);
+    },
+    onError: () => toast.error('Bulk action failed'),
   });
 }

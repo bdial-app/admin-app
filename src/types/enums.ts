@@ -16,11 +16,15 @@ export type VerificationOverallStatus = 'pending' | 'approved' | 'rejected';
 export type ReviewStatus = 'active' | 'removed';
 
 // ── Report ───────────────────────────────────────────────
-export type ReportEntityType = 'provider' | 'product' | 'message';
+export type ReportEntityType = 'provider' | 'product' | 'message' | 'deal' | 'review' | 'customer';
 export type ReportReason =
   | 'fake_business' | 'inappropriate_content' | 'fraud_scam' | 'harassment'
   | 'impersonation' | 'wrong_category' | 'fake_product' | 'counterfeit'
-  | 'prohibited_item' | 'wrong_price' | 'spam' | 'fraud' | 'other';
+  | 'prohibited_item' | 'wrong_price' | 'spam' | 'fraud'
+  | 'misleading_offer' | 'expired_deal' | 'fake_discount'
+  | 'fake_review' | 'offensive_language' | 'irrelevant_content'
+  | 'abusive_behavior' | 'fake_account' | 'spam_messages'
+  | 'other';
 export type ReportStatus = 'pending' | 'under_review' | 'action_taken' | 'dismissed';
 export type ReportAction = 'dismiss' | 'warn' | 'suspend' | 'ban';
 
@@ -35,9 +39,16 @@ export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed
 
 // ── Sponsored ────────────────────────────────────────────
 export type SponsoredType = 'carousel' | 'inline' | 'top_result';
+export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
 
 // ── Offer ────────────────────────────────────────────────
 export type DiscountType = 'percentage' | 'flat';
+
+// ── Bulk Actions ─────────────────────────────────────────
+export type BulkActionType = 'activate' | 'deactivate' | 'delete' | 'suspend' | 'unsuspend' | 'feature' | 'unfeature';
+
+// ── Export Entities ──────────────────────────────────────
+export type ExportEntity = 'users' | 'providers' | 'products' | 'reviews' | 'reports';
 
 // ── Badge ────────────────────────────────────────────────
 export type BadgeType = 'gold_seller' | 'top_rated' | 'express_service' | 'trusted' | 'rising_star';

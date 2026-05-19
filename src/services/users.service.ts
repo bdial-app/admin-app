@@ -2,6 +2,7 @@ import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { User, UserFilters } from '../types';
+import type { BulkActionPayload } from '../types';
 
 export const usersService = {
   list: async (filters: UserFilters = {}): Promise<PaginatedResponse<User>> => {
@@ -12,6 +13,7 @@ export const usersService = {
     if (filters.status) params.set('status', filters.status);
     if (filters.role) params.set('role', filters.role);
     if (filters.city) params.set('city', filters.city);
+    if (filters.hasProvider !== undefined) params.set('hasProvider', String(filters.hasProvider));
     const { data } = await api.get(`${URLS.USERS.LIST}?${params.toString()}`);
     // Normalize backend response into PaginatedResponse
     return {
@@ -37,6 +39,20 @@ export const usersService = {
 
   suspend: async (id: string): Promise<User> => {
     const { data } = await api.patch(URLS.USERS.SUSPEND(id));
+    return data;
+  },
+
+  unsuspend: async (id: string): Promise<User> => {
+    const { data } = await api.patch(URLS.USERS.UNSUSPEND(id));
+    return data;
+  },
+
+  softDelete: async (id: string): Promise<void> => {
+    await api.delete(URLS.USERS.DELETE(id));
+  },
+
+  bulkAction: async (payload: BulkActionPayload): Promise<{ affected: number }> => {
+    const { data } = await api.post(URLS.USERS.BULK_ACTION, payload);
     return data;
   },
 };
