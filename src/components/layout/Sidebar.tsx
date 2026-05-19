@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -47,6 +47,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Queue', path: ROUTES.MODERATION_QUEUE, icon: ClipboardList, badge: true },
       { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck, badge: true },
       { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
+      { name: 'Google Reviews', path: ROUTES.GOOGLE_REVIEWS, icon: ShieldCheck },
       { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
       { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
       { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare, minRole: 'moderator' },

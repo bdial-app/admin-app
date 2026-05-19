@@ -2,7 +2,8 @@ type StatusType =
   | 'pending' | 'approved' | 'rejected' | 'active' | 'suspended' | 'paused' | 'deleted'
   | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed'
   | 'action_taken' | 'dismissed' | 'under_review'
-  | 'in_review' | 'unverified' | 'disabled' | 'succeeded' | 'verified' | 'expired' | 'scheduled';
+  | 'in_review' | 'unverified' | 'disabled' | 'succeeded' | 'verified' | 'expired' | 'scheduled'
+  | 'trusted' | 'basic';
 
 interface StatusBadgeProps {
   status: string;
@@ -34,6 +35,8 @@ const config: Record<StatusType, { label: string; color: string; bg: string }> =
   succeeded:     { label: 'Succeeded',     color: '#FFFFFF',              bg: 'var(--color-success)'       },
   expired:       { label: 'Expired',       color: '#FFFFFF',              bg: 'var(--color-danger)'        },
   scheduled:     { label: 'Scheduled',     color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
+  trusted:       { label: 'Trusted',       color: '#FFFFFF',              bg: 'var(--color-success)'       },
+  basic:         { label: 'Basic',         color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
 };
 
 const StatusBadge = ({ status, size = 'sm', showDot = true }: StatusBadgeProps) => {

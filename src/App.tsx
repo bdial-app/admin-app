@@ -18,6 +18,7 @@ const Providers = lazy(() => import('./pages/Providers'));
 const ProviderView = lazy(() => import('./pages/ProviderView'));
 const Verifications = lazy(() => import('./pages/Verifications'));
 const Reviews = lazy(() => import('./pages/Reviews'));
+const GoogleReviews = lazy(() => import('./pages/GoogleReviews'));
 const Categories = lazy(() => import('./pages/Categories'));
 const Products = lazy(() => import('./pages/Products'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -91,6 +92,7 @@ function App() {
             {/* Moderation */}
             <Route path={ROUTES.REGISTRATIONS} element={<Verifications />} />
             <Route path={ROUTES.REVIEWS} element={<Reviews />} />
+            <Route path={ROUTES.GOOGLE_REVIEWS} element={<GoogleReviews />} />
             <Route path={ROUTES.REPORTS} element={<Reports />} />
             <Route path={ROUTES.BUG_REPORTS} element={<BugReports />} />
             <Route path={ROUTES.WARNINGS} element={<Warnings />} />

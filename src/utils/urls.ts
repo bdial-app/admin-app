@@ -37,6 +37,7 @@ export const URLS = {
     DELETE: (id: string) => `/admin/providers/${id}`,
     FEATURE: (id: string) => `/admin/providers/${id}/feature`,
     UPDATE: (id: string) => `/admin/providers/${id}`,
+    UPDATE_CONTACT: (id: string) => `/admin/providers/${id}/contact-number`,
     BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
@@ -79,7 +80,15 @@ export const URLS = {
     REMOVE: (id: string) => `/admin/reviews/${id}/remove`,
     STATS: '/admin/reviews/stats',
   },
-
+  // â"€â"€ Admin Google Reviews â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  GOOGLE_REVIEWS: {
+    PROVIDERS: '/admin/google-reviews/providers',
+    TRUST_OVERVIEW: '/admin/google-reviews/trust-overview',
+    VERIFY: (id: string) => `/admin/google-reviews/verify/${id}`,
+    CONFIRM: (id: string) => `/admin/google-reviews/confirm/${id}`,
+    UNLINK: (id: string) => `/admin/google-reviews/unlink/${id}`,
+    REFRESH: (id: string) => `/admin/google-reviews/refresh/${id}`,
+  },
   // â”€â”€ Admin Verifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   VERIFICATIONS: {
     LIST: '/admin/verifications',
