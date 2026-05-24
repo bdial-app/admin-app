@@ -5,12 +5,12 @@ export type UserStatus = 'active' | 'suspended' | 'deleted' | 'paused';
 export type Gender = 'male' | 'female' | 'other';
 
 // ── Provider ─────────────────────────────────────────────
-export type ProviderStatus = 'pending' | 'in_review' | 'active' | 'suspended' | 'unverified';
+export type ProviderStatus = 'unverified' | 'active' | 'suspended' | 'disabled';
 
 // ── Verification ─────────────────────────────────────────
 export type DocStatus = 'pending' | 'approved' | 'rejected';
 export type IjamatStatus = 'pending' | 'approved' | 'rejected' | 'not_submitted';
-export type VerificationOverallStatus = 'pending' | 'approved' | 'rejected';
+export type VerificationOverallStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
 
 // ── Review ───────────────────────────────────────────────
 export type ReviewStatus = 'active' | 'removed';

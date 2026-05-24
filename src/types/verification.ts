@@ -21,6 +21,6 @@ export interface Verification {
 export interface VerificationFilters {
   page?: number;
   limit?: number;
-  status?: DocStatus | '';
+  status?: DocStatus | 'in_review' | '';
   search?: string;
 }

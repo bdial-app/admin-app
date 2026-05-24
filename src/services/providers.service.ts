@@ -75,6 +75,11 @@ export const providersService = {
     return data;
   },
 
+  updateContactNumber: async (id: string, contactNumber: string, otp: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.UPDATE_CONTACT(id), { contactNumber, otp });
+    return data;
+  },
+
   bulkAction: async (payload: BulkActionPayload): Promise<{ affected: number }> => {
     const { data } = await api.post(URLS.PROVIDERS.BULK_ACTION, payload);
     return data;

@@ -217,7 +217,7 @@ export default function Providers() {
         actions={
           selectedProvider && (
             <div className="flex gap-2 flex-wrap">
-              {(selectedProvider.status === 'pending' || selectedProvider.status === 'in_review' || selectedProvider.status === 'unverified') && (
+              {(selectedProvider.status === 'unverified') && (
                 <>
                   <PermissionGate permission="providers.approve">
                   <button

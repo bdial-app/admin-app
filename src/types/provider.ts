@@ -24,6 +24,7 @@ export interface Provider {
   isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
+  lastContactNumberChangeAt?: string | null;
   averageRating?: number;
   totalReviews?: number;
   // Online presence
