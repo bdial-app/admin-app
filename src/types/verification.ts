@@ -13,6 +13,7 @@ export interface Verification {
   adminNotes: string | null;
   reviewedAt: string | null;
   reviewedBy: string | null;
+  reviewerName: string | null;
   // Relations
   user?: import('./user').User;
   reviewer?: import('./user').User;

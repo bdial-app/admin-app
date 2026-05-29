@@ -253,7 +253,7 @@ export default function Verifications() {
               <div>
                 <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Reviewed By</p>
                 <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                  {selected.reviewer?.name || '—'}
+                  {selected.reviewer?.name || selected.reviewerName || '—'}
                 </p>
               </div>
             </div>
