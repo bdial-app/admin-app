@@ -12,8 +12,9 @@ import { toast } from 'react-toastify';
 import type { Verification, DocStatus } from '../types';
 
 const LIMIT = 10;
-const STATUS_TABS: { label: string; value: DocStatus | '' }[] = [
+const STATUS_TABS: { label: string; value: DocStatus | 'in_review' | '' }[] = [
   { label: 'All', value: '' },
+  { label: 'In Review', value: 'in_review' as any },
   { label: 'Pending', value: 'pending' },
   { label: 'Approved', value: 'approved' },
   { label: 'Rejected', value: 'rejected' },
@@ -25,7 +26,7 @@ const formatDate = (iso: string | null) =>
 export default function Verifications() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<DocStatus | ''>('');
+  const [status, setStatus] = useState<DocStatus | 'in_review' | ''>('');
   const [selected, setSelected] = useState<Verification | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'reject'; verification: Verification } | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
@@ -252,7 +253,7 @@ export default function Verifications() {
               <div>
                 <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Reviewed By</p>
                 <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                  {selected.reviewer?.name || '—'}
+                  {selected.reviewer?.name || selected.reviewerName || '—'}
                 </p>
               </div>
             </div>

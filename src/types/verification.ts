@@ -13,6 +13,7 @@ export interface Verification {
   adminNotes: string | null;
   reviewedAt: string | null;
   reviewedBy: string | null;
+  reviewerName: string | null;
   // Relations
   user?: import('./user').User;
   reviewer?: import('./user').User;
@@ -21,6 +22,6 @@ export interface Verification {
 export interface VerificationFilters {
   page?: number;
   limit?: number;
-  status?: DocStatus | '';
+  status?: DocStatus | 'in_review' | '';
   search?: string;
 }

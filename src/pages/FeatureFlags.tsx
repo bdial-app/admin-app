@@ -34,6 +34,10 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: 'Offers Require Approval',
     description: 'When enabled, new provider offers need admin approval before going live',
   },
+  sponsorships_enabled: {
+    label: 'Sponsorships / Boost',
+    description: 'Enable sponsored listings and boost placement on the home feed. Disabled by default — turn on to start showing boosted businesses.',
+  },
   sponsorship_requires_approval: {
     label: 'Sponsorships Require Approval',
     description: 'When enabled, new sponsorship listings need admin approval before going live',

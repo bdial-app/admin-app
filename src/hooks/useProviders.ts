@@ -144,3 +144,14 @@ export function useBulkProviderAction() {
     onError: () => toast.error('Bulk action failed'),
   });
 }
+
+export function useUpdateContactNumber() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, contactNumber, otp }: { id: string; contactNumber: string; otp: string }) =>
+      providersService.updateContactNumber(id, contactNumber, otp),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+    },
+  });
+}

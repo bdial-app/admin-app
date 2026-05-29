@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
+  Pencil, X, Globe, Store, Save, Loader2, ShieldAlert,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -11,9 +12,11 @@ import StatusBadge from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
+import { PhoneOtpVerifier } from '../components/ui/PhoneOtpVerifier';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
   useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
+  useUpdateContactNumber,
 } from '../hooks/useProviders';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { useReviews } from '../hooks/useReviews';
@@ -23,6 +26,7 @@ import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
+type EditingSection = 'business' | 'contact' | 'location' | 'social' | null;
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: 'overview', label: 'Overview', icon: Eye },
@@ -56,14 +60,15 @@ export default function ProviderView() {
   const [productCategoryId, setProductCategoryId] = useState('');
   const [productSubcategoryId, setProductSubcategoryId] = useState('');
   const [categoryDirty, setCategoryDirty] = useState(false);
-  const [editingSocial, setEditingSocial] = useState(false);
-  const [socialForm, setSocialForm] = useState({
-    websiteUrl: '',
-    instagramHandle: '',
-    facebookHandle: '',
-    youtubeHandle: '',
-    whatsappNumber: '',
-  });
+  // Section editing state
+  const [editingSection, setEditingSection] = useState<EditingSection>(null);
+  const [businessForm, setBusinessForm] = useState({ brandName: '', description: '', isWomenLed: false, isAvailable: true });
+  const [contactForm, setContactForm] = useState({ contactNumber: '', openTime: '', closeTime: '' });
+  const [contactOtpVerified, setContactOtpVerified] = useState(false);
+  const [locationForm, setLocationForm] = useState({ city: '', area: '', pincode: '', address: '' });
+  const [socialForm, setSocialForm] = useState({ websiteUrl: '', instagramHandle: '', facebookHandle: '', youtubeHandle: '', whatsappNumber: '' });
+
+  const updateContactMut = useUpdateContactNumber();
 
   const { data: provider, isLoading } = useProvider(id || '');
   const approveMut = useApproveProvider();
@@ -145,6 +150,118 @@ export default function ProviderView() {
     } catch { toast.error('Action failed'); }
   };
 
+  // ── Section edit helpers ──
+  const startEdit = useCallback((section: EditingSection) => {
+    if (!provider) return;
+    setEditingSection(section);
+    setContactOtpVerified(false);
+    if (section === 'business') {
+      setBusinessForm({
+        brandName: provider.brandName || '',
+        description: provider.description || '',
+        isWomenLed: provider.isWomenLed ?? false,
+        isAvailable: provider.isAvailable ?? true,
+      });
+    } else if (section === 'contact') {
+      setContactForm({
+        contactNumber: provider.contactNumber || '',
+        openTime: provider.openTime || '',
+        closeTime: provider.closeTime || '',
+      });
+    } else if (section === 'location') {
+      setLocationForm({
+        city: provider.city || '',
+        area: provider.area || '',
+        pincode: provider.pincode || '',
+        address: provider.address || '',
+      });
+    } else if (section === 'social') {
+      setSocialForm({
+        websiteUrl: provider.websiteUrl || '',
+        instagramHandle: provider.instagramHandle || '',
+        facebookHandle: provider.facebookHandle || '',
+        youtubeHandle: provider.youtubeHandle || '',
+        whatsappNumber: provider.whatsappNumber || '',
+      });
+    }
+  }, [provider]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingSection(null);
+    setContactOtpVerified(false);
+  }, []);
+
+  const saveBusinessInfo = async () => {
+    if (!id) return;
+    try {
+      await updateProviderMut.mutateAsync({ id, body: { brandName: businessForm.brandName, description: businessForm.description || null, isWomenLed: businessForm.isWomenLed, isAvailable: businessForm.isAvailable } });
+      toast.success('Business info updated');
+      setEditingSection(null);
+    } catch { toast.error('Failed to update'); }
+  };
+
+  const saveContactInfo = async (otpForPhone?: string) => {
+    if (!id) return;
+    try {
+      // Save hours via generic update
+      const hoursBody: Record<string, any> = {};
+      if (contactForm.openTime !== (provider?.openTime || '')) hoursBody.openTime = contactForm.openTime || null;
+      if (contactForm.closeTime !== (provider?.closeTime || '')) hoursBody.closeTime = contactForm.closeTime || null;
+      if (Object.keys(hoursBody).length > 0) {
+        await updateProviderMut.mutateAsync({ id, body: hoursBody });
+      }
+      // Save phone via OTP endpoint if changed
+      const phoneChanged = contactForm.contactNumber !== provider?.contactNumber;
+      if (phoneChanged && otpForPhone) {
+        await updateContactMut.mutateAsync({ id, contactNumber: contactForm.contactNumber, otp: otpForPhone });
+        setContactOtpVerified(true);
+      }
+      toast.success('Contact info updated');
+      setEditingSection(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update');
+    }
+  };
+
+  const saveLocation = async () => {
+    if (!id) return;
+    try {
+      await updateProviderMut.mutateAsync({ id, body: { city: locationForm.city, area: locationForm.area || null, pincode: locationForm.pincode || null, address: locationForm.address || null } });
+      toast.success('Location updated');
+      setEditingSection(null);
+    } catch { toast.error('Failed to update'); }
+  };
+
+  const saveSocial = async () => {
+    if (!id) return;
+    try {
+      await updateProviderMut.mutateAsync({
+        id,
+        body: {
+          websiteUrl: socialForm.websiteUrl || null,
+          instagramHandle: socialForm.instagramHandle?.replace(/^@/, '') || null,
+          facebookHandle: socialForm.facebookHandle || null,
+          youtubeHandle: socialForm.youtubeHandle || null,
+          whatsappNumber: socialForm.whatsappNumber || null,
+        },
+      });
+      toast.success('Online presence updated');
+      setEditingSection(null);
+    } catch { toast.error('Failed to update'); }
+  };
+
+  // Cooldown helper
+  const getContactChangeCooldown = useCallback(() => {
+    if (!provider?.lastContactNumberChangeAt) return null;
+    const elapsed = Date.now() - new Date(provider.lastContactNumberChangeAt).getTime();
+    const cooldownMs = 24 * 60 * 60 * 1000;
+    if (elapsed >= cooldownMs) return null;
+    const remaining = cooldownMs - elapsed;
+    const hours = Math.floor(remaining / (60 * 60 * 1000));
+    const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    return `${hours}h ${mins}m`;
+  }, [provider?.lastContactNumberChangeAt]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -185,7 +302,7 @@ export default function ProviderView() {
         ]}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            {(provider.status === 'pending' || provider.status === 'in_review' || provider.status === 'unverified') && (
+            {(provider.status === 'unverified') && (
               <>
                 <button onClick={() => setConfirmAction('approve')} className="px-4 py-2 text-sm font-medium rounded-lg text-white" style={{ background: 'var(--color-success)' }}>
                   <CheckCircle2 className="w-4 h-4 inline mr-1.5" />Approve
@@ -254,14 +371,14 @@ export default function ProviderView() {
       </div>
 
       {/* ─── Tabs ─── */}
-      <div className="flex gap-1 mb-6 p-1 rounded-lg w-fit overflow-x-auto" style={{ background: 'var(--surface-1)' }}>
+      <div className="flex gap-1 mb-6 p-1 rounded-lg max-w-full overflow-x-auto" style={{ background: 'var(--surface-1)', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
         {TABS.map((t) => {
           const Icon = t.icon;
           return (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap"
+              onClick={() => { setTab(t.key); if (editingSection) cancelEdit(); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap"
               style={{
                 background: tab === t.key ? 'var(--surface-0)' : 'transparent',
                 color: tab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -280,6 +397,7 @@ export default function ProviderView() {
         {/* ══ OVERVIEW ══ */}
         {tab === 'overview' && (
           <>
+            {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard title="Products" value={products.length} icon={<Package className="w-5 h-5" />} accent="var(--color-primary)" />
               <StatCard title="Reviews" value={reviews.length} icon={<MessageSquare className="w-5 h-5" />} accent="var(--color-info)" />
@@ -287,153 +405,327 @@ export default function ProviderView() {
               <StatCard title="Photos" value={photos.length} icon={<Camera className="w-5 h-5" />} accent="var(--color-success)" />
             </div>
 
-            {provider.description && (
-              <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-                <p className="text-xs font-semibold uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Description</p>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{provider.description}</p>
-              </div>
-            )}
-
-            {/* Info Grid */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Business Details</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { l: 'Owner', v: provider.user?.name },
-                  { l: 'Mobile', v: provider.user?.mobileNumber },
-                  { l: 'Contact', v: provider.contactNumber },
-                  { l: 'City', v: provider.city },
-                  { l: 'Area', v: provider.area },
-                  { l: 'Pincode', v: provider.pincode },
-                  { l: 'Available', v: provider.isAvailable ? 'Yes' : 'No' },
-                  { l: 'Women-Led', v: provider.isWomenLed ? 'Yes' : 'No' },
-                  { l: 'Joined', v: fmtDate(provider.createdAt) },
-                ].map((f) => (
-                  <div key={f.l}>
-                    <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>{f.l}</p>
-                    <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{f.v || '—'}</p>
+            {/* ── Section: Business Info ── */}
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)', opacity: 0.12 }}>
+                    <Store className="w-3.5 h-3.5" style={{ color: 'var(--color-primary)' }} />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Online Presence */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
-                <button
-                  onClick={() => {
-                    if (!editingSocial) {
-                      setSocialForm({
-                        websiteUrl: provider.websiteUrl || '',
-                        instagramHandle: provider.instagramHandle || '',
-                        facebookHandle: provider.facebookHandle || '',
-                        youtubeHandle: provider.youtubeHandle || '',
-                        whatsappNumber: provider.whatsappNumber || '',
-                      });
-                    }
-                    setEditingSocial(!editingSocial);
-                  }}
-                  className="text-xs font-medium px-2.5 py-1 rounded-md"
-                  style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}
-                >
-                  {editingSocial ? 'Cancel' : 'Edit'}
-                </button>
-              </div>
-
-              {!editingSocial ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {provider.websiteUrl ? (
-                    <div className="flex items-center gap-2">
-                      {provider.websiteLogoUrl && <img src={provider.websiteLogoUrl} alt="" className="w-5 h-5 rounded object-contain" />}
-                      <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Website</span>
-                      <a href={provider.websiteUrl.startsWith('http') ? provider.websiteUrl : `https://${provider.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium truncate hover:underline" style={{ color: 'var(--color-primary)' }}>
-                        {provider.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Website</span>
-                      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Instagram</span>
-                    {provider.instagramHandle ? (
-                      <a href={`https://instagram.com/${provider.instagramHandle}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#E4405F' }}>@{provider.instagramHandle}</a>
-                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Facebook</span>
-                    {provider.facebookHandle ? (
-                      <a href={provider.facebookHandle.startsWith('http') ? provider.facebookHandle : `https://facebook.com/${provider.facebookHandle}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#1877F2' }}>{provider.facebookHandle}</a>
-                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>YouTube</span>
-                    {provider.youtubeHandle ? (
-                      <a href={provider.youtubeHandle.startsWith('http') ? provider.youtubeHandle : `https://youtube.com/@${provider.youtubeHandle.replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#FF0000' }}>{provider.youtubeHandle}</a>
-                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>WhatsApp</span>
-                    {provider.whatsappNumber ? (
-                      <a href={`https://wa.me/${provider.whatsappNumber.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline" style={{ color: '#25D366' }}>{provider.whatsappNumber}</a>
-                    ) : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
-                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Business Info</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {[
-                    { key: 'websiteUrl' as const, label: 'Website URL', placeholder: 'https://example.com' },
-                    { key: 'instagramHandle' as const, label: 'Instagram Handle', placeholder: 'yourhandle (without @)' },
-                    { key: 'facebookHandle' as const, label: 'Facebook', placeholder: 'Page name or URL' },
-                    { key: 'youtubeHandle' as const, label: 'YouTube', placeholder: '@channel or URL' },
-                    { key: 'whatsappNumber' as const, label: 'WhatsApp Number', placeholder: '+966XXXXXXXXX' },
-                  ].map((f) => (
-                    <div key={f.key}>
-                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
-                      <input
-                        type="text"
-                        value={socialForm[f.key]}
-                        onChange={(e) => setSocialForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        placeholder={f.placeholder}
-                        className="w-full px-3 py-2 text-sm rounded-lg"
-                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                      />
-                    </div>
-                  ))}
-                  <button
-                    onClick={async () => {
-                      if (!id) return;
-                      try {
-                        await updateProviderMut.mutateAsync({
-                          id,
-                          body: {
-                            websiteUrl: socialForm.websiteUrl || null,
-                            instagramHandle: socialForm.instagramHandle?.replace(/^@/, '') || null,
-                            facebookHandle: socialForm.facebookHandle || null,
-                            youtubeHandle: socialForm.youtubeHandle || null,
-                            whatsappNumber: socialForm.whatsappNumber || null,
-                          },
-                        });
-                        toast.success('Online presence updated');
-                        setEditingSocial(false);
-                      } catch {
-                        toast.error('Failed to update');
-                      }
-                    }}
-                    disabled={updateProviderMut.isPending}
-                    className="px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
-                    style={{ background: 'var(--color-primary)' }}
-                  >
-                    {updateProviderMut.isPending ? 'Saving...' : 'Save'}
+                {editingSection !== 'business' ? (
+                  <button onClick={() => startEdit('business')} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80" style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}>
+                    <Pencil className="w-3 h-3" />Edit
                   </button>
-                </div>
-              )}
+                ) : (
+                  <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}>
+                    <X className="w-3 h-3" />Cancel
+                  </button>
+                )}
+              </div>
+              <div className="px-5 pb-5">
+                {editingSection !== 'business' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Brand Name</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.brandName || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Joined</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{fmtDate(provider.createdAt)}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Description</p>
+                      <p className="text-sm mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{provider.description || '—'}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full ${provider.isAvailable ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{provider.isAvailable ? 'Available' : 'Unavailable'}</span>
+                      </div>
+                      {provider.isWomenLed && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">♀ Women-Led</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Brand Name</label>
+                      <input type="text" value={businessForm.brandName} onChange={(e) => setBusinessForm((p) => ({ ...p, brandName: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
+                      <textarea value={businessForm.description} onChange={(e) => setBusinessForm((p) => ({ ...p, description: e.target.value }))} rows={3} className="w-full px-3 py-2 text-sm rounded-lg resize-none" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={businessForm.isAvailable} onChange={(e) => setBusinessForm((p) => ({ ...p, isAvailable: e.target.checked }))} className="rounded" />
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Available</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={businessForm.isWomenLed} onChange={(e) => setBusinessForm((p) => ({ ...p, isWomenLed: e.target.checked }))} className="rounded" />
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Women-Led</span>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={saveBusinessInfo} disabled={updateProviderMut.isPending || !businessForm.brandName.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Categories */}
+            {/* ── Section: Contact & Hours ── */}
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#10b98120' }}>
+                    <Phone className="w-3.5 h-3.5" style={{ color: '#10b981' }} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Contact & Hours</p>
+                </div>
+                {editingSection !== 'contact' ? (
+                  <button onClick={() => startEdit('contact')} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80" style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}>
+                    <Pencil className="w-3 h-3" />Edit
+                  </button>
+                ) : (
+                  <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}>
+                    <X className="w-3 h-3" />Cancel
+                  </button>
+                )}
+              </div>
+              <div className="px-5 pb-5">
+                {editingSection !== 'contact' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Owner</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.user?.name || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Owner Mobile</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.user?.mobileNumber || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Business Contact</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <a href={`tel:${provider.contactNumber}`} className="text-sm font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>{provider.contactNumber || '—'}</a>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Hours</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        {provider.openTime || provider.closeTime ? `${fmtTime(provider.openTime)} – ${fmtTime(provider.closeTime)}` : '—'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Owner info — read only */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Owner (read-only)</p>
+                        <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.user?.name || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Owner Mobile (read-only)</p>
+                        <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.user?.mobileNumber || '—'}</p>
+                      </div>
+                    </div>
+                    {/* Editable contact number */}
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Business Contact Number</label>
+                      <input type="text" value={contactForm.contactNumber} onChange={(e) => setContactForm((p) => ({ ...p, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="10-digit number" maxLength={10} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      {/* Cooldown warning */}
+                      {getContactChangeCooldown() && contactForm.contactNumber !== provider.contactNumber && (
+                        <div className="flex items-center gap-1.5 mt-2 text-xs" style={{ color: 'var(--color-warning-dark, #92400e)' }}>
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                          Phone was changed recently. Next change in {getContactChangeCooldown()}.
+                        </div>
+                      )}
+                      {/* OTP required if number changed */}
+                      {contactForm.contactNumber !== provider.contactNumber && !getContactChangeCooldown() && /^\d{10}$/.test(contactForm.contactNumber) && (
+                        <PhoneOtpVerifier
+                          phoneNumber={contactForm.contactNumber}
+                          purpose="business_verification"
+                          onOtpReady={async (otp) => {
+                            try {
+                              await updateContactMut.mutateAsync({ id: id!, contactNumber: contactForm.contactNumber, otp });
+                              setContactOtpVerified(true);
+                              toast.success('Contact number updated');
+                            } catch (err: any) {
+                              toast.error(err?.response?.data?.message || 'Failed to update contact number');
+                            }
+                          }}
+                          verified={contactOtpVerified}
+                        />
+                      )}
+                    </div>
+                    {/* Hours */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Open Time</label>
+                        <input type="time" value={contactForm.openTime} onChange={(e) => setContactForm((p) => ({ ...p, openTime: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Close Time</label>
+                        <input type="time" value={contactForm.closeTime} onChange={(e) => setContactForm((p) => ({ ...p, closeTime: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={() => saveContactInfo()} disabled={updateProviderMut.isPending} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save Hours
+                      </button>
+                      <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Section: Location ── */}
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#f59e0b20' }}>
+                    <MapPin className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Location</p>
+                </div>
+                {editingSection !== 'location' ? (
+                  <button onClick={() => startEdit('location')} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80" style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}>
+                    <Pencil className="w-3 h-3" />Edit
+                  </button>
+                ) : (
+                  <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}>
+                    <X className="w-3 h-3" />Cancel
+                  </button>
+                )}
+              </div>
+              <div className="px-5 pb-5">
+                {editingSection !== 'location' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>City</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.city || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Area</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.area || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Pincode</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.pincode || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Address</p>
+                      <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.address || '—'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>City</label>
+                        <input type="text" value={locationForm.city} onChange={(e) => setLocationForm((p) => ({ ...p, city: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Area</label>
+                        <input type="text" value={locationForm.area} onChange={(e) => setLocationForm((p) => ({ ...p, area: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Pincode</label>
+                        <input type="text" value={locationForm.pincode} onChange={(e) => setLocationForm((p) => ({ ...p, pincode: e.target.value }))} maxLength={10} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Address</label>
+                        <input type="text" value={locationForm.address} onChange={(e) => setLocationForm((p) => ({ ...p, address: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={saveLocation} disabled={updateProviderMut.isPending || !locationForm.city.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Section: Online Presence ── */}
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#6366f120' }}>
+                    <Globe className="w-3.5 h-3.5" style={{ color: '#6366f1' }} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Online Presence</p>
+                </div>
+                {editingSection !== 'social' ? (
+                  <button onClick={() => startEdit('social')} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80" style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}>
+                    <Pencil className="w-3 h-3" />Edit
+                  </button>
+                ) : (
+                  <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}>
+                    <X className="w-3 h-3" />Cancel
+                  </button>
+                )}
+              </div>
+              <div className="px-5 pb-5">
+                {editingSection !== 'social' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { label: 'Website', value: provider.websiteUrl, href: provider.websiteUrl ? (provider.websiteUrl.startsWith('http') ? provider.websiteUrl : `https://${provider.websiteUrl}`) : null, display: provider.websiteUrl?.replace(/^https?:\/\//, '').replace(/\/$/, ''), color: 'var(--color-primary)' },
+                      { label: 'Instagram', value: provider.instagramHandle, href: provider.instagramHandle ? `https://instagram.com/${provider.instagramHandle}` : null, display: provider.instagramHandle ? `@${provider.instagramHandle}` : null, color: '#E4405F' },
+                      { label: 'Facebook', value: provider.facebookHandle, href: provider.facebookHandle ? (provider.facebookHandle.startsWith('http') ? provider.facebookHandle : `https://facebook.com/${provider.facebookHandle}`) : null, display: provider.facebookHandle, color: '#1877F2' },
+                      { label: 'YouTube', value: provider.youtubeHandle, href: provider.youtubeHandle ? (provider.youtubeHandle.startsWith('http') ? provider.youtubeHandle : `https://youtube.com/@${provider.youtubeHandle.replace(/^@/, '')}`) : null, display: provider.youtubeHandle, color: '#FF0000' },
+                      { label: 'WhatsApp', value: provider.whatsappNumber, href: provider.whatsappNumber ? `https://wa.me/${provider.whatsappNumber.replace(/[^0-9]/g, '')}` : null, display: provider.whatsappNumber, color: '#25D366' },
+                    ].map((s) => (
+                      <div key={s.label} className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase w-16 flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
+                        {s.value && s.href ? (
+                          <a href={s.href} target="_blank" rel="noopener noreferrer" className="text-sm font-medium truncate hover:underline" style={{ color: s.color }}>{s.display}</a>
+                        ) : (
+                          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {[
+                      { key: 'websiteUrl' as const, label: 'Website URL', placeholder: 'https://example.com' },
+                      { key: 'instagramHandle' as const, label: 'Instagram Handle', placeholder: 'yourhandle (without @)' },
+                      { key: 'facebookHandle' as const, label: 'Facebook', placeholder: 'Page name or URL' },
+                      { key: 'youtubeHandle' as const, label: 'YouTube', placeholder: '@channel or URL' },
+                      { key: 'whatsappNumber' as const, label: 'WhatsApp Number', placeholder: '+966XXXXXXXXX' },
+                    ].map((f) => (
+                      <div key={f.key}>
+                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
+                        <input type="text" value={socialForm[f.key]} onChange={(e) => setSocialForm((prev) => ({ ...prev, [f.key]: e.target.value }))} placeholder={f.placeholder} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={saveSocial} disabled={updateProviderMut.isPending} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Categories ── */}
             {provider.providerCategories && provider.providerCategories.length > 0 && (
               <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
                 <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Categories</p>
