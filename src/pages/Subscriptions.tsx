@@ -61,8 +61,8 @@ const TIER_GRADIENTS = [
 ];
 
 const formatCurrency = (amount: number | null | undefined) => {
-  if (amount == null) return '\u20B90';
-  return `\u20B9${Number(amount).toLocaleString('en-IN')}`;
+  if (amount == null) return '₹0';
+  return `₹${Number(amount).toLocaleString('en-IN')}`;
 };
 
 const formatDate = (iso: string) =>
@@ -890,7 +890,7 @@ export default function Subscriptions() {
               <div className="space-y-3">
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pricing</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Monthly Price (\u20B9)" required>
+                  <FormField label="Monthly Price (₹)" required>
                     <div className="relative">
                       <input
                         type="number"
@@ -899,10 +899,10 @@ export default function Subscriptions() {
                         className="input w-full pl-6"
                         min={0}
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
                     </div>
                   </FormField>
-                  <FormField label="Yearly Price (\u20B9)" required>
+                  <FormField label="Yearly Price (₹)" required>
                     <div className="relative">
                       <input
                         type="number"
@@ -911,13 +911,13 @@ export default function Subscriptions() {
                         className="input w-full pl-6"
                         min={0}
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
                     </div>
                   </FormField>
                 </div>
                 {planForm.priceMonthly > 0 && planForm.priceYearly > 0 && (
                   <p className="text-xs px-2.5 py-1 rounded-lg inline-block" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>
-                    Yearly saves {Math.round((1 - planForm.priceYearly / (planForm.priceMonthly * 12)) * 100)}% (\u20B9{((planForm.priceMonthly * 12) - planForm.priceYearly).toLocaleString()} off)
+                    Yearly saves {Math.round((1 - planForm.priceYearly / (planForm.priceMonthly * 12)) * 100)}% (₹{((planForm.priceMonthly * 12) - planForm.priceYearly).toLocaleString()} off)
                   </p>
                 )}
               </div>
