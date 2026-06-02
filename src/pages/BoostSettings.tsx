@@ -28,6 +28,8 @@ interface PlanConfig {
   duration: number;
   features: string[];
   recommended: boolean;
+  // App Store Connect consumable product id for iOS IAP (one per boost plan).
+  appleProductId?: string;
 }
 
 const TYPE_OPTIONS = [
@@ -338,6 +340,15 @@ export default function BoostSettings() {
                         className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all"
                         style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties} />
                     </div>
+                  </div>
+
+                  {/* Apple IAP product id — must match the Consumable created in App Store Connect */}
+                  <div className="mb-3">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Apple Product ID (iOS IAP)</label>
+                    <input type="text" value={plan.appleProductId ?? ''} placeholder="e.g. tijarah.boost.basic"
+                      onChange={e => updatePlan(index, 'appleProductId', e.target.value)}
+                      className="w-full px-3 py-2 text-sm font-mono rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                      style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-primary)' } as React.CSSProperties} />
                   </div>
 
                   {/* Features */}
