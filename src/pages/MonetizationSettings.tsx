@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Save, IndianRupee, Gift, ToggleLeft, ToggleRight, TrendingDown,
-  Crown, Target, Users, Sparkles, Shield,
+  Crown, Target, Users, Sparkles, Shield, Ticket,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -54,6 +54,7 @@ const FLAG_KEYS = [
   { key: 'leads_monetization_enabled', label: 'Lead Monetization', description: 'When OFF, all lead unlocks are free', icon: IndianRupee, color: 'var(--color-success)' },
   { key: 'deals_monetization_enabled', label: 'Deal Monetization', description: 'When OFF, all deal creation is free', icon: Target, color: 'var(--color-info)' },
   { key: 'subscriptions_visible', label: 'Subscriptions Visible', description: 'When OFF, subscription/boost tabs are hidden from providers', icon: Crown, color: '#d97706' },
+  { key: 'vouchers_enabled', label: 'Vouchers', description: 'When OFF, voucher/promo code fields are hidden in all payment screens', icon: Ticket, color: '#7c3aed' },
 ];
 
 const TIER_COLORS: Record<string, string> = {
@@ -96,6 +97,8 @@ export default function MonetizationSettings() {
           map[s.key] = s.value;
         }
       });
+      // Vouchers default ON when the setting has never been saved.
+      if (map['vouchers_enabled'] === undefined) map['vouchers_enabled'] = 'true';
       setLocalValues(map);
       setHasChanges(false);
     }
