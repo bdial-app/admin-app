@@ -669,19 +669,29 @@ export default function Subscriptions() {
                     )}
                   </div>
 
-                  {/* Gateway IDs */}
-                  {(plan.razorpayPlanIdMonthly || plan.appleProductIdMonthly) && (
+                  {/* Gateway IDs \u2014 monthly & yearly per gateway */}
+                  {(plan.razorpayPlanIdMonthly || plan.razorpayPlanIdYearly || plan.appleProductIdMonthly || plan.appleProductIdYearly) && (
                     <div className="px-5 pb-3">
                       <div className="p-2.5 rounded-lg space-y-1" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                        <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Gateway IDs</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Gateway Product IDs</p>
                         {plan.razorpayPlanIdMonthly && (
                           <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
-                            \uD83D\uDCB3 {plan.razorpayPlanIdMonthly}
+                            {'\uD83D\uDCB3'} M: {plan.razorpayPlanIdMonthly}
+                          </p>
+                        )}
+                        {plan.razorpayPlanIdYearly && (
+                          <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+                            {'\uD83D\uDCB3'} Y: {plan.razorpayPlanIdYearly}
                           </p>
                         )}
                         {plan.appleProductIdMonthly && (
                           <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
-                            \uD83C\uDF4E {plan.appleProductIdMonthly}
+                            {'\uD83C\uDF4E'} M: {plan.appleProductIdMonthly}
+                          </p>
+                        )}
+                        {plan.appleProductIdYearly && (
+                          <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+                            {'\uD83C\uDF4E'} Y: {plan.appleProductIdYearly}
                           </p>
                         )}
                       </div>
