@@ -39,6 +39,17 @@ const QUOTA_KEYS = [
   { key: 'free_deal_quota_lifetime', label: 'Free Deals (Lifetime)', description: 'Free deals given once (never resets)' },
 ];
 
+// Apple IAP consumable product ids — must match the Consumable products created
+// in App Store Connect. Used by iOS to purchase one-time items via StoreKit.
+// (Boost plans carry their own appleProductId, configured in Boost Settings.)
+const IAP_PRODUCT_KEYS = [
+  { key: 'lead_apple_product_hot', label: 'Hot Lead Product', description: 'App Store product id for Hot lead unlock' },
+  { key: 'lead_apple_product_warm', label: 'Warm Lead Product', description: 'App Store product id for Warm lead unlock' },
+  { key: 'lead_apple_product_soft', label: 'Soft Lead Product', description: 'App Store product id for Soft lead unlock' },
+  { key: 'lead_apple_product_cold', label: 'Cold Lead Product', description: 'App Store product id for Cold lead unlock' },
+  { key: 'deal_apple_product', label: 'Deal Creation Product', description: 'App Store product id for deal creation' },
+];
+
 const FLAG_KEYS = [
   { key: 'leads_monetization_enabled', label: 'Lead Monetization', description: 'When OFF, all lead unlocks are free', icon: IndianRupee, color: 'var(--color-success)' },
   { key: 'deals_monetization_enabled', label: 'Deal Monetization', description: 'When OFF, all deal creation is free', icon: Target, color: 'var(--color-info)' },
@@ -71,6 +82,7 @@ export default function MonetizationSettings() {
       ...LEAD_DISCOUNTED_KEYS.map(k => k.key),
       ...DEAL_PRICING_KEYS.map(k => k.key),
       ...QUOTA_KEYS.map(k => k.key),
+      ...IAP_PRODUCT_KEYS.map(k => k.key),
       ...FLAG_KEYS.map(k => k.key),
     ]);
     return keys;
@@ -328,6 +340,17 @@ export default function MonetizationSettings() {
           </div>
         </Section>
 
+        {/* ═══ Apple IAP Product IDs ═══ */}
+        <Section icon={<IndianRupee className="w-5 h-5" />} title="Apple IAP Product IDs" subtitle="App Store Connect consumable product ids for iOS one-time purchases (lead unlock & deal creation). Boost product ids are set per plan in Boost Settings.">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {IAP_PRODUCT_KEYS.map(({ key, label, description }) => (
+              <TextInput key={key} label={label} description={description}
+                value={localValues[key] ?? ''} onChange={v => updateValue(key, v)}
+                placeholder="e.g. tijarah.lead.hot" />
+            ))}
+          </div>
+        </Section>
+
         {/* ═══ Free Quotas ═══ */}
         <Section icon={<Gift className="w-5 h-5" />} title="Free Quotas" subtitle="How many free actions providers get before paying">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -390,6 +413,28 @@ function PriceInput({ label, description, value, onChange, prefix = '\u20B9', ac
             paddingLeft: prefix ? '1.75rem' : undefined,
           }} />
       </div>
+    </div>
+  );
+}
+
+function TextInput({ label, description, value, onChange, placeholder }: {
+  label: string; description: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <div
+      className="p-4 rounded-xl transition-all"
+      style={{ background: 'var(--surface-0)', border: '1.5px solid var(--border-default)' }}
+    >
+      <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>{label}</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{description}</p>
+      <input type="text" value={value} placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        className="w-full px-3 py-2.5 text-sm font-mono rounded-lg transition-colors focus-ring"
+        style={{
+          background: 'var(--surface-1)',
+          border: '1px solid var(--border-default)',
+          color: 'var(--text-primary)',
+        }} />
     </div>
   );
 }
