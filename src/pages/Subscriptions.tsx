@@ -209,7 +209,7 @@ export default function Subscriptions() {
             {s.provider?.brandName || '\u2014'}
           </p>
           <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-muted)' }}>
-            {s.providerId?.slice(0, 8)}\u2026
+            {s.providerId?.slice(0, 8)}…
           </p>
         </div>
       ),
@@ -430,7 +430,7 @@ export default function Subscriptions() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="Search by provider name or subscription ID\u2026"
+                  placeholder="Search by provider name or subscription ID…"
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
                   style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 />
@@ -1068,7 +1068,7 @@ export default function Subscriptions() {
                 className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
                 style={{ background: 'var(--color-primary)' }}
               >
-                {(createPlan.isPending || updatePlan.isPending) ? 'Saving\u2026' : editingPlan ? 'Update Plan' : 'Create Plan'}
+                {(createPlan.isPending || updatePlan.isPending) ? 'Saving…' : editingPlan ? 'Update Plan' : 'Create Plan'}
               </button>
             </div>
           </div>
