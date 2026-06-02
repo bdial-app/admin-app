@@ -61,8 +61,8 @@ const TIER_GRADIENTS = [
 ];
 
 const formatCurrency = (amount: number | null | undefined) => {
-  if (amount == null) return '\u20B90';
-  return `\u20B9${Number(amount).toLocaleString('en-IN')}`;
+  if (amount == null) return '₹0';
+  return `₹${Number(amount).toLocaleString('en-IN')}`;
 };
 
 const formatDate = (iso: string) =>
@@ -209,7 +209,7 @@ export default function Subscriptions() {
             {s.provider?.brandName || '\u2014'}
           </p>
           <p className="text-[10px] font-mono truncate" style={{ color: 'var(--text-muted)' }}>
-            {s.providerId?.slice(0, 8)}\u2026
+            {s.providerId?.slice(0, 8)}…
           </p>
         </div>
       ),
@@ -430,7 +430,7 @@ export default function Subscriptions() {
                   type="text"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="Search by provider name or subscription ID\u2026"
+                  placeholder="Search by provider name or subscription ID…"
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
                   style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                 />
@@ -890,7 +890,7 @@ export default function Subscriptions() {
               <div className="space-y-3">
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Pricing</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField label="Monthly Price (\u20B9)" required>
+                  <FormField label="Monthly Price (₹)" required>
                     <div className="relative">
                       <input
                         type="number"
@@ -899,10 +899,10 @@ export default function Subscriptions() {
                         className="input w-full pl-6"
                         min={0}
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
                     </div>
                   </FormField>
-                  <FormField label="Yearly Price (\u20B9)" required>
+                  <FormField label="Yearly Price (₹)" required>
                     <div className="relative">
                       <input
                         type="number"
@@ -911,13 +911,13 @@ export default function Subscriptions() {
                         className="input w-full pl-6"
                         min={0}
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>₹</span>
                     </div>
                   </FormField>
                 </div>
                 {planForm.priceMonthly > 0 && planForm.priceYearly > 0 && (
                   <p className="text-xs px-2.5 py-1 rounded-lg inline-block" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>
-                    Yearly saves {Math.round((1 - planForm.priceYearly / (planForm.priceMonthly * 12)) * 100)}% (\u20B9{((planForm.priceMonthly * 12) - planForm.priceYearly).toLocaleString()} off)
+                    Yearly saves {Math.round((1 - planForm.priceYearly / (planForm.priceMonthly * 12)) * 100)}% (₹{((planForm.priceMonthly * 12) - planForm.priceYearly).toLocaleString()} off)
                   </p>
                 )}
               </div>
@@ -1068,7 +1068,7 @@ export default function Subscriptions() {
                 className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50"
                 style={{ background: 'var(--color-primary)' }}
               >
-                {(createPlan.isPending || updatePlan.isPending) ? 'Saving\u2026' : editingPlan ? 'Update Plan' : 'Create Plan'}
+                {(createPlan.isPending || updatePlan.isPending) ? 'Saving…' : editingPlan ? 'Update Plan' : 'Create Plan'}
               </button>
             </div>
           </div>
