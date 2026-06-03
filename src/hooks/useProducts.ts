@@ -33,6 +33,17 @@ export function useProduct(id: string) {
   });
 }
 
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<Product> & { providerId: string }) =>
+      productsService.create(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+}
+
 export function useUpdateProduct() {
   const qc = useQueryClient();
   return useMutation({

@@ -3,7 +3,7 @@ import {
   Search, Filter, X, Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
   CheckCircle2, XCircle, ShoppingBag, Wrench,
-  ChevronLeft, ChevronRight, Star,
+  ChevronLeft, ChevronRight, Star, Plus,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
@@ -11,7 +11,8 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
+import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct } from '../hooks/useProducts';
+import { useProviders } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
 import { toast } from 'react-toastify';
@@ -63,6 +64,7 @@ export default function Products() {
   const { data: stats } = useProductStats();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
+  const createMutation = useCreateProduct();
 
   const activeFilterCount = [typeFilter, priceMin, priceMax, hasImages].filter(Boolean).length;
 
@@ -129,6 +131,48 @@ export default function Products() {
       setEditProduct(null);
       setSelectedProduct(null);
     } catch { toast.error('Failed to update'); }
+  };
+
+  // ─── Create form state ────────────────
+  const emptyCreateForm = {
+    providerId: '',
+    providerName: '',
+    name: '',
+    description: '',
+    price: '',
+    displayOrder: '0',
+    productType: 'product' as 'product' | 'service',
+    isActive: true,
+  };
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState(emptyCreateForm);
+  const [providerSearch, setProviderSearch] = useState('');
+  const { data: providerResults } = useProviders({ page: 1, limit: 10, search: providerSearch || undefined });
+
+  const openCreate = () => {
+    setCreateForm(emptyCreateForm);
+    setProviderSearch('');
+    setCreateOpen(true);
+  };
+
+  const handleCreate = async () => {
+    if (!createForm.providerId) { toast.error('Select a provider'); return; }
+    if (!createForm.name.trim()) { toast.error('Enter a product name'); return; }
+    try {
+      await createMutation.mutateAsync({
+        providerId: createForm.providerId,
+        name: createForm.name.trim(),
+        description: createForm.description.trim() || null,
+        price: createForm.price ? Number(createForm.price) : null,
+        displayOrder: Number(createForm.displayOrder) || 0,
+        productType: createForm.productType,
+        isActive: createForm.isActive,
+      });
+      toast.success(`${createForm.productType === 'service' ? 'Service' : 'Product'} created for ${createForm.providerName}`);
+      setCreateOpen(false);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to create product');
+    }
   };
 
   // ─── Table Columns ────────────────────
@@ -311,6 +355,18 @@ export default function Products() {
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Products' },
         ]}
+        actions={
+          <PermissionGate permission="products.update">
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          </PermissionGate>
+        }
       />
 
       {/* ═══ Stats ═══ */}
@@ -768,6 +824,134 @@ export default function Products() {
               </button>
             </div>          </div>
         )}
+      </DetailPanel>
+
+      {/* ═══ Create Product ═══ */}
+      <DetailPanel
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Add Product"
+        subtitle="Create a product or service for a provider"
+        width="lg"
+        actions={
+          <div className="flex gap-2">
+            <button onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
+              Cancel
+            </button>
+            <button onClick={handleCreate} disabled={createMutation.isPending} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+              {createMutation.isPending ? 'Creating…' : 'Create'}
+            </button>
+          </div>
+        }
+      >
+        <div className="p-5 space-y-5">
+          {/* Provider picker */}
+          <FormField label="Provider" required>
+            {createForm.providerId ? (
+              <div className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{createForm.providerName}</span>
+                <button
+                  type="button"
+                  onClick={() => setCreateForm({ ...createForm, providerId: '', providerName: '' })}
+                  className="text-xs font-semibold"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    value={providerSearch}
+                    onChange={(e) => setProviderSearch(e.target.value)}
+                    placeholder="Search provider by name…"
+                    className="input w-full pl-9"
+                  />
+                </div>
+                {providerSearch && (
+                  <div className="mt-1.5 max-h-48 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border-default)' }}>
+                    {(providerResults?.items ?? []).length === 0 ? (
+                      <p className="text-xs px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>No providers found</p>
+                    ) : (
+                      (providerResults?.items ?? []).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { setCreateForm({ ...createForm, providerId: p.id, providerName: p.brandName }); setProviderSearch(''); }}
+                          className="w-full text-left px-3 py-2 text-sm hover:opacity-80"
+                          style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
+                        >
+                          {p.brandName}
+                          {p.city ? <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>· {p.city}</span> : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </FormField>
+
+          {/* Type */}
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Type</label>
+            <div className="flex gap-2">
+              {(['product', 'service'] as const).map((t) => (
+                <button key={t} type="button" onClick={() => setCreateForm({ ...createForm, productType: t })}
+                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border-2 transition-all ${
+                    createForm.productType === t
+                      ? t === 'service' ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-amber-50 border-amber-400 text-amber-700'
+                      : 'border-gray-200 text-gray-500'
+                  }`}>
+                  {t === 'product' ? '📦 Product' : '🛠️ Service'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <FormField label="Name" required>
+            <input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="input w-full" placeholder="e.g. Bridal Mehndi Package" />
+          </FormField>
+          <FormField label="Description">
+            <textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} className="input w-full" rows={3} />
+          </FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Price (₹)">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-muted)' }}>{'₹'}</span>
+                <input type="number" value={createForm.price} onChange={(e) => setCreateForm({ ...createForm, price: e.target.value })} className="input w-full pl-7" min={0} placeholder="0" />
+              </div>
+            </FormField>
+            <FormField label="Display Order">
+              <input type="number" value={createForm.displayOrder} onChange={(e) => setCreateForm({ ...createForm, displayOrder: e.target.value })} className="input w-full" min={0} />
+            </FormField>
+          </div>
+
+          {/* Active toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Active</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Visible to customers immediately</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateForm({ ...createForm, isActive: !createForm.isActive })}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
+              style={{
+                background: createForm.isActive ? 'var(--color-primary)' : 'var(--surface-2)',
+                color: createForm.isActive ? 'white' : 'var(--text-secondary)',
+              }}
+            >
+              {createForm.isActive ? 'Active' : 'Inactive'}
+            </button>
+          </div>
+
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            You can add photos after creating, from the product&apos;s edit panel.
+          </p>
+        </div>
       </DetailPanel>
 
       {/* ═══ Delete Confirmation ═══ */}
