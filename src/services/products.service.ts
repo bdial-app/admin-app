@@ -42,6 +42,20 @@ export const productsService = {
     return data;
   },
 
+  create: async (body: Partial<Product> & { providerId: string }): Promise<Product> => {
+    const { data } = await api.post(URLS.PRODUCTS.CREATE, body);
+    return data;
+  },
+
+  uploadImages: async (id: string, files: File[]): Promise<Product> => {
+    const form = new FormData();
+    files.forEach((f) => form.append('images', f));
+    const { data } = await api.post(URLS.PRODUCTS.UPLOAD_IMAGES(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
   update: async (id: string, body: Partial<Product>): Promise<Product> => {
     const { data } = await api.patch(URLS.PRODUCTS.UPDATE(id), body);
     return data;
