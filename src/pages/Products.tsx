@@ -13,6 +13,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
 import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct } from '../hooks/useProducts';
 import { useProviders } from '../hooks/useProviders';
+import { productsService } from '../services/products.service';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
 import { toast } from 'react-toastify';
@@ -146,20 +147,32 @@ export default function Products() {
   };
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
+  const [createImages, setCreateImages] = useState<File[]>([]);
+  const [creating, setCreating] = useState(false);
   const [providerSearch, setProviderSearch] = useState('');
   const { data: providerResults } = useProviders({ page: 1, limit: 10, search: providerSearch || undefined });
 
+  const MAX_IMAGES = 5;
+
   const openCreate = () => {
     setCreateForm(emptyCreateForm);
+    setCreateImages([]);
     setProviderSearch('');
     setCreateOpen(true);
+  };
+
+  const addCreateImages = (files: FileList | null) => {
+    if (!files) return;
+    const incoming = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    setCreateImages((prev) => [...prev, ...incoming].slice(0, MAX_IMAGES));
   };
 
   const handleCreate = async () => {
     if (!createForm.providerId) { toast.error('Select a provider'); return; }
     if (!createForm.name.trim()) { toast.error('Enter a product name'); return; }
+    setCreating(true);
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         providerId: createForm.providerId,
         name: createForm.name.trim(),
         description: createForm.description.trim() || null,
@@ -168,10 +181,20 @@ export default function Products() {
         productType: createForm.productType,
         isActive: createForm.isActive,
       });
+      // Upload any selected images to the newly created product (one or many).
+      if (createImages.length && created?.id) {
+        try {
+          await productsService.uploadImages(created.id, createImages);
+        } catch {
+          toast.warn('Product created, but image upload failed. You can add photos from the edit panel.');
+        }
+      }
       toast.success(`${createForm.productType === 'service' ? 'Service' : 'Product'} created for ${createForm.providerName}`);
       setCreateOpen(false);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Failed to create product');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -838,8 +861,8 @@ export default function Products() {
             <button onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
               Cancel
             </button>
-            <button onClick={handleCreate} disabled={createMutation.isPending} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-              {createMutation.isPending ? 'Creating…' : 'Create'}
+            <button onClick={handleCreate} disabled={creating} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+              {creating ? (createImages.length ? 'Creating & uploading…' : 'Creating…') : 'Create'}
             </button>
           </div>
         }
@@ -948,9 +971,43 @@ export default function Products() {
             </button>
           </div>
 
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            You can add photos after creating, from the product&apos;s edit panel.
-          </p>
+          {/* Images (one or many) */}
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+              Images <span style={{ color: 'var(--text-muted)' }}>(optional · up to {MAX_IMAGES})</span>
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {createImages.map((file, idx) => (
+                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
+                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setCreateImages((prev) => prev.filter((_, i) => i !== idx))}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center bg-black/60 text-white"
+                    aria-label="Remove image"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {createImages.length < MAX_IMAGES && (
+                <label className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer gap-1" style={{ border: '1px dashed var(--border-default)', color: 'var(--text-muted)' }}>
+                  <Image className="w-5 h-5" />
+                  <span className="text-[10px] font-medium">Add</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { addCreateImages(e.target.files); e.target.value = ''; }}
+                  />
+                </label>
+              )}
+            </div>
+            <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+              The first image becomes the main photo. JPG/PNG, up to 10MB each.
+            </p>
+          </div>
         </div>
       </DetailPanel>
 
