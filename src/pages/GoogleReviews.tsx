@@ -17,6 +17,16 @@ import { toast } from 'react-toastify';
 
 const LIMIT = 20;
 
+/**
+ * Ratings arrive from Postgres DECIMAL columns, which some drivers serialise as
+ * strings ("4.5") rather than numbers. Coerce before formatting so a type
+ * mismatch degrades to a dash instead of crashing the table.
+ */
+const fmtRating = (value: number | string | null | undefined): string => {
+  const n = typeof value === 'number' ? value : parseFloat(value ?? '');
+  return Number.isFinite(n) ? n.toFixed(1) : '–';
+};
+
 const TRUST_TABS: { label: string; value: string }[] = [
   { label: 'All', value: '' },
   { label: 'Trusted', value: 'trusted' },
@@ -110,7 +120,7 @@ export default function GoogleReviews() {
       render: (row) =>
         row.googlePlaceId ? (
           <span style={{ color: 'var(--text-primary)' }}>
-            {row.googleRating?.toFixed(1) ?? '–'} ({row.googleReviewCount ?? 0})
+            {fmtRating(row.googleRating)} ({row.googleReviewCount ?? 0})
           </span>
         ) : (
           <span style={{ color: 'var(--text-muted)' }}>Not linked</span>
@@ -121,7 +131,7 @@ export default function GoogleReviews() {
       header: 'Combined',
       render: (row) => (
         <span style={{ color: 'var(--text-primary)' }}>
-          {row.combinedRating?.toFixed(1) ?? '–'} ({row.combinedReviewCount ?? 0})
+          {fmtRating(row.combinedRating)} ({row.combinedReviewCount ?? 0})
         </span>
       ),
     },

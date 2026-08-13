@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { providersService } from '../services/providers.service';
+import { providersService, type ProviderImagesPayload } from '../services/providers.service';
 import type { ProviderFilters, Provider, BulkActionPayload } from '../types';
 import { toast } from 'react-toastify';
 
@@ -70,6 +70,28 @@ export function useUpdateProvider() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Partial<Provider> }) =>
       providersService.update(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+    },
+  });
+}
+
+export function useUpdateProviderImages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ProviderImagesPayload }) =>
+      providersService.updateImages(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+    },
+  });
+}
+
+export function useUpdateProviderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, categoryIds }: { id: string; categoryIds: string[] }) =>
+      providersService.updateCategories(id, categoryIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: providerKeys.all });
     },
