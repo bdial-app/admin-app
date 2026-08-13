@@ -38,6 +38,8 @@ export const URLS = {
     FEATURE: (id: string) => `/admin/providers/${id}/feature`,
     UPDATE: (id: string) => `/admin/providers/${id}`,
     UPDATE_CONTACT: (id: string) => `/admin/providers/${id}/contact-number`,
+    UPDATE_IMAGES: (id: string) => `/admin/providers/${id}/images`,
+    UPDATE_CATEGORIES: (id: string) => `/admin/providers/${id}/categories`,
     BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,

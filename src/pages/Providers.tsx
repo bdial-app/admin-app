@@ -76,12 +76,21 @@ export default function Providers() {
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-            style={{ background: row.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)' }}
-          >
-            {(row.brandName || '?')[0]?.toUpperCase()}
-          </div>
+          {row.profilePhotoUrl ? (
+            <img
+              src={row.profilePhotoUrl}
+              alt={row.brandName}
+              className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+              style={{ background: 'var(--surface-2)' }}
+            />
+          ) : (
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+              style={{ background: row.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)' }}
+            >
+              {(row.brandName || '?')[0]?.toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
               {row.brandName || '—'}
@@ -270,14 +279,33 @@ export default function Providers() {
       >
         {selectedProvider && (
           <div className="space-y-5">
+            {/* Banner */}
+            {selectedProvider.bannerImageUrl && (
+              <img
+                src={selectedProvider.bannerImageUrl}
+                alt={`${selectedProvider.brandName} banner`}
+                className="w-full h-28 object-cover rounded-xl"
+                style={{ background: 'var(--surface-2)' }}
+              />
+            )}
+
             {/* Header */}
             <div className="flex items-center gap-4">
-              <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white"
-                style={{ background: 'var(--color-primary)' }}
-              >
-                {(selectedProvider.brandName || '?')[0]?.toUpperCase()}
-              </div>
+              {selectedProvider.profilePhotoUrl ? (
+                <img
+                  src={selectedProvider.profilePhotoUrl}
+                  alt={`${selectedProvider.brandName} logo`}
+                  className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                  style={{ background: 'var(--surface-2)' }}
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {(selectedProvider.brandName || '?')[0]?.toUpperCase()}
+                </div>
+              )}
               <div>
                 <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
                   {selectedProvider.brandName}

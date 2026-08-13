@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
-  Pencil, X, Globe, Store, Save, Loader2, ShieldAlert,
+  Pencil, X, Globe, Store, Save, Loader2, ShieldAlert, ImagePlus,
+  Tags, Search, ChevronRight, CheckCircle,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -16,8 +17,11 @@ import { PhoneOtpVerifier } from '../components/ui/PhoneOtpVerifier';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
   useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
-  useUpdateContactNumber,
+  useUpdateContactNumber, useUpdateProviderImages, useUpdateProviderCategories,
 } from '../hooks/useProviders';
+import { useCategoryTree } from '../hooks/useCategories';
+import IconByName from '../components/IconByName';
+import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { useReviews } from '../hooks/useReviews';
 import { useOffers } from '../hooks/useOffers';
@@ -26,7 +30,11 @@ import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
-type EditingSection = 'business' | 'contact' | 'location' | 'social' | null;
+type EditingSection = 'business' | 'contact' | 'location' | 'social' | 'categories' | null;
+type BrandAsset = 'logo' | 'banner';
+
+const MAX_ASSET_BYTES = 10 * 1024 * 1024;
+const MAX_PROVIDER_CATEGORIES = 2;
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: 'overview', label: 'Overview', icon: Eye },
@@ -67,6 +75,19 @@ export default function ProviderView() {
   const [contactOtpVerified, setContactOtpVerified] = useState(false);
   const [locationForm, setLocationForm] = useState({ city: '', area: '', pincode: '', address: '' });
   const [socialForm, setSocialForm] = useState({ websiteUrl: '', instagramHandle: '', facebookHandle: '', youtubeHandle: '', whatsappNumber: '' });
+  const [categoryForm, setCategoryForm] = useState<string[]>([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [expandedCatGroups, setExpandedCatGroups] = useState<Set<string>>(new Set());
+
+  const { data: categoryTree } = useCategoryTree();
+  const updateCategoriesMut = useUpdateProviderCategories();
+
+  // Brand asset (logo / banner) upload state
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAsset, setUploadingAsset] = useState<BrandAsset | null>(null);
+  const [confirmRemoveAsset, setConfirmRemoveAsset] = useState<BrandAsset | null>(null);
+  const updateImagesMut = useUpdateProviderImages();
 
   const updateContactMut = useUpdateContactNumber();
 
@@ -150,6 +171,39 @@ export default function ProviderView() {
     } catch { toast.error('Action failed'); }
   };
 
+  // ── Brand asset helpers ──
+  const handleAssetSelected = async (asset: BrandAsset, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !id) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return; }
+    if (file.size > MAX_ASSET_BYTES) { toast.error('Image must be under 10MB'); return; }
+    setUploadingAsset(asset);
+    try {
+      await updateImagesMut.mutateAsync({ id, payload: asset === 'logo' ? { logo: file } : { banner: file } });
+      toast.success(asset === 'logo' ? 'Logo updated' : 'Banner updated');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
+  const handleRemoveAsset = async () => {
+    if (!confirmRemoveAsset || !id) return;
+    const asset = confirmRemoveAsset;
+    setUploadingAsset(asset);
+    try {
+      await updateImagesMut.mutateAsync({ id, payload: asset === 'logo' ? { removeLogo: true } : { removeBanner: true } });
+      toast.success(asset === 'logo' ? 'Logo removed' : 'Banner removed');
+      setConfirmRemoveAsset(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to remove image');
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
   // ── Section edit helpers ──
   const startEdit = useCallback((section: EditingSection) => {
     if (!provider) return;
@@ -183,6 +237,10 @@ export default function ProviderView() {
         youtubeHandle: provider.youtubeHandle || '',
         whatsappNumber: provider.whatsappNumber || '',
       });
+    } else if (section === 'categories') {
+      setCategoryForm((provider.providerCategories || []).map((pc) => pc.categoryId));
+      setCategorySearch('');
+      setExpandedCatGroups(new Set());
     }
   }, [provider]);
 
@@ -248,6 +306,28 @@ export default function ProviderView() {
       toast.success('Online presence updated');
       setEditingSection(null);
     } catch { toast.error('Failed to update'); }
+  };
+
+  const toggleProviderCategory = (catId: string) => {
+    setCategoryForm((prev) => {
+      if (prev.includes(catId)) return prev.filter((c) => c !== catId);
+      if (prev.length >= MAX_PROVIDER_CATEGORIES) {
+        toast.info(`A business can have at most ${MAX_PROVIDER_CATEGORIES} categories — remove one first`);
+        return prev;
+      }
+      return [...prev, catId];
+    });
+  };
+
+  const saveCategories = async () => {
+    if (!id) return;
+    try {
+      await updateCategoriesMut.mutateAsync({ id, categoryIds: categoryForm });
+      toast.success('Categories updated');
+      setEditingSection(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update categories');
+    }
   };
 
   // Cooldown helper
@@ -325,19 +405,106 @@ export default function ProviderView() {
       />
 
       {/* ─── Provider Header Card ─── */}
-      <div className="rounded-xl p-6 mb-6" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-        <div className="flex items-start gap-5 flex-wrap">
-          {/* Avatar */}
-          {provider.profilePhotoUrl ? (
-            <img src={provider.profilePhotoUrl} alt={provider.brandName} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
+      <div className="rounded-xl overflow-hidden mb-6" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+        {/* Banner */}
+        <div className="relative h-40 sm:h-48" style={{ background: 'var(--surface-2)' }}>
+          {provider.bannerImageUrl ? (
+            <img src={provider.bannerImageUrl} alt={`${provider.brandName} banner`} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-20 h-20 rounded-xl flex items-center justify-center text-2xl font-bold text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>
-              {(provider.brandName || '?')[0]?.toUpperCase()}
+            <button
+              type="button"
+              onClick={() => bannerInputRef.current?.click()}
+              className="w-full h-full flex flex-col items-center justify-center gap-1.5 transition-colors hover:opacity-80"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <ImagePlus className="w-6 h-6" />
+              <span className="text-xs font-medium">Add a cover banner</span>
+              <span className="text-[10px]">Recommended 1600×400 — PNG, JPG or WebP</span>
+            </button>
+          )}
+
+          {provider.bannerImageUrl && (
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => bannerInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-white backdrop-blur-sm transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(0,0,0,0.55)' }}
+              >
+                <Camera className="w-3.5 h-3.5" />Change
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmRemoveAsset('banner')}
+                title="Remove banner"
+                className="p-1.5 rounded-lg text-white backdrop-blur-sm transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(0,0,0,0.55)' }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
+          {uploadingAsset === 'banner' && (
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.45)' }}>
+              <Loader2 className="w-6 h-6 animate-spin text-white" />
+            </div>
+          )}
+        </div>
+
+        <input ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => handleAssetSelected('banner', e)} />
+        <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => handleAssetSelected('logo', e)} />
+
+        <div className="px-6 pb-6 flex items-start gap-5 flex-wrap">
+          {/* Logo */}
+          <div className="relative flex-shrink-0 -mt-12">
+            {provider.profilePhotoUrl ? (
+              <img
+                src={provider.profilePhotoUrl}
+                alt={`${provider.brandName} logo`}
+                className="w-24 h-24 rounded-2xl object-cover"
+                style={{ border: '3px solid var(--surface-0)', background: 'var(--surface-0)' }}
+              />
+            ) : (
+              <div
+                className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-bold text-white"
+                style={{ background: 'var(--color-primary)', border: '3px solid var(--surface-0)' }}
+              >
+                {(provider.brandName || '?')[0]?.toUpperCase()}
+              </div>
+            )}
+
+            {uploadingAsset === 'logo' && (
+              <div className="absolute inset-0 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.45)' }}>
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              title={provider.profilePhotoUrl ? 'Change logo' : 'Upload logo'}
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white transition-opacity hover:opacity-80"
+              style={{ background: 'var(--color-primary)', border: '2px solid var(--surface-0)' }}
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+
+            {provider.profilePhotoUrl && (
+              <button
+                type="button"
+                onClick={() => setConfirmRemoveAsset('logo')}
+                title="Remove logo"
+                className="absolute -top-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white transition-opacity hover:opacity-80"
+                style={{ background: 'var(--color-danger)', border: '2px solid var(--surface-0)' }}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
           {/* Info */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pt-4">
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{provider.brandName}</h2>
               <StatusBadge status={provider.status} size="md" />
@@ -725,19 +892,177 @@ export default function ProviderView() {
               </div>
             </div>
 
-            {/* ── Categories ── */}
-            {provider.providerCategories && provider.providerCategories.length > 0 && (
-              <div className="rounded-xl p-5" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-                <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Categories</p>
-                <div className="flex flex-wrap gap-2">
-                  {provider.providerCategories.map((pc) => (
-                    <span key={pc.id} className="px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                      {pc.category?.name || 'Unknown'}
+            {/* ── Section: Categories ── */}
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+              <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#ec489920' }}>
+                    <Tags className="w-3.5 h-3.5" style={{ color: '#ec4899' }} />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Categories</p>
+                  {editingSection === 'categories' && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                      {categoryForm.length}/{MAX_PROVIDER_CATEGORIES} selected
                     </span>
-                  ))}
+                  )}
                 </div>
+                {editingSection !== 'categories' ? (
+                  <button onClick={() => startEdit('categories')} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80" style={{ color: 'var(--color-primary)', background: 'var(--surface-2)' }}>
+                    <Pencil className="w-3 h-3" />Edit
+                  </button>
+                ) : (
+                  <button onClick={cancelEdit} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}>
+                    <X className="w-3 h-3" />Cancel
+                  </button>
+                )}
               </div>
-            )}
+              <div className="px-5 pb-5">
+                {editingSection !== 'categories' ? (
+                  provider.providerCategories && provider.providerCategories.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {provider.providerCategories.map((pc) => (
+                        <span key={pc.id} className="px-3 py-1.5 text-xs font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                          {pc.category?.name || 'Unknown'}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No categories assigned — this business won't surface in category browsing.</p>
+                  )
+                ) : (
+                  <div className="space-y-3">
+                    {/* Selected chips */}
+                    {categoryForm.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {categoryForm.map((catId) => {
+                          const match = (categoryTree || []).flatMap((c: any) => [c, ...(c.children || [])]).find((c: any) => c.id === catId);
+                          return (
+                            <span key={catId} className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-white" style={{ background: 'var(--color-primary)' }}>
+                              {match?.name || 'Selected category'}
+                              <button type="button" onClick={() => toggleProviderCategory(catId)} className="hover:opacity-70" title="Remove">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        value={categorySearch}
+                        onChange={(e) => setCategorySearch(e.target.value)}
+                        placeholder="Search categories…"
+                        className="w-full pl-9 pr-3 py-2 text-sm rounded-lg"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+
+                    {/* Tree */}
+                    {categoryTree && categoryTree.length > 0 ? (
+                      <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                        {(categorySearch.trim()
+                          ? categoryTree.filter((cat: any) => {
+                              const q = categorySearch.trim().toLowerCase();
+                              if (cat.name.toLowerCase().includes(q)) return true;
+                              return cat.children?.some((ch: any) => ch.name.toLowerCase().includes(q));
+                            })
+                          : categoryTree
+                        ).map((cat: any) => {
+                          const hasChildren = cat.children && cat.children.length > 0;
+                          const isExpanded = categorySearch.trim() ? true : expandedCatGroups.has(cat.id);
+                          const childrenToShow = categorySearch.trim()
+                            ? (cat.children || []).filter((ch: any) =>
+                                ch.name.toLowerCase().includes(categorySearch.trim().toLowerCase()) ||
+                                cat.name.toLowerCase().includes(categorySearch.trim().toLowerCase()))
+                            : cat.children || [];
+                          const selectedChildCount = childrenToShow.filter((ch: any) => categoryForm.includes(ch.id)).length;
+                          const parentSelected = categoryForm.includes(cat.id);
+
+                          return (
+                            <div key={cat.id} className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (hasChildren) {
+                                    setExpandedCatGroups((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(cat.id)) next.delete(cat.id); else next.add(cat.id);
+                                      return next;
+                                    });
+                                  } else {
+                                    toggleProviderCategory(cat.id);
+                                  }
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
+                                style={{
+                                  background: parentSelected && !hasChildren ? 'var(--color-primary)' : 'transparent',
+                                  color: parentSelected && !hasChildren ? 'white' : 'var(--text-primary)',
+                                }}
+                              >
+                                {cat.icon && (
+                                  <span className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                                    GRADIENT_PALETTE[cat.iconColor || 'amber']?.gradient || 'from-amber-400 to-orange-500'
+                                  }`}>
+                                    <IconByName name={cat.icon} size={11} className="text-white" strokeWidth={2.5} />
+                                  </span>
+                                )}
+                                <span className="flex-1 text-xs font-semibold truncate">{cat.name}</span>
+                                {selectedChildCount > 0 && hasChildren && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--color-primary)' }}>
+                                    {selectedChildCount}
+                                  </span>
+                                )}
+                                {parentSelected && !hasChildren && <CheckCircle className="w-3.5 h-3.5" />}
+                                {hasChildren && (
+                                  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} style={{ color: 'var(--text-muted)' }} />
+                                )}
+                              </button>
+                              {hasChildren && isExpanded && (
+                                <div className="px-3 pb-2.5 pt-1 flex flex-wrap gap-1.5" style={{ borderTop: '1px solid var(--border-default)' }}>
+                                  {childrenToShow.map((child: any) => {
+                                    const sel = categoryForm.includes(child.id);
+                                    return (
+                                      <button
+                                        key={child.id}
+                                        type="button"
+                                        onClick={() => toggleProviderCategory(child.id)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors"
+                                        style={{
+                                          background: sel ? 'var(--color-primary)' : 'var(--surface-1)',
+                                          color: sel ? 'white' : 'var(--text-secondary)',
+                                          border: `1px solid ${sel ? 'var(--color-primary)' : 'var(--border-default)'}`,
+                                        }}
+                                      >
+                                        {sel && <CheckCircle className="w-3 h-3" />}
+                                        {child.name}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No categories available</p>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={saveCategories} disabled={updateCategoriesMut.isPending} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateCategoriesMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
+                      </button>
+                      <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
 
@@ -1304,6 +1629,21 @@ export default function ProviderView() {
         confirmLabel="Delete Product"
         variant="danger"
         isLoading={deleteProductMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!confirmRemoveAsset}
+        onClose={() => setConfirmRemoveAsset(null)}
+        onConfirm={handleRemoveAsset}
+        title={confirmRemoveAsset === 'logo' ? 'Remove Logo' : 'Remove Banner'}
+        description={
+          confirmRemoveAsset === 'logo'
+            ? `Remove the logo for "${provider.brandName}"? The business will fall back to its initial.`
+            : `Remove the cover banner for "${provider.brandName}"?`
+        }
+        confirmLabel="Remove"
+        variant="danger"
+        isLoading={updateImagesMut.isPending}
       />
 
       {/* ─── Confirm Dialog ─── */}

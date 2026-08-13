@@ -3,6 +3,16 @@ import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { Provider, ProviderFilters } from '../types';
 import type { BulkActionPayload } from '../types';
+import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
+
+export interface ProviderImagesPayload {
+  /** Business logo / profile photo */
+  logo?: File | null;
+  /** Cover banner */
+  banner?: File | null;
+  removeLogo?: boolean;
+  removeBanner?: boolean;
+}
 
 export const providersService = {
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
@@ -72,6 +82,29 @@ export const providersService = {
 
   update: async (id: string, body: Partial<Provider>): Promise<Provider> => {
     const { data } = await api.patch(URLS.PROVIDERS.UPDATE(id), body);
+    return data;
+  },
+
+  updateImages: async (id: string, payload: ProviderImagesPayload): Promise<Provider> => {
+    const fd = new FormData();
+    if (payload.logo) {
+      fd.append('logo', await compressImageFile(payload.logo, COMPRESS_PRESETS.icon));
+    } else if (payload.removeLogo) {
+      fd.append('removeLogo', 'true');
+    }
+    if (payload.banner) {
+      fd.append('banner', await compressImageFile(payload.banner, COMPRESS_PRESETS.banner));
+    } else if (payload.removeBanner) {
+      fd.append('removeBanner', 'true');
+    }
+    const { data } = await api.patch(URLS.PROVIDERS.UPDATE_IMAGES(id), fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  updateCategories: async (id: string, categoryIds: string[]): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.UPDATE_CATEGORIES(id), { categoryIds });
     return data;
   },
 
