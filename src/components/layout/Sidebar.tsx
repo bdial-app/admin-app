@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -37,6 +37,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Create User', path: ROUTES.CREATE_USER, icon: UserPlus, minRole: 'admin' },
       { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store, badge: true },
       { name: 'Create Provider', path: ROUTES.CREATE_PROVIDER, icon: PlusCircle, minRole: 'admin' },
+      { name: 'Bulk Import', path: ROUTES.BULK_IMPORT_PROVIDERS, icon: FileSpreadsheet, minRole: 'admin' },
       { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
       { name: 'Products', path: ROUTES.PRODUCTS, icon: Package },
     ],

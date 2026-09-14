@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Phone, User, Store, Package, MapPin,
   CheckCircle, AlertCircle, Loader2, Plus, Trash2, Check,
-  Search, ChevronRight, Users, Upload, X, Image as ImageIcon,
+  Search, ChevronRight, Users, Upload, X, Image as ImageIcon, ShieldCheck,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import LocationPicker, { type LocationData } from '../components/ui/LocationPicker';
@@ -92,6 +92,7 @@ export default function CreateProviderFlow() {
   const [openTime, setOpenTime] = useState('');
   const [closeTime, setCloseTime] = useState('');
   const [isWomenLed, setIsWomenLed] = useState(false);
+  const [communityVerified, setCommunityVerified] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
   const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(new Set());
@@ -323,6 +324,7 @@ export default function CreateProviderFlow() {
         openTime: openTime || undefined,
         closeTime: closeTime || undefined,
         isWomenLed,
+        communityVerified,
         categoryIds: selectedCategories.length ? selectedCategories : undefined,
         providerStatus,
         products: products
@@ -670,10 +672,21 @@ export default function CreateProviderFlow() {
             <input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle} />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 flex flex-col gap-2">
             <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={isWomenLed} onChange={(e) => setIsWomenLed(e.target.checked)} className="rounded" />
               Women-led business
+            </label>
+            <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+              <input type="checkbox" checked={communityVerified} onChange={(e) => setCommunityVerified(e.target.checked)} className="rounded mt-0.5" />
+              <span>
+                <span className="inline-flex items-center gap-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <ShieldCheck className="w-3.5 h-3.5" style={{ color: 'var(--color-success)' }} /> Community verified
+                </span>
+                <span className="block mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Shows the verified badge to customers. Tick only if you have confirmed this business yourself — it does not require document upload.
+                </span>
+              </span>
             </label>
           </div>
         </div>
@@ -1008,6 +1021,7 @@ export default function CreateProviderFlow() {
               <div><span style={{ color: 'var(--text-muted)' }}>Brand:</span> <span style={{ color: 'var(--text-primary)' }}>{brandName}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Contact:</span> <span style={{ color: 'var(--text-primary)' }}>{contactNumber}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Status:</span> <span style={{ color: 'var(--text-primary)' }} className="capitalize">{providerStatus}</span></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Verified:</span> <span style={{ color: communityVerified ? 'var(--color-success)' : 'var(--text-primary)' }}>{communityVerified ? 'Community verified' : 'Not verified'}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Women-led:</span> <span style={{ color: 'var(--text-primary)' }}>{isWomenLed ? 'Yes' : 'No'}</span></div>
               {openTime && <div><span style={{ color: 'var(--text-muted)' }}>Hours:</span> <span style={{ color: 'var(--text-primary)' }}>{openTime} – {closeTime}</span></div>}
               <div><span style={{ color: 'var(--text-muted)' }}>Biz OTP:</span> <span style={{ color: skipBusinessOtp ? 'var(--color-warning)' : 'var(--color-success)' }}>{skipBusinessOtp ? 'Skipped' : 'Verified'}</span></div>

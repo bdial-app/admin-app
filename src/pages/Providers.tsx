@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -175,14 +175,24 @@ export default function Providers() {
           { label: 'Providers' },
         ]}
         actions={
-          <button
-            onClick={() => navigate(ROUTES.CREATE_PROVIDER)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
-            style={{ background: 'var(--color-primary)' }}
-          >
-            <PlusCircle className="w-4 h-4" />
-            Create Provider
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(ROUTES.BULK_IMPORT_PROVIDERS)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors"
+              style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)', background: 'var(--surface-0)' }}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Bulk Import
+            </button>
+            <button
+              onClick={() => navigate(ROUTES.CREATE_PROVIDER)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              <PlusCircle className="w-4 h-4" />
+              Create Provider
+            </button>
+          </div>
         }
       />
 

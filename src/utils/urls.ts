@@ -39,6 +39,8 @@ export const URLS = {
     UPDATE: (id: string) => `/admin/providers/${id}`,
     UPDATE_CONTACT: (id: string) => `/admin/providers/${id}/contact-number`,
     UPDATE_IMAGES: (id: string) => `/admin/providers/${id}/images`,
+    UPLOAD_PHOTOS: (id: string) => `/admin/providers/${id}/photos`,
+    IMPORT_IMAGE_URLS: (id: string) => `/admin/providers/${id}/images/from-urls`,
     UPDATE_CATEGORIES: (id: string) => `/admin/providers/${id}/categories`,
     BULK_ACTION: '/admin/providers/bulk-action',
     STATS: '/admin/providers/stats',
@@ -72,6 +74,7 @@ export const URLS = {
     BULK_ACTION: '/admin/products/bulk-action',
     STATS: '/admin/products/stats',
     UPLOAD_IMAGES: (id: string) => `/admin/products/${id}/images`,
+    DELETE_IMAGE: (id: string) => `/admin/products/${id}/images`,
   },
 
   // â”€â”€ Admin Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -130,13 +133,21 @@ export const URLS = {
   // â”€â”€ Admin Sponsored â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   SPONSORED: {
     LIST: '/admin/sponsorships',
+    CREATE: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
     UPDATE: (id: string) => `/admin/sponsorships/${id}`,
+    DELETE: (id: string) => `/admin/sponsorships/${id}`,
     ANALYTICS: (id: string) => `/admin/sponsorships/${id}/analytics`,
+    STOP: (id: string) => `/admin/sponsorships/${id}/stop`,
+    RESUME: (id: string) => `/admin/sponsorships/${id}/resume`,
+    TOP_UP: (id: string) => `/admin/sponsorships/${id}/top-up`,
     PENDING: '/admin/sponsorships/pending',
     APPROVE: (id: string) => `/admin/sponsorships/${id}/approve`,
     REJECT: (id: string) => `/admin/sponsorships/${id}/reject`,
     STATS: '/admin/sponsorships/stats',
+    ELIGIBLE_PROVIDERS: '/admin/sponsorships/eligible-providers',
+    BULK: '/admin/sponsorships/bulk',
+    STOP_ALL: '/admin/sponsorships/stop-all',
   },
 
   // â”€â”€ Admin Offers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -221,6 +232,8 @@ export const URLS = {
     CHECK_USER: (mobileNumber: string) => `/admin/check-user/${mobileNumber}`,
     SEND_OTP: '/admin/otp/send',
     VERIFY_OTP: '/admin/otp/verify',
+    BULK_VALIDATE: '/admin/providers/bulk-validate',
+    BULK_IMPORT: '/admin/providers/bulk-import',
   },
 
   // -- Photo Moderation --------------------------------

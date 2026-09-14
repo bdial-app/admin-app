@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Search, Filter, X, Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
@@ -11,7 +11,7 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct } from '../hooks/useProducts';
+import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct, useUploadProductImages, useDeleteProductImage } from '../hooks/useProducts';
 import { useProviders } from '../hooks/useProviders';
 import { productsService } from '../services/products.service';
 import { ROUTES } from '../utils/constants';
@@ -66,6 +66,9 @@ export default function Products() {
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
   const createMutation = useCreateProduct();
+  const uploadImagesMutation = useUploadProductImages();
+  const deleteImageMutation = useDeleteProductImage();
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const activeFilterCount = [typeFilter, priceMin, priceMax, hasImages].filter(Boolean).length;
 
@@ -199,6 +202,37 @@ export default function Products() {
   };
 
   // ─── Table Columns ────────────────────
+  // ── Gallery editing on an existing product ──
+  const handleGalleryUpload = async (files: FileList | null) => {
+    if (!selectedProduct || !files?.length) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (!images.length) { toast.error('Select image files only'); return; }
+    const room = 5 - (selectedProduct.photoUrls?.length ?? 0);
+    if (room <= 0) { toast.error('This product already has the maximum of 5 images'); return; }
+    try {
+      const updated = await uploadImagesMutation.mutateAsync({ id: selectedProduct.id, files: images.slice(0, room) });
+      setSelectedProduct(updated);
+      setImageViewIdx(0);
+      toast.success(images.length > room ? `Added ${room} image(s) — limit is 5` : 'Images added');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to upload images');
+    }
+  };
+
+  const handleRemoveImage = async (url: string) => {
+    if (!selectedProduct) return;
+    try {
+      const updated = await deleteImageMutation.mutateAsync({ id: selectedProduct.id, url });
+      setSelectedProduct(updated);
+      setImageViewIdx(0);
+      toast.success('Image removed');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to remove image');
+    }
+  };
+
   const columns: Column<Product>[] = [
     {
       key: 'product',
@@ -660,6 +694,14 @@ export default function Products() {
                       </span>
                     </>
                   )}
+                  <button
+                    onClick={() => handleRemoveImage(selectedProduct.photoUrls[imageViewIdx] || selectedProduct.photoUrls[0])}
+                    disabled={deleteImageMutation.isPending}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center bg-black/50 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                    title="Remove this image"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
                 {/* Thumbnails */}
                 {selectedProduct.photoUrls.length > 1 && (
@@ -679,15 +721,42 @@ export default function Products() {
                     ))}
                   </div>
                 )}
+                <button
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={uploadImagesMutation.isPending || (selectedProduct.photoUrls?.length ?? 0) >= 5}
+                  className="mt-2 w-full py-2 text-xs font-medium rounded-lg border border-dashed disabled:opacity-40"
+                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+                >
+                  {uploadImagesMutation.isPending
+                    ? 'Uploading…'
+                    : (selectedProduct.photoUrls?.length ?? 0) >= 5
+                      ? 'Maximum of 5 images reached'
+                      : `+ Add photos (${5 - (selectedProduct.photoUrls?.length ?? 0)} left)`}
+                </button>
               </div>
             ) : (
-              <div className="h-32 rounded-xl flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={uploadImagesMutation.isPending}
+                className="w-full h-32 rounded-xl flex items-center justify-center border border-dashed disabled:opacity-50"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border-default)' }}
+              >
                 <div className="text-center">
                   <ImageOff className="w-8 h-8 mx-auto mb-1" style={{ color: 'var(--text-muted)' }} />
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No images uploaded</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {uploadImagesMutation.isPending ? 'Uploading…' : 'No images — click to add photos'}
+                  </p>
                 </div>
-              </div>
+              </button>
             )}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => { handleGalleryUpload(e.target.files); e.target.value = ''; }}
+            />
 
             {/* Name + Status Banner */}
             <div className="flex items-start justify-between">
