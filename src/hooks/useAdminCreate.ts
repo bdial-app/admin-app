@@ -3,6 +3,7 @@ import { adminCreateService } from '../services/admin-create.service';
 import type { AdminCreateUserPayload, AdminCreateProviderWithUserPayload } from '../services/admin-create.service';
 import { userKeys } from './useUsers';
 import { providerKeys } from './useProviders';
+import { bulkImportService, type BulkProviderRowPayload } from '../services/bulk-import.service';
 
 export function useAdminCreateUser() {
   const qc = useQueryClient();
@@ -46,5 +47,23 @@ export function useAdminVerifyOtp() {
   return useMutation({
     mutationFn: ({ mobileNumber, otp, purpose }: { mobileNumber: string; otp: string; purpose?: string }) =>
       adminCreateService.verifyOtp(mobileNumber, otp, purpose),
+  });
+}
+
+export function useBulkValidateProviders() {
+  return useMutation({
+    mutationFn: (rows: BulkProviderRowPayload[]) => bulkImportService.validate(rows),
+  });
+}
+
+export function useBulkImportProviders() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rows, sourceLabel }: { rows: BulkProviderRowPayload[]; sourceLabel?: string }) =>
+      bulkImportService.importRows(rows, sourceLabel),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: userKeys.all });
+      qc.invalidateQueries({ queryKey: providerKeys.all });
+    },
   });
 }

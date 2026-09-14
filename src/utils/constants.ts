@@ -24,6 +24,7 @@ export const ROUTES = {
   BUG_REPORTS: '/bug-reports-admin',
   CREATE_USER: '/create-user',
   CREATE_PROVIDER: '/create-provider',
+  BULK_IMPORT_PROVIDERS: '/providers/bulk-import',
   PHOTO_MODERATION: '/photo-moderation',
   FEATURE_FLAGS: '/feature-flags',
   MODERATION_QUEUE: '/moderation-queue',

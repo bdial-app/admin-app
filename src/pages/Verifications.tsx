@@ -6,6 +6,7 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { VerificationStepper } from '../components/ui/VerificationStepper';
+import { DocumentViewer } from '../components/ui/DocumentViewer';
 import { useVerifications, useReviewVerification } from '../hooks/useVerifications';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -258,33 +259,24 @@ export default function Verifications() {
               </div>
             </div>
 
-            {/* Documents */}
+            {/* Documents — shown inline so the reviewer can read them here */}
             <div>
               <p className="text-xs font-medium uppercase mb-2" style={{ color: 'var(--text-muted)' }}>Documents</p>
-              <div className="space-y-2">
-                {selected.aadhaarDocUrl && (
-                  <a
-                    href={selected.aadhaarDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 rounded-lg transition-colors"
-                    style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--color-primary)' }}
-                  >
+              <div className="space-y-3">
+                {selected.aadhaarDocUrl ? (
+                  <DocumentViewer url={selected.aadhaarDocUrl} label="Aadhaar Document" />
+                ) : (
+                  <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
                     <FileText className="w-4 h-4" />
-                    <span className="text-sm font-medium">View Aadhaar Document</span>
-                  </a>
+                    <span className="text-sm">No Aadhaar document submitted</span>
+                  </div>
                 )}
                 {selected.ijamatDocUrl && (
-                  <a
-                    href={selected.ijamatDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 rounded-lg transition-colors"
-                    style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--color-primary)' }}
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span className="text-sm font-medium">View Ijamat Document</span>
-                  </a>
+                  <DocumentViewer
+                    url={selected.ijamatDocUrl}
+                    label="Ijamat Document"
+                    caption={selected.ijamatNumber ? `Ijamat no. ${selected.ijamatNumber}` : undefined}
+                  />
                 )}
               </div>
             </div>

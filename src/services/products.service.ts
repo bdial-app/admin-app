@@ -56,6 +56,12 @@ export const productsService = {
     return data;
   },
 
+  /** Remove one image from a product's gallery. */
+  deleteImage: async (id: string, url: string): Promise<Product> => {
+    const { data } = await api.delete(URLS.PRODUCTS.DELETE_IMAGE(id), { data: { url } });
+    return data;
+  },
+
   update: async (id: string, body: Partial<Product>): Promise<Product> => {
     const { data } = await api.patch(URLS.PRODUCTS.UPDATE(id), body);
     return data;

@@ -35,6 +35,7 @@ export interface AdminCreateProviderWithUserPayload {
   openTime?: string;
   closeTime?: string;
   isWomenLed?: boolean;
+  communityVerified?: boolean;
   categoryIds?: string[];
   providerStatus?: string;
   products?: Array<{

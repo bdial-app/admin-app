@@ -4,9 +4,13 @@ import type { Category, CategoryFormData } from '../types';
 import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
 
 export const categoriesService = {
+  /**
+   * NOTE: `GET /categories` is paginated and only returns top-level categories
+   * that already have a provider attached. For a complete list use `tree()`.
+   */
   list: async (): Promise<Category[]> => {
     const { data } = await api.get(URLS.CATEGORIES.LIST);
-    return data;
+    return data?.data ?? data?.items ?? (Array.isArray(data) ? data : []);
   },
 
   topLevel: async (): Promise<Category[]> => {

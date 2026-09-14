@@ -103,6 +103,27 @@ export const providersService = {
     return data;
   },
 
+  /** Add gallery photos (the server allows 10 per provider). */
+  uploadPhotos: async (id: string, files: File[]): Promise<unknown> => {
+    const fd = new FormData();
+    for (const f of files) fd.append('photos', await compressImageFile(f, COMPRESS_PRESETS.banner));
+    const { data } = await api.post(URLS.PROVIDERS.UPLOAD_PHOTOS(id), fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  /** The server downloads each link (Google Drive, Dropbox, direct) and reports per image. */
+  importImageUrls: async (
+    id: string,
+    body: { logoUrl?: string; bannerUrl?: string; galleryUrls?: string[] },
+  ): Promise<{ uploaded: number; failed: number; results: { kind: 'logo' | 'banner' | 'gallery'; url: string; ok: boolean; imageUrl?: string; error?: string }[] }> => {
+    // Match the server's 300s request timeout: giving up earlier would mark links failed
+    // while the server is still saving them, and a retry would then duplicate photos.
+    const { data } = await api.post(URLS.PROVIDERS.IMPORT_IMAGE_URLS(id), body, { timeout: 300_000 });
+    return data;
+  },
+
   updateCategories: async (id: string, categoryIds: string[]): Promise<Provider> => {
     const { data } = await api.patch(URLS.PROVIDERS.UPDATE_CATEGORIES(id), { categoryIds });
     return data;
