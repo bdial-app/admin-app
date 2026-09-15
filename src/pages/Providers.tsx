@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles } from 'lucide-react';
+import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { PermissionGate } from '../components/auth/PermissionGate';
+import { useHasPermission } from '../hooks/usePermissions';
 import {
   useProviders,
   useApproveProvider,
   useSuspendProvider,
   useUnsuspendProvider,
+  useBulkDeleteProviders,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
 import IconByName from '../components/IconByName';
@@ -19,7 +22,7 @@ import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { toast } from 'react-toastify';
 import type { Provider, ProviderStatus } from '../types';
 
-const LIMIT = 10;
+const PAGE_SIZES = [10, 25, 50, 100];
 const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Unverified', value: 'unverified' },
@@ -37,10 +40,18 @@ export default function Providers() {
   const [status, setStatus] = useState<ProviderStatus | ''>('');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [enrichIds, setEnrichIds] = useState<string[] | null>(null);
+  // Bumped per open so the panel remounts with fresh state.
+  const [enrichRun, setEnrichRun] = useState(0);
+  const canDelete = useHasPermission('providers.delete');
+  const canUpdate = useHasPermission('providers.update');
 
   const { data, isLoading } = useProviders({
     page,
-    limit: LIMIT,
+    limit: pageSize,
     search: search || undefined,
     status: status || undefined,
   });
@@ -48,6 +59,7 @@ export default function Providers() {
   const approveMutation = useApproveProvider();
   const suspendMutation = useSuspendProvider();
   const unsuspendMutation = useUnsuspendProvider();
+  const bulkDeleteMutation = useBulkDeleteProviders();
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
@@ -68,6 +80,27 @@ export default function Providers() {
       toast.error(`Failed to ${confirmAction.type} provider`);
     }
   };
+
+  // Selection survives paging but is cleared whenever the filters change, so a
+  // row that's no longer on screen can't be deleted by accident.
+  const resetSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    try {
+      const { affected, skipped } = await bulkDeleteMutation.mutateAsync(Array.from(selectedIds));
+      toast.success(
+        `Deleted ${affected} provider${affected === 1 ? '' : 's'}${skipped > 0 ? ` · ${skipped} were already deleted` : ''}`,
+      );
+      resetSelection();
+      setBulkDeleteOpen(false);
+    } catch {
+      toast.error('Bulk delete stopped part-way — the list is refreshed, check which providers remain');
+    }
+  };
+
+  const selectedOnPage = (data?.items ?? []).filter((p) => selectedIds.has(p.id));
+  const PREVIEW_COUNT = 8;
+  const previewRows = selectedOnPage.slice(0, PREVIEW_COUNT);
 
   const columns: Column<Provider>[] = [
     {
@@ -196,22 +229,38 @@ export default function Providers() {
         }
       />
 
-      {/* Status Tabs */}
-      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => { setStatus(tab.value); setPage(1); }}
-            className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-            style={{
-              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
-              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
-            }}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        {/* Status Tabs */}
+        <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => { setStatus(tab.value); setPage(1); resetSelection(); }}
+              className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+              style={{
+                background: status === tab.value ? 'var(--surface-0)' : 'transparent',
+                color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Rows per page
+          <select
+            value={pageSize}
+            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            className="px-2 py-1.5 text-sm rounded-lg border"
+            style={{ borderColor: 'var(--border-default)', background: 'var(--surface-0)', color: 'var(--text-primary)' }}
           >
-            {tab.label}
-          </button>
-        ))}
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>{size}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <DataTable<Provider>
@@ -220,12 +269,70 @@ export default function Providers() {
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearch={(q) => { setSearch(q); setPage(1); }}
+        onSearch={(q) => { setSearch(q); setPage(1); resetSelection(); }}
         searchPlaceholder="Search by business name, owner, or mobile…"
         searchValue={search}
         rowKey={(row) => row.id}
         onRowClick={(row) => navigate(`/providers/${row.id}`)}
+        selectable={canDelete || canUpdate}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        bulkActions={
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={resetSelection}
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+            >
+              Clear
+            </button>
+            {canUpdate && (
+              <button
+                onClick={() => { setEnrichRun((n) => n + 1); setEnrichIds(Array.from(selectedIds)); }}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg"
+                style={{ background: 'var(--color-primary-light, var(--surface-2))', color: 'var(--color-primary)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Find logos & websites
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => setBulkDeleteOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg"
+                style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </button>
+            )}
+          </div>
+        }
       />
+
+      <EnrichProvidersPanel key={enrichRun} providerIds={enrichIds} onClose={() => setEnrichIds(null)} />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedIds.size} provider${selectedIds.size === 1 ? '' : 's'}?`}
+        description="They disappear from the app and from this list, and each owner gets a “profile removed” notification. This can't be undone from the admin."
+        confirmLabel={bulkDeleteMutation.isPending ? 'Deleting…' : 'Delete'}
+        variant="danger"
+        isLoading={bulkDeleteMutation.isPending}
+      >
+        {previewRows.length > 0 && (
+          <ul className="mt-2 space-y-1 text-xs max-h-40 overflow-y-auto" style={{ color: 'var(--text-secondary)' }}>
+            {previewRows.map((p) => (
+              <li key={p.id} className="truncate">
+                • {p.brandName || '—'}{p.user?.mobileNumber ? ` · ${p.user.mobileNumber}` : ''}
+              </li>
+            ))}
+            {selectedIds.size > previewRows.length && (
+              <li style={{ color: 'var(--text-muted)' }}>+ {selectedIds.size - previewRows.length} more</li>
+            )}
+          </ul>
+        )}
+      </ConfirmDialog>
 
       {/* Provider Detail Panel */}
       <DetailPanel
