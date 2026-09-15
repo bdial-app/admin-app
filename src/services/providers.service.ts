@@ -14,6 +14,26 @@ export interface ProviderImagesPayload {
   removeBanner?: boolean;
 }
 
+export interface EnrichImageCandidate {
+  url: string;
+  source: string;
+  width: number;
+  height: number;
+}
+
+/** Suggestions for one provider from Google and the business's own website. Nothing is saved yet. */
+export interface ProviderEnrichment {
+  providerId: string;
+  brandName: string;
+  current: { logoUrl: string | null; bannerUrl: string | null; websiteUrl: string | null };
+  match: { placeId: string; name: string; address: string; matchedBy: 'phone' | 'name' } | null;
+  website: { url: string; source: 'provider' | 'google' } | null;
+  logos: EnrichImageCandidate[];
+  banners: EnrichImageCandidate[];
+  confidence: 'high' | 'check' | 'none';
+  notes: string[];
+}
+
 export const providersService = {
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
     const params = new URLSearchParams();
@@ -121,6 +141,12 @@ export const providersService = {
     // Match the server's 300s request timeout: giving up earlier would mark links failed
     // while the server is still saving them, and a retry would then duplicate photos.
     const { data } = await api.post(URLS.PROVIDERS.IMPORT_IMAGE_URLS(id), body, { timeout: 300_000 });
+    return data;
+  },
+
+  /** Up to 10 ids per call; each provider can take several seconds on the server. */
+  enrich: async (ids: string[]): Promise<ProviderEnrichment[]> => {
+    const { data } = await api.post(URLS.PROVIDERS.ENRICH, { ids }, { timeout: 180_000 });
     return data;
   },
 

@@ -167,6 +167,23 @@ export function useBulkProviderAction() {
   });
 }
 
+/** Soft-deletes providers in chunks the bulk endpoint accepts (50 per request). */
+export function useBulkDeleteProviders() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      let affected = 0;
+      for (let i = 0; i < ids.length; i += 50) {
+        const res = await providersService.bulkAction({ ids: ids.slice(i, i + 50), action: 'delete' });
+        affected += res.affected ?? 0;
+      }
+      return { affected, skipped: ids.length - affected };
+    },
+    // Refresh even after a failure part-way through, so the list shows what's left.
+    onSettled: () => qc.invalidateQueries({ queryKey: providerKeys.all }),
+  });
+}
+
 export function useUpdateContactNumber() {
   const qc = useQueryClient();
   return useMutation({

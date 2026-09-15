@@ -42,7 +42,7 @@ const formatCurrency = (v: number | null | undefined) => {
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const isExpired = (v: Voucher) => v.validUntil && new Date(v.validUntil) < new Date();
 const isFullyUsed = (v: Voucher) => v.maxUses !== null && v.usedCount >= v.maxUses;
@@ -109,8 +109,10 @@ export default function Vouchers() {
         minPurchaseAmount: form.minPurchaseAmount ? Number(form.minPurchaseAmount) : undefined,
         maxDiscountAmount: form.maxDiscountAmount ? Number(form.maxDiscountAmount) : undefined,
         applicableTo: form.applicableTo.length > 0 ? form.applicableTo : undefined,
-        validFrom: form.validFrom || undefined,
-        validUntil: form.validUntil || undefined,
+        // datetime-local has no timezone; send the admin's local time as an
+        // absolute instant so a UTC server doesn't shift it by 5½ hours.
+        validFrom: new Date(form.validFrom).toISOString(),
+        validUntil: new Date(form.validUntil).toISOString(),
       });
       toast.success('Voucher created');
       setShowCreate(false);

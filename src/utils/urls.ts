@@ -43,6 +43,7 @@ export const URLS = {
     IMPORT_IMAGE_URLS: (id: string) => `/admin/providers/${id}/images/from-urls`,
     UPDATE_CATEGORIES: (id: string) => `/admin/providers/${id}/categories`,
     BULK_ACTION: '/admin/providers/bulk-action',
+    ENRICH: '/admin/providers/enrich',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
     WOMEN_LED_PENDING: '/admin/providers/women-led/pending',
