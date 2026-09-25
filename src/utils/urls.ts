@@ -44,6 +44,8 @@ export const URLS = {
     UPDATE_CATEGORIES: (id: string) => `/admin/providers/${id}/categories`,
     BULK_ACTION: '/admin/providers/bulk-action',
     ENRICH: '/admin/providers/enrich',
+    AUTO_IMAGES: '/admin/providers/auto-images',
+    IMAGE_CANDIDATES: '/admin/providers/image-candidates',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
     WOMEN_LED_PENDING: '/admin/providers/women-led/pending',

@@ -16,10 +16,10 @@ import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Category, Gender } from '../types';
 import type { BulkImportRowResult } from '../services/bulk-import.service';
-import { providersService } from '../services/providers.service';
+import { providersService, type AutoImageResult } from '../services/providers.service';
 import { ImagesCell, ImageList } from '../components/bulk-import/ImagesCell';
 import {
-  allImages, countImages, expandImageSources, filesFromDrop, imagesToSend, matchImageFiles, revokeImages,
+  allImages, countImages, expandImageSources, filesFromDrop, imagesToSend, makeLinkImage, matchImageFiles, revokeImages,
   summarizeImages, uploadRowImages, withStatus, withRateLimitRetry, MAX_GALLERY_PHOTOS,
   type ImageMatchSummary, type ImageUploadApi, type RowImage, type RowImages,
 } from '../utils/bulk-import-images';
@@ -89,6 +89,18 @@ const CHUNK = 25;
 
 /** Rows whose images upload in parallel once their providers exist. */
 const IMAGE_CONCURRENCY = 3;
+/** Auto image lookup does real work per provider (Instagram, website, downloads), so small batches. */
+const AUTO_IMAGE_CHUNK = 10;
+const AUTO_IMAGE_CONCURRENCY = 2;
+
+const autoImageLabel = (r: AutoImageResult): string => {
+  const parts: string[] = [];
+  if (r.logo) parts.push(`logo from ${r.logo === 'instagram' ? 'Instagram' : 'website'}`);
+  if (r.banner === 'website') parts.push('banner from website');
+  if (r.banner === 'generated') parts.push('banner generated');
+  if (parts.length) return `Auto: ${parts.join(' · ')}`;
+  return r.skipped ? '' : 'Auto: nothing found';
+};
 
 // Every image call rides out a rate limit instead of failing the image.
 const imageApi: ImageUploadApi = {
@@ -137,6 +149,9 @@ export default function BulkImportProviders() {
   const [dragOver, setDragOver] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [imageProgress, setImageProgress] = useState<{ done: number; total: number } | null>(null);
+  const [autoFillImages, setAutoFillImages] = useState(true);
+  const [autoImages, setAutoImages] = useState<Record<string, AutoImageResult>>({});
+  const [autoProgress, setAutoProgress] = useState<{ done: number; total: number } | null>(null);
   const [imageMatch, setImageMatch] = useState<ImageMatchSummary | null>(null);
   const [matchingImages, setMatchingImages] = useState(false);
   const [tableDragOver, setTableDragOver] = useState(false);
@@ -172,10 +187,11 @@ export default function BulkImportProviders() {
 
   /** How many still-included, not-yet-imported rows each skip action would remove. */
   const skipCounts = useMemo(() => {
-    const c = { errorsOrDb: 0, errors: 0, db: 0, warnings: 0, skipped: 0 };
+    const c = { errorsOrDb: 0, errors: 0, db: 0, warnings: 0, skipped: 0, noLogo: 0 };
     for (const r of rows) {
       if (r.importResult) continue;
       if (!r.include) { c.skipped++; continue; }
+      if (!r.images.logo) c.noLogo++;
       const s = validation.get(r.rowId)?.status;
       const dup = isDbDuplicate(r);
       if (s === 'error') c.errors++;
@@ -322,6 +338,115 @@ export default function BulkImportProviders() {
     return failed;
   };
 
+  /**
+   * Vetting-time lookup: find a logo (and banner) for rows that aren't imported
+   * yet, using their Instagram handle and website. What comes back is attached
+   * to the row like a sheet link, so you can see it before importing and it
+   * uploads with the row. Slots that already hold an image are left alone.
+   */
+  const fetchSheetImages = async (targets: ImportRow[]) => {
+    const work = targets.filter((r) => !r.importResult && (r.fields.instagram.trim() || r.fields.website.trim()));
+    if (work.length === 0) {
+      toast.info('Those rows have no Instagram handle or website to look up');
+      return;
+    }
+    const chunks: ImportRow[][] = [];
+    for (let i = 0; i < work.length; i += AUTO_IMAGE_CHUNK) chunks.push(work.slice(i, i + AUTO_IMAGE_CHUNK));
+    let done = 0;
+    let cursor = 0;
+    let foundLogo = 0;
+    let foundNothing = 0;
+    let failed = 0;
+    setAutoProgress({ done: 0, total: work.length });
+
+    const worker = async () => {
+      while (cursor < chunks.length) {
+        const chunk = chunks[cursor++];
+        try {
+          const found = await withRateLimitRetry(() =>
+            providersService.imageCandidates(
+              chunk.map((r) => ({
+                rowId: r.rowId,
+                instagram: r.fields.instagram.trim() || undefined,
+                website: r.fields.website.trim() || undefined,
+              })),
+            ),
+          );
+          const byRow = new Map(found.map((f) => [f.rowId, f]));
+          setRows((prev) => prev.map((r) => {
+            const f = byRow.get(r.rowId);
+            if (!f) return r;
+            const images: RowImages = { ...r.images };
+            if (!images.logo && f.logos[0]) images.logo = makeLinkImage(f.logos[0].url, 'logo');
+            if (!images.banner && f.banners[0]) images.banner = makeLinkImage(f.banners[0].url, 'banner');
+            return { ...r, images };
+          }));
+          for (const f of found) {
+            if (f.logos.length) foundLogo++;
+            else if (!f.banners.length) foundNothing++;
+          }
+        } catch {
+          failed += chunk.length;
+        }
+        done += chunk.length;
+        setAutoProgress({ done, total: work.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(AUTO_IMAGE_CONCURRENCY, chunks.length) }, () => worker()));
+    setAutoProgress(null);
+
+    if (foundLogo) toast.success(`Found a logo for ${foundLogo} of ${work.length} row${work.length === 1 ? '' : 's'}`);
+    if (foundNothing) toast.info(`${foundNothing} row${foundNothing === 1 ? '' : 's'} had nothing usable — a banner is generated after import`);
+    if (failed) toast.warn(`Lookup failed for ${failed} row${failed === 1 ? '' : 's'}`);
+  };
+
+  /**
+   * Fill whatever the sheet didn't provide: Instagram profile picture, then the
+   * business's own website, then a generated branded banner. The server skips
+   * any provider that already has both images, so sheet images always win.
+   */
+  const fillMissingImages = async (jobs: { rowId: string; providerId: string }[]) => {
+    const chunks: { rowId: string; providerId: string }[][] = [];
+    for (let i = 0; i < jobs.length; i += AUTO_IMAGE_CHUNK) chunks.push(jobs.slice(i, i + AUTO_IMAGE_CHUNK));
+    const rowByProvider = new Map(jobs.map((j) => [j.providerId, j.rowId]));
+    const results: Record<string, AutoImageResult> = {};
+    let done = 0;
+    let cursor = 0;
+    let failedChunks = 0;
+    setAutoProgress({ done: 0, total: jobs.length });
+
+    const worker = async () => {
+      while (cursor < chunks.length) {
+        const chunk = chunks[cursor++];
+        try {
+          const res = await withRateLimitRetry(() => providersService.autoImages(chunk.map((j) => j.providerId)));
+          for (const r of res) {
+            const rowId = rowByProvider.get(r.providerId);
+            if (rowId) results[rowId] = r;
+          }
+        } catch {
+          failedChunks += chunk.length;
+        }
+        done += chunk.length;
+        setAutoProgress({ done, total: jobs.length });
+        setAutoImages((prev) => ({ ...prev, ...results }));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(AUTO_IMAGE_CONCURRENCY, chunks.length) }, () => worker()));
+    setAutoProgress(null);
+
+    const applied = Object.values(results);
+    const logos = applied.filter((r) => r.logo).length;
+    const siteBanners = applied.filter((r) => r.banner === 'website').length;
+    const generated = applied.filter((r) => r.banner === 'generated').length;
+    if (logos || siteBanners || generated) {
+      toast.success(`Auto images: ${logos} logo${logos === 1 ? '' : 's'}, ${siteBanners} banner${siteBanners === 1 ? '' : 's'} from websites, ${generated} generated`);
+    } else if (!failedChunks) {
+      toast.info('Auto images: nothing new to add');
+    }
+    if (failedChunks) toast.warn(`Auto images failed for ${failedChunks} provider${failedChunks === 1 ? '' : 's'} — they keep whatever the sheet gave them`);
+  };
+
   const retryFailedImages = async () => {
     const jobs = rows
       .filter((r) => r.importResult?.ok && r.importResult.providerId && allImages(r.images).some((i) => i.status === 'failed'))
@@ -381,11 +506,18 @@ export default function BulkImportProviders() {
       const failed = await uploadImagesFor(imageJobs, false);
       if (failed) toast.warn(`${failed} image${failed === 1 ? '' : 's'} failed to upload — retry from the summary above the table`);
     }
+
+    if (autoFillImages) {
+      const created = targets
+        .filter((r) => outcomes[r.rowId]?.ok && outcomes[r.rowId].providerId)
+        .map((r) => ({ rowId: r.rowId, providerId: outcomes[r.rowId].providerId as string }));
+      if (created.length) await fillMissingImages(created);
+    }
     setStep('done');
   };
 
   const downloadReport = () => {
-    const header = ['Row', 'Status', 'Brand', 'Owner', 'Mobile', 'City', 'Categories', 'Images', 'Outcome', 'Provider ID'];
+    const header = ['Row', 'Status', 'Brand', 'Owner', 'Mobile', 'City', 'Categories', 'Images', 'Outcome', 'Provider ID', 'Auto images'];
     const body = rows.map((r) => {
       const v = validation.get(r.rowId);
       return [
@@ -394,6 +526,7 @@ export default function BulkImportProviders() {
         summarizeImages(r.images),
         r.importResult ? (r.importResult.ok ? 'Created' : r.importResult.error ?? 'Failed') : [...(v?.errors ?? []), ...(v?.warnings ?? [])].map((i) => i.message).join('; '),
         r.importResult?.providerId ?? '',
+        autoImages[r.rowId] ? autoImageLabel(autoImages[r.rowId]).replace(/^Auto: /, '') : '',
       ];
     });
     downloadTextFile(`import-report-${fileName.replace(/\.[^.]+$/, '') || 'providers'}.csv`, toCsv([header, ...body]));
@@ -465,6 +598,14 @@ export default function BulkImportProviders() {
       onClick: () => skipWhere((r) => isDbDuplicate(r), 'rows already in the database'),
     },
     { label: 'Skip rows that need a look', count: skipCounts.warnings, icon: AlertTriangle, disabled: skipCounts.warnings === 0, onClick: () => skipWhere((_, s) => s === 'warning', 'rows that need a look') },
+    {
+      label: 'Skip rows with no logo',
+      hint: 'Try “Attach images → Fetch from Instagram / website” first',
+      count: skipCounts.noLogo,
+      icon: ImageIcon,
+      disabled: skipCounts.noLogo === 0,
+      onClick: () => skipWhere((r) => !r.images.logo, 'rows with no logo'),
+    },
     { divider: true },
     { label: 'Restore all skipped rows', count: skipCounts.skipped, icon: Undo2, disabled: skipCounts.skipped === 0, onClick: restoreSkipped },
   ];
@@ -485,15 +626,34 @@ export default function BulkImportProviders() {
   const statusSummary = importActive === 0 ? 'Unverified' : importUnverified === 0 ? 'Active' : `${importUnverified} Unverified, ${importActive} Active`;
   const importableDbDup = importable.filter(isDbDuplicate).length;
 
+  /** Included rows that still need a logo and have somewhere to look for one. */
+  const fetchableRows = rows.filter(
+    (r) => !r.importResult && r.include && !r.images.logo && (r.fields.instagram.trim() || r.fields.website.trim()),
+  );
+  const importableNoLogo = importable.filter((r) => !r.images.logo).length;
+
   const imageRows = rows.filter((r) => countImages(r.images) > 0).length;
   const imageTotal = rows.reduce((n, r) => n + countImages(r.images), 0);
   const importImageTotal = importable.reduce((n, r) => n + countImages(r.images), 0);
   const failedImageCount = rows.reduce((n, r) => n + (r.importResult?.ok ? allImages(r.images).filter((i) => i.status === 'failed').length : 0), 0);
+  /** Created businesses that haven't been through auto image fetch yet. */
+  const createdWithoutAutoImages = rows
+    .filter((r) => r.importResult?.ok && r.importResult.providerId && !autoImages[r.rowId])
+    .map((r) => ({ rowId: r.rowId, providerId: r.importResult?.providerId as string }));
   const uploadedImageCount = rows.reduce((n, r) => n + allImages(r.images).filter((i) => i.status === 'done').length, 0);
 
   const imageMenu: MenuItem[] = [
     { label: 'Choose a folder', hint: 'Photos named with the owner’s mobile number', icon: FolderOpen, onClick: () => folderInputRef.current?.click() },
     { label: 'Choose images or a ZIP', hint: 'e.g. 9876543210_logo.jpg, 9876543210_1.jpg', icon: FileArchive, onClick: () => imageFilesInputRef.current?.click() },
+    { divider: true },
+    {
+      label: 'Fetch from Instagram / website',
+      hint: 'Uses each row’s Instagram and Website columns',
+      count: fetchableRows.length,
+      icon: Sparkles,
+      disabled: fetchableRows.length === 0 || !!autoProgress,
+      onClick: () => { void fetchSheetImages(fetchableRows); },
+    },
     { divider: true },
     { label: 'Remove all images', count: imageTotal, icon: Trash2, tone: 'danger', disabled: imageTotal === 0, onClick: clearAllImages },
   ];
@@ -729,6 +889,16 @@ export default function BulkImportProviders() {
               <div className="flex items-center gap-2">
                 <button onClick={downloadReport} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg" style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}><Download className="w-4 h-4" /> Report</button>
                 {failedImageCount > 0 && <button onClick={() => { void retryFailedImages(); }} disabled={!!imageProgress} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50" style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}><RotateCcw className="w-4 h-4" /> Retry {failedImageCount} failed image{failedImageCount === 1 ? '' : 's'}</button>}
+                {createdWithoutAutoImages.length > 0 && (
+                  <button
+                    onClick={() => { void fillMissingImages(createdWithoutAutoImages); }}
+                    disabled={!!autoProgress}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg disabled:opacity-50"
+                    style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}
+                  >
+                    <Sparkles className="w-4 h-4" /> Fetch images for {createdWithoutAutoImages.length} business{createdWithoutAutoImages.length === 1 ? '' : 'es'}
+                  </button>
+                )}
                 {counts.failed > 0 && <button onClick={retryFailed} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg" style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}><RotateCcw className="w-4 h-4" /> Fix & retry failed</button>}
                 <button onClick={() => navigate(ROUTES.PROVIDERS)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white rounded-lg" style={{ background: 'var(--color-primary)' }}><Store className="w-4 h-4" /> View providers</button>
                 <button onClick={reset} className="px-3 py-1.5 text-sm font-medium rounded-lg" style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}>New import</button>
@@ -753,6 +923,15 @@ export default function BulkImportProviders() {
                   <ActionMenu label="Skip rows" icon={EyeOff} items={skipItems} />
                   <ActionMenu label="Apply to all" icon={SlidersHorizontal} items={applyItems} />
                   <ActionMenu label={matchingImages ? 'Reading images…' : 'Attach images'} icon={matchingImages ? Loader2 : ImagePlus} items={imageMenu} />
+                  <button
+                    onClick={() => setAutoFillImages((v) => !v)}
+                    className="vet-btn"
+                    data-variant={autoFillImages ? 'accent' : undefined}
+                    aria-pressed={autoFillImages}
+                    title="After import, fill any missing logo or banner: Instagram profile picture, then the business's own website, then a generated branded banner. Sheet images are never replaced."
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Auto images: {autoFillImages ? 'On' : 'Off'}
+                  </button>
                   <input
                     ref={folderInputRef}
                     type="file"
@@ -795,7 +974,7 @@ export default function BulkImportProviders() {
                     </div>
                     <button
                       onClick={() => setConfirmImport(true)}
-                      disabled={importable.length === 0 || !!progress || !!imageProgress}
+                      disabled={importable.length === 0 || !!progress || !!imageProgress || !!autoProgress}
                       className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
                       style={{ background: 'var(--color-primary)', boxShadow: 'var(--shadow-sm)' }}
                     >
@@ -816,6 +995,14 @@ export default function BulkImportProviders() {
                 <p className="mb-1 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>Uploading images {imageProgress.done}/{imageProgress.total}…</p>
                 <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${(imageProgress.done / Math.max(1, imageProgress.total)) * 100}%`, background: 'var(--color-info)' }} />
+                </div>
+              </div>
+            )}
+            {autoProgress && (
+              <div className="mt-3">
+                <p className="mb-1 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>Finding logos & banners {autoProgress.done}/{autoProgress.total}…</p>
+                <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(autoProgress.done / Math.max(1, autoProgress.total)) * 100}%`, background: 'var(--color-primary)' }} />
                 </div>
               </div>
             )}
@@ -967,6 +1154,9 @@ export default function BulkImportProviders() {
                               ].filter(Boolean).join(' · ')}
                             </p>
                           )}
+                          {autoImages[row.rowId] && autoImageLabel(autoImages[row.rowId]) && (
+                            <p className="vet-sub">{autoImageLabel(autoImages[row.rowId])}</p>
+                          )}
                         </td>
                         <td className="vet-sticky vet-sticky-edge" style={{ left: STICKY_LEFT.brandName }}>{cell('brandName', { placeholder: 'Business name' })}</td>
                         <td>{cell('userName', { placeholder: 'Owner name' })}</td>
@@ -977,7 +1167,31 @@ export default function BulkImportProviders() {
                         <td>{cell('area', { placeholder: 'Optional' })}</td>
                         <td>{cell('pincode', { mono: true, numeric: true, placeholder: '6 digits' })}</td>
                         <td>
-                          <ImagesCell images={row.images} disabled={locked} onChange={(next, discarded) => setRowImages(row.rowId, next, discarded)} />
+                          <div className="flex items-start gap-1">
+                            <ImagesCell images={row.images} disabled={locked} onChange={(next, discarded) => setRowImages(row.rowId, next, discarded)} />
+                            {!row.importResult && (row.fields.instagram.trim() || row.fields.website.trim()) && (
+                              <button
+                                onClick={() => { void fetchSheetImages([row]); }}
+                                disabled={!!autoProgress || locked}
+                                className="vet-btn"
+                                title={`Fetch a logo${row.fields.instagram.trim() ? ' from Instagram' : ''}${row.fields.instagram.trim() && row.fields.website.trim() ? ', else' : ''}${row.fields.website.trim() ? ' from the website' : ''}`}
+                                aria-label={`Fetch images for ${row.fields.brandName || 'this row'}`}
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {row.importResult?.ok && row.importResult.providerId && (
+                              <button
+                                onClick={() => { void fillMissingImages([{ rowId: row.rowId, providerId: row.importResult?.providerId as string }]); }}
+                                disabled={!!autoProgress}
+                                className="vet-btn"
+                                title="Fetch a logo and banner for this business now (Instagram → website → generated)"
+                                aria-label={`Fetch images for ${row.fields.brandName || 'this business'}`}
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <CategoryCell options={categories} value={row.categoryIds} disabled={locked} onChange={(ids) => setCategories(row.rowId, ids)} rawText={row.categoryText} unmatched={row.unmatchedCategories} warning={fieldWarn('categories')} />
@@ -1206,6 +1420,16 @@ export default function BulkImportProviders() {
         isLoading={importMutation.isPending}
       >
         <div className="space-y-2">
+          {importableNoLogo > 0 && (
+            <p className="flex items-start gap-1.5 rounded-lg p-2 text-xs" style={{ background: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' }}>
+              <ImageIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> {importableNoLogo} of these have no logo. Try “Attach images → Fetch from Instagram / website”, or use “Skip rows with no logo” to leave them out.
+            </p>
+          )}
+          {autoFillImages && (
+            <p className="flex items-start gap-1.5 rounded-lg p-2 text-xs" style={{ background: 'var(--surface-1)', color: 'var(--text-secondary)' }}>
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> Missing logos and banners will be filled afterwards — “Auto images” is on in the toolbar.
+            </p>
+          )}
           {!rows.some((r) => r.serverCheck) && (
             <p className="flex items-start gap-1.5 rounded-lg p-2 text-xs" style={{ background: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' }}>
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> You haven't run "Check against database" yet. Rows that clash with existing records will fail and be reported.

@@ -34,6 +34,26 @@ export interface ProviderEnrichment {
   notes: string[];
 }
 
+/** Logo/banner candidates for a sheet row being vetted — nothing is saved yet. */
+export interface SheetImageCandidates {
+  rowId: string;
+  website: string | null;
+  logos: EnrichImageCandidate[];
+  banners: EnrichImageCandidate[];
+  notes: string[];
+}
+
+/** What auto-fill actually saved for one provider. */
+export interface AutoImageResult {
+  providerId: string;
+  brandName: string;
+  logo: 'instagram' | 'website' | null;
+  banner: 'website' | 'generated' | null;
+  /** The provider already had both images. */
+  skipped: boolean;
+  notes: string[];
+}
+
 export const providersService = {
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
     const params = new URLSearchParams();
@@ -44,6 +64,7 @@ export const providersService = {
     if (filters.city) params.set('city', filters.city);
     if (filters.isFeatured !== undefined) params.set('isFeatured', String(filters.isFeatured));
     if (filters.isWomenLed !== undefined) params.set('isWomenLed', String(filters.isWomenLed));
+    if (filters.categoryId) params.set('categoryId', filters.categoryId);
     const { data } = await api.get(`${URLS.PROVIDERS.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
@@ -147,6 +168,26 @@ export const providersService = {
   /** Up to 10 ids per call; each provider can take several seconds on the server. */
   enrich: async (ids: string[]): Promise<ProviderEnrichment[]> => {
     const { data } = await api.post(URLS.PROVIDERS.ENRICH, { ids }, { timeout: 180_000 });
+    return data;
+  },
+
+  /**
+   * Candidates for rows in the bulk-import sheet, from their Instagram handle
+   * and website. Up to 10 rows per call; nothing is saved.
+   */
+  imageCandidates: async (
+    rows: { rowId: string; instagram?: string; website?: string }[],
+  ): Promise<SheetImageCandidates[]> => {
+    const { data } = await api.post(URLS.PROVIDERS.IMAGE_CANDIDATES, { rows }, { timeout: 180_000 });
+    return data;
+  },
+
+  /**
+   * Fills missing images only: Instagram profile picture, then the website's
+   * logo/banner, then a generated branded banner. Existing images are kept.
+   */
+  autoImages: async (ids: string[]): Promise<AutoImageResult[]> => {
+    const { data } = await api.post(URLS.PROVIDERS.AUTO_IMAGES, { ids }, { timeout: 300_000 });
     return data;
   },
 
