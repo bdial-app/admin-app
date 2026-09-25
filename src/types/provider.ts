@@ -58,4 +58,6 @@ export interface ProviderFilters {
   city?: string;
   isFeatured?: boolean;
   isWomenLed?: boolean;
+  /** Only providers listed in this category */
+  categoryId?: string;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles } from 'lucide-react';
 import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
+import { CategoryFilter } from '../components/providers/CategoryFilter';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -9,6 +10,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { PermissionGate } from '../components/auth/PermissionGate';
 import { useHasPermission } from '../hooks/usePermissions';
+import { useFlatCategories } from '../hooks/useCategories';
 import {
   useProviders,
   useApproveProvider,
@@ -40,6 +42,7 @@ export default function Providers() {
   const [status, setStatus] = useState<ProviderStatus | ''>('');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
+  const [categoryId, setCategoryId] = useState('');
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -49,9 +52,12 @@ export default function Providers() {
   const canDelete = useHasPermission('providers.delete');
   const canUpdate = useHasPermission('providers.update');
 
+  const { data: categories = [] } = useFlatCategories();
+
   const { data, isLoading } = useProviders({
     page,
     limit: pageSize,
+    categoryId: categoryId || undefined,
     search: search || undefined,
     status: status || undefined,
   });
@@ -246,6 +252,15 @@ export default function Providers() {
               {tab.label}
             </button>
           ))}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
+          Category
+          <CategoryFilter
+            categories={categories}
+            value={categoryId}
+            onChange={(id) => { setCategoryId(id); setPage(1); resetSelection(); }}
+          />
         </div>
 
         <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
