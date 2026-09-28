@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { providersService } from '../services/providers.service';
+import { providerKeys } from '../hooks/useProviders';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
 import { CategoryFilter } from '../components/providers/CategoryFilter';
+import { LocationHealthCard } from '../components/providers/LocationHealthCard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -32,6 +36,28 @@ const STATUS_TABS: { label: string; value: ProviderStatus | '' }[] = [
   { label: 'Suspended', value: 'suspended' },
 ];
 
+/** Only an owner's pin or a precise address lookup counts; a city centre doesn't. */
+const hasExactPin = (p: Provider) =>
+  Boolean(p.latitude && p.longitude && p.geocodePrecision !== 'city');
+
+/**
+ * A WhatsApp draft asking the owner to drop their own pin — the only way to get
+ * a rooftop-accurate location for a business that was bulk-imported.
+ */
+const pinRequestLink = (p: Provider) => {
+  const raw = p.user?.mobileNumber ?? p.contactNumber ?? '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const phone = digits.length === 10 ? `91${digits}` : digits;
+  const text =
+    `Assalamu alaikum${p.user?.name ? ` ${p.user.name}` : ''}, this is the Tijarah team. ` +
+    `${p.brandName} is listed on Tijarah, but we don't have your shop's exact location yet, ` +
+    `so customers nearby can't see how far you are or get directions to you.\n\n` +
+    `Please open the Tijarah app → Business → Details → Business Location, and drop the pin on your shop. It takes a minute.\n\n` +
+    `Get the app: https://tijarahapp.in`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+};
+
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -47,6 +73,7 @@ export default function Providers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [enrichIds, setEnrichIds] = useState<string[] | null>(null);
+  const [fixingLocations, setFixingLocations] = useState(false);
   // Bumped per open so the panel remounts with fresh state.
   const [enrichRun, setEnrichRun] = useState(0);
   const canDelete = useHasPermission('providers.delete');
@@ -66,6 +93,7 @@ export default function Providers() {
   const suspendMutation = useSuspendProvider();
   const unsuspendMutation = useUnsuspendProvider();
   const bulkDeleteMutation = useBulkDeleteProviders();
+  const qc = useQueryClient();
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
@@ -101,6 +129,42 @@ export default function Providers() {
       setBulkDeleteOpen(false);
     } catch {
       toast.error('Bulk delete stopped part-way — the list is refreshed, check which providers remain');
+    }
+  };
+
+  /**
+   * Put the selected businesses on the map. The server never overwrites a pin
+   * the owner set: it geocodes the address or locality (once per distinct place,
+   * cached) and falls back to the city centre, marked approximate.
+   */
+  const handleFixLocations = async () => {
+    const ids = Array.from(selectedIds);
+    setFixingLocations(true);
+    let exact = 0;
+    let approx = 0;
+    let none = 0;
+    let failed = 0;
+    try {
+      for (let i = 0; i < ids.length; i += 50) {
+        try {
+          const res = await providersService.geocode(ids.slice(i, i + 50));
+          for (const r of res) {
+            if (r.skipped) continue;
+            if (!r.precision) none += 1;
+            else if (r.precision === 'city') approx += 1;
+            else exact += 1;
+          }
+        } catch {
+          failed += Math.min(50, ids.length - i);
+        }
+      }
+      await qc.invalidateQueries({ queryKey: providerKeys.all });
+      if (exact || approx) toast.success(`Located ${exact} from their address, ${approx} at the city centre`);
+      else if (!none && !failed) toast.info('These already had a good location');
+      if (none) toast.warn(`${none} had no usable address or city — they stay off the map`);
+      if (failed) toast.error(`Location lookup failed for ${failed} provider${failed === 1 ? '' : 's'}`);
+    } finally {
+      setFixingLocations(false);
     }
   };
 
@@ -235,6 +299,8 @@ export default function Providers() {
         }
       />
 
+      {canUpdate && <LocationHealthCard />}
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         {/* Status Tabs */}
         <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
@@ -308,6 +374,17 @@ export default function Providers() {
                 style={{ background: 'var(--color-primary-light, var(--surface-2))', color: 'var(--color-primary)' }}
               >
                 <Sparkles className="w-3.5 h-3.5" /> Find logos & websites
+              </button>
+            )}
+            {canUpdate && (
+              <button
+                onClick={() => void handleFixLocations()}
+                disabled={fixingLocations}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg disabled:opacity-60"
+                style={{ background: 'var(--color-info-light, var(--surface-2))', color: 'var(--color-info, var(--text-primary))' }}
+                title="Geocode the address or locality we already hold; anything with only a city is placed at the city centre and marked approximate. Pins set by the owner are left alone."
+              >
+                {fixingLocations ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />} Fix locations
               </button>
             )}
             {canDelete && (
@@ -487,6 +564,32 @@ export default function Providers() {
                 </div>
               ))}
             </div>
+
+            {/* Location quality — a bulk-imported business usually needs the owner's own pin */}
+            {!hasExactPin(selectedProvider) && (
+              <div className="rounded-lg p-3" style={{ background: 'var(--color-warning-light)' }}>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-warning-dark)' }}>
+                  <MapPin className="inline w-3.5 h-3.5 mr-1" />
+                  {selectedProvider.latitude && selectedProvider.longitude
+                    ? 'Approximate location — placed at the city centre'
+                    : 'No location on the map'}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Customers can't see how far away this business is, and can't get directions to it.
+                </p>
+                {pinRequestLink(selectedProvider) && (
+                  <a
+                    href={pinRequestLink(selectedProvider) as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg"
+                    style={{ background: 'var(--surface-0)', color: 'var(--color-warning-dark)' }}
+                  >
+                    Ask the owner on WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Online Presence (quick view) */}
             {(selectedProvider.websiteUrl || selectedProvider.instagramHandle || selectedProvider.facebookHandle || selectedProvider.youtubeHandle || selectedProvider.whatsappNumber || selectedProvider.linkedinHandle) && (
