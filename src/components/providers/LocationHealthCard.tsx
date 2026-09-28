@@ -27,10 +27,11 @@ export function LocationHealthCard() {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
-  const { data: stats, isLoading, refetch } = useQuery({
+  const { data: stats, isLoading, isError, refetch } = useQuery({
     queryKey: ['providers', 'location-stats'],
     queryFn: () => providersService.locationStats(),
     staleTime: 60_000,
+    retry: 1,
   });
 
   const runSweep = async () => {
@@ -84,7 +85,30 @@ export function LocationHealthCard() {
     }
   };
 
-  if (isLoading || !stats) return null;
+  if (isLoading) return null;
+
+  // Say so rather than disappearing: a hidden card looks identical to a healthy
+  // catalogue, which is how a broken endpoint went unnoticed.
+  if (isError || !stats) {
+    return (
+      <div
+        className="mb-4 flex items-center justify-between gap-3 rounded-xl border p-3"
+        style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)' }}
+      >
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <MapPin className="mr-1 inline h-3.5 w-3.5" />
+          Couldn't read location coverage — the backend may not have this endpoint yet.
+        </p>
+        <button
+          onClick={() => void refetch()}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-medium"
+          style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const needsWork = stats.missing + stats.approximate;
   // Nothing to say when every business is properly pinned.
