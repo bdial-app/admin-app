@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
 import { PhoneOtpVerifier } from '../components/ui/PhoneOtpVerifier';
+import LocationPicker, { type LocationData } from '../components/ui/LocationPicker';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
   useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
@@ -31,6 +32,30 @@ import type { Product, ProviderOffer } from '../types';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
 type EditingSection = 'business' | 'contact' | 'location' | 'social' | 'categories' | null;
+
+/** A city-centre pin is a placeholder we generated, not a real address. */
+const hasExactPin = (p: { latitude: number | null; longitude: number | null; geocodePrecision?: string | null }) =>
+  Boolean(p.latitude && p.longitude && p.geocodePrecision !== 'city');
+
+const pinLabel = (precision: string | null | undefined, lat: number | null, lng: number | null) => {
+  if (lat == null || lng == null) return 'No pin on the map';
+  switch (precision) {
+    case 'manual': return 'Pinned by hand — exact';
+    case 'rooftop': return 'Exact address';
+    case 'street': return 'Street level';
+    case 'locality': return 'Locality level';
+    case 'pincode': return 'Pincode area';
+    case 'city': return 'Approximate — city centre';
+    default: return 'Pinned';
+  }
+};
+
+const pinBadgeStyle = (precision: string | null | undefined, lat: number | null, lng: number | null) => {
+  if (lat == null || lng == null || precision === 'city') {
+    return { background: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' };
+  }
+  return { background: 'var(--color-success-light)', color: 'var(--color-success-dark)' };
+};
 type BrandAsset = 'logo' | 'banner';
 
 const MAX_ASSET_BYTES = 10 * 1024 * 1024;
@@ -73,7 +98,7 @@ export default function ProviderView() {
   const [businessForm, setBusinessForm] = useState({ brandName: '', description: '', isWomenLed: false, isAvailable: true });
   const [contactForm, setContactForm] = useState({ contactNumber: '', openTime: '', closeTime: '' });
   const [contactOtpVerified, setContactOtpVerified] = useState(false);
-  const [locationForm, setLocationForm] = useState({ city: '', area: '', pincode: '', address: '' });
+  const [locationForm, setLocationForm] = useState({ city: '', area: '', pincode: '', address: '', latitude: '', longitude: '' });
   const [socialForm, setSocialForm] = useState({ websiteUrl: '', instagramHandle: '', facebookHandle: '', youtubeHandle: '', whatsappNumber: '' });
   const [categoryForm, setCategoryForm] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
@@ -228,6 +253,8 @@ export default function ProviderView() {
         area: provider.area || '',
         pincode: provider.pincode || '',
         address: provider.address || '',
+        latitude: provider.latitude != null ? String(provider.latitude) : '',
+        longitude: provider.longitude != null ? String(provider.longitude) : '',
       });
     } else if (section === 'social') {
       setSocialForm({
@@ -281,11 +308,39 @@ export default function ProviderView() {
     }
   };
 
+  // Search, GPS or a tap on the map all land here: the picker reverse-geocodes
+  // the point and fills city/area/pincode/address to match the pin.
+  const handleLocationPick = useCallback((data: LocationData) => {
+    setLocationForm({
+      city: data.city,
+      area: data.area,
+      pincode: data.pincode,
+      address: data.address,
+      latitude: data.latitude,
+      longitude: data.longitude,
+    });
+  }, []);
+
   const saveLocation = async () => {
     if (!id) return;
     try {
-      await updateProviderMut.mutateAsync({ id, body: { city: locationForm.city, area: locationForm.area || null, pincode: locationForm.pincode || null, address: locationForm.address || null } });
-      toast.success('Location updated');
+      const lat = locationForm.latitude.trim();
+      const lng = locationForm.longitude.trim();
+      await updateProviderMut.mutateAsync({
+        id,
+        body: {
+          city: locationForm.city,
+          area: locationForm.area || null,
+          pincode: locationForm.pincode || null,
+          address: locationForm.address || null,
+          // A pin an admin placed by hand is the real thing: the server marks it
+          // 'manual' so no later backfill can move it.
+          ...(lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))
+            ? { latitude: Number(lat), longitude: Number(lng) }
+            : {}),
+        },
+      });
+      toast.success(lat && lng ? 'Location and map pin updated' : 'Location updated');
       setEditingSection(null);
     } catch { toast.error('Failed to update'); }
   };
@@ -794,27 +849,46 @@ export default function ProviderView() {
                       <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Address</p>
                       <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.address || '—'}</p>
                     </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Map pin</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span
+                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={pinBadgeStyle(provider.geocodePrecision, provider.latitude, provider.longitude)}
+                        >
+                          {pinLabel(provider.geocodePrecision, provider.latitude, provider.longitude)}
+                        </span>
+                        {provider.latitude != null && provider.longitude != null && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${provider.latitude},${provider.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium hover:underline"
+                            style={{ color: 'var(--color-primary)' }}
+                          >
+                            {Number(provider.latitude).toFixed(5)}, {Number(provider.longitude).toFixed(5)} ↗
+                          </a>
+                        )}
+                      </div>
+                      {!hasExactPin(provider) && (
+                        <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                          Customers can't see how far away this business is. Edit and drop the pin on the shop.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>City</label>
-                        <input type="text" value={locationForm.city} onChange={(e) => setLocationForm((p) => ({ ...p, city: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Area</label>
-                        <input type="text" value={locationForm.area} onChange={(e) => setLocationForm((p) => ({ ...p, area: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Pincode</label>
-                        <input type="text" value={locationForm.pincode} onChange={(e) => setLocationForm((p) => ({ ...p, pincode: e.target.value }))} maxLength={10} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Address</label>
-                        <input type="text" value={locationForm.address} onChange={(e) => setLocationForm((p) => ({ ...p, address: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                      </div>
-                    </div>
+                    <LocationPicker
+                      latitude={locationForm.latitude}
+                      longitude={locationForm.longitude}
+                      city={locationForm.city}
+                      area={locationForm.area}
+                      pincode={locationForm.pincode}
+                      address={locationForm.address}
+                      onLocationChange={handleLocationPick}
+                      showAddress
+                    />
                     <div className="flex items-center gap-2 pt-1">
                       <button onClick={saveLocation} disabled={updateProviderMut.isPending || !locationForm.city.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
                         {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
