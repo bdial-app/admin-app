@@ -43,6 +43,27 @@ export interface SheetImageCandidates {
   notes: string[];
 }
 
+/** Where a provider's pin came from, and how exact it is. */
+export interface ProviderLocationResult {
+  providerId: string;
+  brandName: string;
+  precision: 'rooftop' | 'street' | 'locality' | 'pincode' | 'city' | 'manual' | null;
+  source: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  skipped: boolean;
+  note?: string;
+}
+
+export interface LocationStats {
+  total: number;
+  precise: number;
+  approximate: number;
+  missing: number;
+  byPrecision: Record<string, number>;
+  improvable: number;
+}
+
 /** What auto-fill actually saved for one provider. */
 export interface AutoImageResult {
   providerId: string;
@@ -179,6 +200,30 @@ export const providersService = {
     rows: { rowId: string; instagram?: string; website?: string }[],
   ): Promise<SheetImageCandidates[]> => {
     const { data } = await api.post(URLS.PROVIDERS.IMAGE_CANDIDATES, { rows }, { timeout: 180_000 });
+    return data;
+  },
+
+  /**
+   * Gives providers a location: address/area/pincode through a cached geocoder,
+   * otherwise the city centre (free). Precise pins are never overwritten.
+   * Up to 50 ids per call.
+   */
+  geocode: async (
+    ids: string[],
+    opts: { allowGoogle?: boolean; force?: boolean } = {},
+  ): Promise<ProviderLocationResult[]> => {
+    const { data } = await api.post(URLS.PROVIDERS.GEOCODE, { ids, ...opts }, { timeout: 180_000 });
+    return data;
+  },
+
+  locationStats: async (): Promise<LocationStats> => {
+    const { data } = await api.get(URLS.PROVIDERS.LOCATION_STATS);
+    return data;
+  },
+
+  /** Ids of providers with a missing or weak pin, newest first. */
+  locationCandidates: async (limit = 200): Promise<string[]> => {
+    const { data } = await api.get(`${URLS.PROVIDERS.LOCATION_CANDIDATES}?limit=${limit}`);
     return data;
   },
 

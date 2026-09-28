@@ -4,7 +4,7 @@ import {
   Upload, FileSpreadsheet, ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Search, Eye, X,
   Download, DatabaseZap, Loader2, RotateCcw, Ban, Check, Plus, Info, Users, Store, Sparkles,
   Wand2, EyeOff, SlidersHorizontal, ChevronDown, CircleSlash, Undo2, ShieldAlert, BadgeCheck, UserRound,
-  ImagePlus, FolderOpen, FileArchive, Trash2, Image as ImageIcon,
+  ImagePlus, FolderOpen, FileArchive, Trash2, Image as ImageIcon, MapPin,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -16,7 +16,7 @@ import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Category, Gender } from '../types';
 import type { BulkImportRowResult } from '../services/bulk-import.service';
-import { providersService, type AutoImageResult } from '../services/providers.service';
+import { providersService, type AutoImageResult, type ProviderLocationResult } from '../services/providers.service';
 import { ImagesCell, ImageList } from '../components/bulk-import/ImagesCell';
 import {
   allImages, countImages, expandImageSources, filesFromDrop, imagesToSend, makeLinkImage, matchImageFiles, revokeImages,
@@ -93,6 +93,19 @@ const IMAGE_CONCURRENCY = 3;
 const AUTO_IMAGE_CHUNK = 10;
 const AUTO_IMAGE_CONCURRENCY = 2;
 
+/** Geocoding is cheap per row (mostly cache hits), so bigger batches than images. */
+const LOCATE_CHUNK = 50;
+
+/** Plain English for where a pin came from — 'city' is the one an admin should follow up on. */
+const locationLabel = (r: ProviderLocationResult): string => {
+  if (r.skipped) return '';
+  if (!r.precision) return r.note ? `Location: ${r.note}` : 'Location: not found';
+  if (r.precision === 'city') return 'Location: city centre only (approximate)';
+  if (r.precision === 'pincode') return 'Location: pincode area';
+  if (r.precision === 'locality') return 'Location: locality';
+  return 'Location: exact address';
+};
+
 const autoImageLabel = (r: AutoImageResult): string => {
   const parts: string[] = [];
   if (r.logo) parts.push(`logo from ${r.logo === 'instagram' ? 'Instagram' : 'website'}`);
@@ -152,6 +165,9 @@ export default function BulkImportProviders() {
   const [autoFillImages, setAutoFillImages] = useState(true);
   const [autoImages, setAutoImages] = useState<Record<string, AutoImageResult>>({});
   const [autoProgress, setAutoProgress] = useState<{ done: number; total: number } | null>(null);
+  const [autoLocate, setAutoLocate] = useState(true);
+  const [locations, setLocations] = useState<Record<string, ProviderLocationResult>>({});
+  const [locateProgress, setLocateProgress] = useState<{ done: number; total: number } | null>(null);
   const [imageMatch, setImageMatch] = useState<ImageMatchSummary | null>(null);
   const [matchingImages, setMatchingImages] = useState(false);
   const [tableDragOver, setTableDragOver] = useState(false);
@@ -447,6 +463,53 @@ export default function BulkImportProviders() {
     if (failedChunks) toast.warn(`Auto images failed for ${failedChunks} provider${failedChunks === 1 ? '' : 's'} — they keep whatever the sheet gave them`);
   };
 
+  /**
+   * Give every new business a place on the map. The server works cheapest-first:
+   * a precise pin is left alone, an address or locality is geocoded once and
+   * cached (so a street shared by 80 shops costs one lookup), and anything with
+   * only a city falls back to that city's centre for free — marked approximate,
+   * so the app shows the town instead of a made-up distance.
+   */
+  const pinLocations = async (jobs: { rowId: string; providerId: string }[]) => {
+    const chunks: { rowId: string; providerId: string }[][] = [];
+    for (let i = 0; i < jobs.length; i += LOCATE_CHUNK) chunks.push(jobs.slice(i, i + LOCATE_CHUNK));
+    const rowByProvider = new Map(jobs.map((j) => [j.providerId, j.rowId]));
+    const results: Record<string, ProviderLocationResult> = {};
+    let done = 0;
+    let failed = 0;
+    setLocateProgress({ done: 0, total: jobs.length });
+
+    // Sequential: the server already runs its own workers, and a shared locality
+    // is only looked up once if the calls don't race each other.
+    for (const chunk of chunks) {
+      try {
+        const res = await withRateLimitRetry(() => providersService.geocode(chunk.map((j) => j.providerId)));
+        for (const r of res) {
+          const rowId = rowByProvider.get(r.providerId);
+          if (rowId) results[rowId] = r;
+        }
+      } catch {
+        failed += chunk.length;
+      }
+      done += chunk.length;
+      setLocateProgress({ done, total: jobs.length });
+      setLocations((prev) => ({ ...prev, ...results }));
+    }
+    setLocateProgress(null);
+
+    const applied = Object.values(results).filter((r) => !r.skipped);
+    const exact = applied.filter((r) => r.precision && r.precision !== 'city').length;
+    const approx = applied.filter((r) => r.precision === 'city').length;
+    const none = applied.filter((r) => !r.precision).length;
+    if (exact || approx) {
+      toast.success(`Locations: ${exact} from their address, ${approx} placed at the city centre`);
+    } else if (!failed && !none) {
+      toast.info('Locations: nothing to add');
+    }
+    if (none) toast.warn(`${none} business${none === 1 ? ' has' : 'es have'} no usable address or city — they stay off the map`);
+    if (failed) toast.warn(`Location lookup failed for ${failed} business${failed === 1 ? '' : 'es'} — run “Fix locations” from the providers list later`);
+  };
+
   const retryFailedImages = async () => {
     const jobs = rows
       .filter((r) => r.importResult?.ok && r.importResult.providerId && allImages(r.images).some((i) => i.status === 'failed'))
@@ -513,11 +576,18 @@ export default function BulkImportProviders() {
         .map((r) => ({ rowId: r.rowId, providerId: outcomes[r.rowId].providerId as string }));
       if (created.length) await fillMissingImages(created);
     }
+
+    if (autoLocate) {
+      const created = targets
+        .filter((r) => outcomes[r.rowId]?.ok && outcomes[r.rowId].providerId)
+        .map((r) => ({ rowId: r.rowId, providerId: outcomes[r.rowId].providerId as string }));
+      if (created.length) await pinLocations(created);
+    }
     setStep('done');
   };
 
   const downloadReport = () => {
-    const header = ['Row', 'Status', 'Brand', 'Owner', 'Mobile', 'City', 'Categories', 'Images', 'Outcome', 'Provider ID', 'Auto images'];
+    const header = ['Row', 'Status', 'Brand', 'Owner', 'Mobile', 'City', 'Categories', 'Images', 'Outcome', 'Provider ID', 'Auto images', 'Location'];
     const body = rows.map((r) => {
       const v = validation.get(r.rowId);
       return [
@@ -527,6 +597,7 @@ export default function BulkImportProviders() {
         r.importResult ? (r.importResult.ok ? 'Created' : r.importResult.error ?? 'Failed') : [...(v?.errors ?? []), ...(v?.warnings ?? [])].map((i) => i.message).join('; '),
         r.importResult?.providerId ?? '',
         autoImages[r.rowId] ? autoImageLabel(autoImages[r.rowId]).replace(/^Auto: /, '') : '',
+        locations[r.rowId] ? locationLabel(locations[r.rowId]).replace(/^Location: /, '') : '',
       ];
     });
     downloadTextFile(`import-report-${fileName.replace(/\.[^.]+$/, '') || 'providers'}.csv`, toCsv([header, ...body]));
@@ -540,7 +611,7 @@ export default function BulkImportProviders() {
 
   const reset = () => {
     revokeImages(rows.flatMap((r) => allImages(r.images)));
-    setStep('upload'); setFileName(''); setSheets([]); setMapping({}); setRows([]); setFilter('all'); setSearch(''); setDetailRowId(null); setImageMatch(null);
+    setStep('upload'); setFileName(''); setSheets([]); setMapping({}); setRows([]); setAutoImages({}); setLocations({}); setFilter('all'); setSearch(''); setDetailRowId(null); setImageMatch(null);
   };
 
   const detailRow = detailRowId ? rows.find((r) => r.rowId === detailRowId) ?? null : null;
@@ -932,6 +1003,15 @@ export default function BulkImportProviders() {
                   >
                     <Sparkles className="h-3.5 w-3.5" /> Auto images: {autoFillImages ? 'On' : 'Off'}
                   </button>
+                  <button
+                    onClick={() => setAutoLocate((v) => !v)}
+                    className="vet-btn"
+                    data-variant={autoLocate ? 'accent' : undefined}
+                    aria-pressed={autoLocate}
+                    title="After import, put every new business on the map: its address or locality is looked up once and cached, and anything with only a city is placed at the city centre and marked approximate."
+                  >
+                    <MapPin className="h-3.5 w-3.5" /> Auto locate: {autoLocate ? 'On' : 'Off'}
+                  </button>
                   <input
                     ref={folderInputRef}
                     type="file"
@@ -974,7 +1054,7 @@ export default function BulkImportProviders() {
                     </div>
                     <button
                       onClick={() => setConfirmImport(true)}
-                      disabled={importable.length === 0 || !!progress || !!imageProgress || !!autoProgress}
+                      disabled={importable.length === 0 || !!progress || !!imageProgress || !!autoProgress || !!locateProgress}
                       className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
                       style={{ background: 'var(--color-primary)', boxShadow: 'var(--shadow-sm)' }}
                     >
@@ -1003,6 +1083,14 @@ export default function BulkImportProviders() {
                 <p className="mb-1 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>Finding logos & banners {autoProgress.done}/{autoProgress.total}…</p>
                 <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${(autoProgress.done / Math.max(1, autoProgress.total)) * 100}%`, background: 'var(--color-primary)' }} />
+                </div>
+              </div>
+            )}
+            {locateProgress && (
+              <div className="mt-3">
+                <p className="mb-1 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>Placing on the map {locateProgress.done}/{locateProgress.total}…</p>
+                <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(locateProgress.done / Math.max(1, locateProgress.total)) * 100}%`, background: 'var(--color-info)' }} />
                 </div>
               </div>
             )}
@@ -1156,6 +1244,9 @@ export default function BulkImportProviders() {
                           )}
                           {autoImages[row.rowId] && autoImageLabel(autoImages[row.rowId]) && (
                             <p className="vet-sub">{autoImageLabel(autoImages[row.rowId])}</p>
+                          )}
+                          {locations[row.rowId] && locationLabel(locations[row.rowId]) && (
+                            <p className="vet-sub">{locationLabel(locations[row.rowId])}</p>
                           )}
                         </td>
                         <td className="vet-sticky vet-sticky-edge" style={{ left: STICKY_LEFT.brandName }}>{cell('brandName', { placeholder: 'Business name' })}</td>
@@ -1428,6 +1519,11 @@ export default function BulkImportProviders() {
           {autoFillImages && (
             <p className="flex items-start gap-1.5 rounded-lg p-2 text-xs" style={{ background: 'var(--surface-1)', color: 'var(--text-secondary)' }}>
               <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> Missing logos and banners will be filled afterwards — “Auto images” is on in the toolbar.
+            </p>
+          )}
+          {autoLocate && (
+            <p className="flex items-start gap-1.5 rounded-lg p-2 text-xs" style={{ background: 'var(--surface-1)', color: 'var(--text-secondary)' }}>
+              <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> Each new business will be put on the map afterwards — “Auto locate” is on. Rows with only a city land on the city centre and are marked approximate.
             </p>
           )}
           {!rows.some((r) => r.serverCheck) && (

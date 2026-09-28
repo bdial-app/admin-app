@@ -12,6 +12,8 @@ export interface Provider {
   pincode: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** 'city' means the pin is only the town centre — a placeholder, not an address. */
+  geocodePrecision?: 'rooftop' | 'street' | 'locality' | 'pincode' | 'city' | 'manual' | null;
   contactNumber: string;
   openTime: string | null;
   closeTime: string | null;
