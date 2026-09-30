@@ -76,3 +76,52 @@ export const productsService = {
     return data;
   },
 };
+
+// ── Bulk import of products and services ─────────────────────────────────
+
+export interface ProductBulkRow {
+  rowId: string;
+  /** Whatever the sheet said: an id, a business name, or a phone number. */
+  providerRef?: string;
+  /** Chosen in the UI — wins over providerRef. */
+  providerId?: string;
+  name?: string;
+  description?: string;
+  price?: string | number;
+  currency?: string;
+  productType?: string;
+  categoryId?: string;
+  photoUrl?: string;
+}
+
+export type ProviderMatch = 'matched' | 'ambiguous' | 'missing' | 'none';
+
+export interface ProductRowVerdict {
+  rowId: string;
+  providerMatch: ProviderMatch;
+  providerId: string | null;
+  providerName: string | null;
+  candidates?: { id: string; brandName: string; city: string | null }[];
+  duplicate: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ProductImportResult {
+  rowId: string;
+  ok: boolean;
+  productId?: string;
+  name?: string;
+  error?: string;
+}
+
+/** Dry run — writes nothing. */
+export const bulkValidateProducts = async (rows: ProductBulkRow[]): Promise<ProductRowVerdict[]> => {
+  const { data } = await api.post(URLS.PRODUCTS.BULK_VALIDATE, { rows });
+  return data.results;
+};
+
+export const bulkImportProducts = async (rows: ProductBulkRow[]): Promise<ProductImportResult[]> => {
+  const { data } = await api.post(URLS.PRODUCTS.BULK_IMPORT, { rows });
+  return data.results;
+};

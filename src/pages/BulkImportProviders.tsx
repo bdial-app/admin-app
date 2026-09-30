@@ -6,7 +6,6 @@ import {
   Wand2, EyeOff, SlidersHorizontal, ChevronDown, CircleSlash, Undo2, ShieldAlert, BadgeCheck, UserRound,
   ImagePlus, FolderOpen, FileArchive, Trash2, Image as ImageIcon, MapPin,
 } from 'lucide-react';
-import { PageHeader } from '../components/ui/PageHeader';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useFlatCategories } from '../hooks/useCategories';
@@ -110,7 +109,6 @@ const autoImageLabel = (r: AutoImageResult): string => {
   const parts: string[] = [];
   if (r.logo) parts.push(`logo from ${r.logo === 'instagram' ? 'Instagram' : 'website'}`);
   if (r.banner === 'website') parts.push('banner from website');
-  if (r.banner === 'generated') parts.push('banner generated');
   if (parts.length) return `Auto: ${parts.join(' · ')}`;
   return r.skipped ? '' : 'Auto: nothing found';
 };
@@ -412,13 +410,13 @@ export default function BulkImportProviders() {
     setAutoProgress(null);
 
     if (foundLogo) toast.success(`Found a logo for ${foundLogo} of ${work.length} row${work.length === 1 ? '' : 's'}`);
-    if (foundNothing) toast.info(`${foundNothing} row${foundNothing === 1 ? '' : 's'} had nothing usable — a banner is generated after import`);
+    if (foundNothing) toast.info(`${foundNothing} row${foundNothing === 1 ? '' : 's'} had no usable image`);
     if (failed) toast.warn(`Lookup failed for ${failed} row${failed === 1 ? '' : 's'}`);
   };
 
   /**
    * Fill whatever the sheet didn't provide: Instagram profile picture, then the
-   * business's own website, then a generated branded banner. The server skips
+   * business's own website. The server skips
    * any provider that already has both images, so sheet images always win.
    */
   const fillMissingImages = async (jobs: { rowId: string; providerId: string }[]) => {
@@ -454,9 +452,8 @@ export default function BulkImportProviders() {
     const applied = Object.values(results);
     const logos = applied.filter((r) => r.logo).length;
     const siteBanners = applied.filter((r) => r.banner === 'website').length;
-    const generated = applied.filter((r) => r.banner === 'generated').length;
-    if (logos || siteBanners || generated) {
-      toast.success(`Auto images: ${logos} logo${logos === 1 ? '' : 's'}, ${siteBanners} banner${siteBanners === 1 ? '' : 's'} from websites, ${generated} generated`);
+    if (logos || siteBanners) {
+      toast.success(`Auto images: ${logos} logo${logos === 1 ? '' : 's'}, ${siteBanners} banner${siteBanners === 1 ? '' : 's'} from websites`);
     } else if (!failedChunks) {
       toast.info('Auto images: nothing new to add');
     }
@@ -731,16 +728,6 @@ export default function BulkImportProviders() {
 
   return (
     <div>
-      <PageHeader
-        title="Bulk Import Providers"
-        description="Upload a CSV or Excel sheet, vet every row, then create providers in one go"
-        breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Providers', path: ROUTES.PROVIDERS }, { label: 'Bulk Import' }]}
-        actions={
-          <button onClick={() => downloadTextFile('tijarah-provider-import-template.csv', templateCsv())} className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border" style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)', background: 'var(--surface-0)' }}>
-            <Download className="w-4 h-4" /> Template
-          </button>
-        }
-      />
 
       {/* Stepper */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -999,7 +986,7 @@ export default function BulkImportProviders() {
                     className="vet-btn"
                     data-variant={autoFillImages ? 'accent' : undefined}
                     aria-pressed={autoFillImages}
-                    title="After import, fill any missing logo or banner: Instagram profile picture, then the business's own website, then a generated branded banner. Sheet images are never replaced."
+                    title="After import, fill any missing logo or banner from the Instagram profile picture, then the business's own website. Nothing is invented, and sheet images are never replaced."
                   >
                     <Sparkles className="h-3.5 w-3.5" /> Auto images: {autoFillImages ? 'On' : 'Off'}
                   </button>
@@ -1276,7 +1263,7 @@ export default function BulkImportProviders() {
                                 onClick={() => { void fillMissingImages([{ rowId: row.rowId, providerId: row.importResult?.providerId as string }]); }}
                                 disabled={!!autoProgress}
                                 className="vet-btn"
-                                title="Fetch a logo and banner for this business now (Instagram → website → generated)"
+                                title="Fetch a logo and banner for this business now (Instagram, then their website)"
                                 aria-label={`Fetch images for ${row.fields.brandName || 'this business'}`}
                               >
                                 <Sparkles className="h-3.5 w-3.5" />

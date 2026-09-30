@@ -9,10 +9,11 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { ProductForm } from '../components/products/ProductForm';
+import { emptyProductForm, type ProductFormValues } from '../components/products/product-form-values';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
 import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct, useUploadProductImages, useDeleteProductImage } from '../hooks/useProducts';
-import { useProviders } from '../hooks/useProviders';
 import { productsService } from '../services/products.service';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -138,36 +139,16 @@ export default function Products() {
   };
 
   // ─── Create form state ────────────────
-  const emptyCreateForm = {
-    providerId: '',
-    providerName: '',
-    name: '',
-    description: '',
-    price: '',
-    displayOrder: '0',
-    productType: 'product' as 'product' | 'service',
-    isActive: true,
-  };
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyCreateForm);
+  const [createForm, setCreateForm] = useState<ProductFormValues>(emptyProductForm);
   const [createImages, setCreateImages] = useState<File[]>([]);
   const [creating, setCreating] = useState(false);
-  const [providerSearch, setProviderSearch] = useState('');
-  const { data: providerResults } = useProviders({ page: 1, limit: 10, search: providerSearch || undefined });
-
   const MAX_IMAGES = 5;
 
   const openCreate = () => {
-    setCreateForm(emptyCreateForm);
+    setCreateForm(emptyProductForm);
     setCreateImages([]);
-    setProviderSearch('');
     setCreateOpen(true);
-  };
-
-  const addCreateImages = (files: FileList | null) => {
-    if (!files) return;
-    const incoming = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    setCreateImages((prev) => [...prev, ...incoming].slice(0, MAX_IMAGES));
   };
 
   const handleCreate = async () => {
@@ -183,6 +164,8 @@ export default function Products() {
         displayOrder: Number(createForm.displayOrder) || 0,
         productType: createForm.productType,
         isActive: createForm.isActive,
+        categoryId: createForm.categoryId || null,
+        subcategoryId: createForm.subcategoryId || null,
       });
       // Upload any selected images to the newly created product (one or many).
       if (createImages.length && created?.id) {
@@ -922,162 +905,33 @@ export default function Products() {
       <DetailPanel
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Add Product"
-        subtitle="Create a product or service for a provider"
-        width="lg"
+        title="Add a product or service"
+        subtitle="It will be listed on the business you choose"
+        width="900px"
         actions={
           <div className="flex gap-2">
             <button onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
               Cancel
             </button>
-            <button onClick={handleCreate} disabled={creating} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-              {creating ? (createImages.length ? 'Creating & uploading…' : 'Creating…') : 'Create'}
+            <button
+              onClick={handleCreate}
+              disabled={creating || !createForm.providerId || !createForm.name.trim()}
+              title={!createForm.providerId ? 'Choose the business first' : !createForm.name.trim() ? 'Give it a name' : undefined}
+              className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              {creating ? (createImages.length ? 'Saving & uploading…' : 'Saving…') : 'Add to catalogue'}
             </button>
           </div>
         }
       >
-        <div className="p-5 space-y-5">
-          {/* Provider picker */}
-          <FormField label="Provider" required>
-            {createForm.providerId ? (
-              <div className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{createForm.providerName}</span>
-                <button
-                  type="button"
-                  onClick={() => setCreateForm({ ...createForm, providerId: '', providerName: '' })}
-                  className="text-xs font-semibold"
-                  style={{ color: 'var(--color-primary)' }}
-                >
-                  Change
-                </button>
-              </div>
-            ) : (
-              <div>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    value={providerSearch}
-                    onChange={(e) => setProviderSearch(e.target.value)}
-                    placeholder="Search provider by name…"
-                    className="input w-full pl-9"
-                  />
-                </div>
-                {providerSearch && (
-                  <div className="mt-1.5 max-h-48 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border-default)' }}>
-                    {(providerResults?.items ?? []).length === 0 ? (
-                      <p className="text-xs px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>No providers found</p>
-                    ) : (
-                      (providerResults?.items ?? []).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => { setCreateForm({ ...createForm, providerId: p.id, providerName: p.brandName }); setProviderSearch(''); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:opacity-80"
-                          style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
-                        >
-                          {p.brandName}
-                          {p.city ? <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>· {p.city}</span> : null}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </FormField>
-
-          {/* Type */}
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Type</label>
-            <div className="flex gap-2">
-              {(['product', 'service'] as const).map((t) => (
-                <button key={t} type="button" onClick={() => setCreateForm({ ...createForm, productType: t })}
-                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border-2 transition-all ${
-                    createForm.productType === t
-                      ? t === 'service' ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-amber-50 border-amber-400 text-amber-700'
-                      : 'border-gray-200 text-gray-500'
-                  }`}>
-                  {t === 'product' ? '📦 Product' : '🛠️ Service'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <FormField label="Name" required>
-            <input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="input w-full" placeholder="e.g. Bridal Mehndi Package" />
-          </FormField>
-          <FormField label="Description">
-            <textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} className="input w-full" rows={3} />
-          </FormField>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Price (₹)">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-muted)' }}>{'₹'}</span>
-                <input type="number" value={createForm.price} onChange={(e) => setCreateForm({ ...createForm, price: e.target.value })} className="input w-full pl-7" min={0} placeholder="0" />
-              </div>
-            </FormField>
-            <FormField label="Display Order">
-              <input type="number" value={createForm.displayOrder} onChange={(e) => setCreateForm({ ...createForm, displayOrder: e.target.value })} className="input w-full" min={0} />
-            </FormField>
-          </div>
-
-          {/* Active toggle */}
-          <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Active</p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Visible to customers immediately</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCreateForm({ ...createForm, isActive: !createForm.isActive })}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-              style={{
-                background: createForm.isActive ? 'var(--color-primary)' : 'var(--surface-2)',
-                color: createForm.isActive ? 'white' : 'var(--text-secondary)',
-              }}
-            >
-              {createForm.isActive ? 'Active' : 'Inactive'}
-            </button>
-          </div>
-
-          {/* Images (one or many) */}
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-              Images <span style={{ color: 'var(--text-muted)' }}>(optional · up to {MAX_IMAGES})</span>
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {createImages.map((file, idx) => (
-                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setCreateImages((prev) => prev.filter((_, i) => i !== idx))}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center bg-black/60 text-white"
-                    aria-label="Remove image"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {createImages.length < MAX_IMAGES && (
-                <label className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer gap-1" style={{ border: '1px dashed var(--border-default)', color: 'var(--text-muted)' }}>
-                  <Image className="w-5 h-5" />
-                  <span className="text-[10px] font-medium">Add</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => { addCreateImages(e.target.files); e.target.value = ''; }}
-                  />
-                </label>
-              )}
-            </div>
-            <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-              The first image becomes the main photo. JPG/PNG, up to 10MB each.
-            </p>
-          </div>
-        </div>
+        <ProductForm
+          value={createForm}
+          onChange={setCreateForm}
+          images={createImages}
+          onImagesChange={setCreateImages}
+          maxImages={MAX_IMAGES}
+        />
       </DetailPanel>
 
       {/* ═══ Delete Confirmation ═══ */}

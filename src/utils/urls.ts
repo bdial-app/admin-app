@@ -78,6 +78,8 @@ export const URLS = {
     UPDATE: (id: string) => `/admin/products/${id}`,
     DELETE: (id: string) => `/admin/products/${id}`,
     BULK_ACTION: '/admin/products/bulk-action',
+    BULK_VALIDATE: '/admin/products/bulk-validate',
+    BULK_IMPORT: '/admin/products/bulk-import',
     STATS: '/admin/products/stats',
     UPLOAD_IMAGES: (id: string) => `/admin/products/${id}/images`,
     DELETE_IMAGE: (id: string) => `/admin/products/${id}/images`,
