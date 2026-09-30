@@ -36,7 +36,7 @@ const SystemSettings = lazy(() => import('./pages/Settings'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const CreateUser = lazy(() => import('./pages/CreateUser'));
 const CreateProviderFlow = lazy(() => import('./pages/CreateProviderFlow'));
-const BulkImportProviders = lazy(() => import('./pages/BulkImportProviders'));
+const BulkImport = lazy(() => import('./pages/BulkImport'));
 const PhotoModeration = lazy(() => import('./pages/PhotoModeration'));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags'));
 const ModerationQueuePage = lazy(() => import('./pages/ModerationQueue'));
@@ -89,7 +89,7 @@ function App() {
             <Route path={ROUTES.PRODUCTS} element={<Products />} />
             <Route path={ROUTES.CREATE_USER} element={<RoleRoute minRole="admin"><CreateUser /></RoleRoute>} />
             <Route path={ROUTES.CREATE_PROVIDER} element={<RoleRoute minRole="admin"><CreateProviderFlow /></RoleRoute>} />
-            <Route path={ROUTES.BULK_IMPORT_PROVIDERS} element={<RoleRoute minRole="admin"><BulkImportProviders /></RoleRoute>} />
+            <Route path={ROUTES.BULK_IMPORT_PROVIDERS} element={<RoleRoute minRole="admin"><BulkImport /></RoleRoute>} />
 
             {/* Moderation */}
             <Route path={ROUTES.REGISTRATIONS} element={<Verifications />} />

@@ -69,7 +69,7 @@ export interface AutoImageResult {
   providerId: string;
   brandName: string;
   logo: 'instagram' | 'website' | null;
-  banner: 'website' | 'generated' | null;
+  banner: 'website' | null;
   /** The provider already had both images. */
   skipped: boolean;
   notes: string[];
@@ -229,7 +229,7 @@ export const providersService = {
 
   /**
    * Fills missing images only: Instagram profile picture, then the website's
-   * logo/banner, then a generated branded banner. Existing images are kept.
+   * logo/banner. Nothing is invented; existing images are kept.
    */
   autoImages: async (ids: string[]): Promise<AutoImageResult[]> => {
     const { data } = await api.post(URLS.PROVIDERS.AUTO_IMAGES, { ids }, { timeout: 300_000 });
