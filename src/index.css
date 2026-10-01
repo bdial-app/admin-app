@@ -681,3 +681,70 @@ a.vet-img-name { color: var(--color-primary); }
   box-shadow: var(--shadow-sm);
 }
 .vet-dropzone[data-over="true"] { outline: 2px dashed var(--color-primary); outline-offset: -6px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WhatsApp phone preview — scoped `--wa-*` palette so the mock bubble looks
+   like the real app in both themes. Everything outside the phone frame uses
+   the normal tokens above.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  --wa-header:      #075E54;
+  --wa-header-text: #FFFFFF;
+  --wa-wallpaper:   #E5DDD5;
+  --wa-wallpaper-dots: rgba(0, 0, 0, 0.035);
+  --wa-bubble-in:   #FFFFFF;
+  --wa-bubble-out:  #D9FDD3;
+  --wa-text:        #111B21;
+  --wa-time:        #667781;
+  --wa-link:        #027EB5;
+  --wa-divider:     #E9EDEF;
+  --wa-tick-read:   #53BDEB;
+  --wa-button-bg:   #FFFFFF;
+  --wa-day-chip:    #FFFFFF;
+  --wa-frame:       #1B1B1F;
+  --wa-composer:    #F0F2F5;
+}
+[data-theme="dark"] {
+  --wa-header:      #1F2C34;
+  --wa-header-text: #E9EDEF;
+  --wa-wallpaper:   #0B141A;
+  --wa-wallpaper-dots: rgba(255, 255, 255, 0.04);
+  --wa-bubble-in:   #202C33;
+  --wa-bubble-out:  #005C4B;
+  --wa-text:        #E9EDEF;
+  --wa-time:        #8696A0;
+  --wa-link:        #53BDEB;
+  --wa-divider:     #2A3942;
+  --wa-tick-read:   #53BDEB;
+  --wa-button-bg:   #202C33;
+  --wa-day-chip:    #182229;
+  --wa-frame:       #2A2A2E;
+  --wa-composer:    #202C33;
+}
+.wa-wallpaper {
+  background-color: var(--wa-wallpaper);
+  background-image:
+    radial-gradient(var(--wa-wallpaper-dots) 1.2px, transparent 1.2px),
+    radial-gradient(var(--wa-wallpaper-dots) 1.2px, transparent 1.2px);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+.wa-bubble { position: relative; }
+.wa-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 0; height: 0;
+  border-style: solid;
+}
+.wa-bubble[data-side="in"]::before {
+  left: -7px;
+  border-width: 0 8px 8px 0;
+  border-color: transparent var(--wa-bubble-in) transparent transparent;
+}
+.wa-bubble[data-side="out"]::before {
+  right: -7px;
+  border-width: 0 0 8px 8px;
+  border-color: transparent transparent transparent var(--wa-bubble-out);
+}

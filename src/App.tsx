@@ -48,6 +48,16 @@ const BoostSettingsPage = lazy(() => import('./pages/BoostSettings'));
 const MonetizationSettingsPage = lazy(() => import('./pages/MonetizationSettings'));
 const WomenLedPage = lazy(() => import('./pages/WomenLed'));
 const ServiceableCitiesPage = lazy(() => import('./pages/ServiceableCities'));
+const WhatsAppLayout = lazy(() => import('./pages/whatsapp/WhatsAppLayout'));
+const WhatsAppOverview = lazy(() => import('./pages/whatsapp/WhatsAppOverview'));
+const WhatsAppCampaigns = lazy(() => import('./pages/whatsapp/Campaigns'));
+const WhatsAppCampaignNew = lazy(() => import('./pages/whatsapp/CampaignNew'));
+const WhatsAppCampaignDetail = lazy(() => import('./pages/whatsapp/CampaignDetail'));
+const WhatsAppTemplates = lazy(() => import('./pages/whatsapp/Templates'));
+const WhatsAppTemplateEditor = lazy(() => import('./pages/whatsapp/TemplateEditor'));
+const WhatsAppAudience = lazy(() => import('./pages/whatsapp/Audience'));
+const WhatsAppInbox = lazy(() => import('./pages/whatsapp/Inbox'));
+const WhatsAppSettings = lazy(() => import('./pages/whatsapp/WhatsAppSettings'));
 const UnauthorizedPage = lazy(() => import('./pages/Unauthorized'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -108,6 +118,20 @@ function App() {
             <Route path={ROUTES.OFFERS} element={<Offers />} />
             <Route path={ROUTES.BADGES} element={<Badges />} />
             <Route path={ROUTES.NOTIFICATIONS} element={<Notifications />} />
+            <Route path={ROUTES.WHATSAPP} element={<RoleRoute minRole="associate"><WhatsAppLayout /></RoleRoute>}>
+              <Route index element={<WhatsAppOverview />} />
+              <Route path="campaigns" element={<WhatsAppCampaigns />} />
+              <Route path="campaigns/new" element={<WhatsAppCampaignNew />} />
+              <Route path="campaigns/:id/edit" element={<WhatsAppCampaignNew />} />
+              <Route path="campaigns/:id" element={<WhatsAppCampaignDetail />} />
+              <Route path="templates" element={<WhatsAppTemplates />} />
+              <Route path="templates/new" element={<WhatsAppTemplateEditor />} />
+              <Route path="templates/:id" element={<WhatsAppTemplateEditor />} />
+              <Route path="audience" element={<WhatsAppAudience />} />
+              <Route path="inbox" element={<WhatsAppInbox />} />
+              <Route path="inbox/:contactId" element={<WhatsAppInbox />} />
+              <Route path="settings" element={<WhatsAppSettings />} />
+            </Route>
 
             {/* Monetization */}
             <Route path={ROUTES.VOUCHERS} element={<Vouchers />} />
