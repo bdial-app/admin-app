@@ -22,3 +22,4 @@ export * from './bug-report';
 export * from './notification';
 export * from './moderation';
 export * from './feature-flag';
+export * from './whatsapp';

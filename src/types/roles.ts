@@ -181,6 +181,12 @@ export const PERMISSIONS = {
 
   // ── Export ──
   'export.data': 'admin',
+
+  // ── WhatsApp ──
+  'whatsapp.view': 'associate',
+  'whatsapp.send': 'admin',
+  'whatsapp.templates': 'admin',
+  'whatsapp.settings': 'admin',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -224,4 +230,5 @@ export const ROUTE_ROLES: Record<string, AdminRole> = {
   '/feature-flags': 'super_admin',
   '/audit-log': 'admin',
   '/settings': 'super_admin',
+  '/whatsapp': 'associate',
 };

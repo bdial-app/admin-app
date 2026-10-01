@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet,
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -16,6 +16,7 @@ import { logout } from '../../store/slices/authSlice';
 import type { AppDispatch } from '../../store/store';
 import { usePermissionChecker } from '../../hooks/usePermissions';
 import type { AdminRole } from '../../types/roles';
+import { useWaUnreadCount } from '../../hooks/useWhatsApp';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -23,7 +24,7 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const sections: { label: string; minRole?: AdminRole; items: { name: string; path: string; icon: any; badge?: boolean; minRole?: AdminRole }[] }[] = [
+const sections: { label: string; minRole?: AdminRole; items: { name: string; path: string; icon: any; badge?: boolean; minRole?: AdminRole; countBadge?: 'whatsapp'; nested?: boolean }[] }[] = [
   {
     label: 'Overview',
     items: [
@@ -64,6 +65,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Offers', path: ROUTES.OFFERS, icon: Gift },
       { name: 'Badges', path: ROUTES.BADGES, icon: Award },
       { name: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: Bell },
+      { name: 'WhatsApp', path: ROUTES.WHATSAPP, icon: MessageCircle, countBadge: 'whatsapp', nested: true },
     ],
   },
   {
@@ -108,6 +110,8 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { minRole } = usePermissionChecker();
+  const { data: waUnread } = useWaUnreadCount();
+  const counts: Record<'whatsapp', number> = { whatsapp: waUnread ?? 0 };
 
   return (
     <div
@@ -186,7 +190,8 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
             <nav className="space-y-0.5">
               {visibleItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || (!!item.nested && location.pathname.startsWith(item.path + '/'));
+                const count = item.countBadge ? counts[item.countBadge] : 0;
 
                 return (
                   <Link
@@ -227,11 +232,22 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
                         transform: isActive ? 'scale(1.15)' : 'scale(1)',
                       }}
                     />
+                    {collapsed && count > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: '#25D366' }} />
+                    )}
                     {!collapsed && (
                       <>
                         <span className="truncate font-medium text-[13.5px]">{item.name}</span>
                         {item.badge && (
                           <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 pulse-dot" />
+                        )}
+                        {count > 0 && (
+                          <span
+                            className="ml-auto min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums flex-shrink-0"
+                            style={{ background: '#25D366' }}
+                          >
+                            {count > 99 ? '99+' : count}
+                          </span>
                         )}
                       </>
                     )}

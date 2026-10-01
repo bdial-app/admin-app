@@ -23,7 +23,7 @@ import {
   type ImageMatchSummary, type ImageUploadApi, type RowImage, type RowImages,
 } from '../utils/bulk-import-images';
 import {
-  parseSpreadsheet, autoMapColumns, buildRows, validateRows, toPayload, toCsv, downloadTextFile, templateCsv,
+  parseSpreadsheet, autoMapColumns, buildRows, validateRows, toPayload, toCsv, downloadTextFile,
   TARGET_FIELDS, getDbStatus, isDbDuplicate, type ParsedSheet, type ColumnMapping, type ImportRow, type RowFieldKey,
   type RowValidation, type BuildDefaults, type TargetField, type DbStatus,
 } from '../utils/bulk-import';

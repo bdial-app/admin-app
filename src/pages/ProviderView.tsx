@@ -29,6 +29,7 @@ import { useOffers } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
+import { ProviderWhatsAppCard } from '../components/whatsapp/ProviderWhatsAppCard';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
 type EditingSection = 'business' | 'contact' | 'location' | 'social' | 'categories' | null;
@@ -626,6 +627,9 @@ export default function ProviderView() {
               <StatCard title="Avg Rating" value={provider.averageRating?.toFixed(1) || '—'} icon={<Star className="w-5 h-5" />} accent="var(--color-warning)" />
               <StatCard title="Photos" value={photos.length} icon={<Camera className="w-5 h-5" />} accent="var(--color-success)" />
             </div>
+
+            {/* ── Section: WhatsApp ── */}
+            <ProviderWhatsAppCard providerId={provider.id} brandName={provider.brandName} city={provider.city} />
 
             {/* ── Section: Business Info ── */}
             <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
