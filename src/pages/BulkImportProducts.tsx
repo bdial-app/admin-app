@@ -685,10 +685,10 @@ function ProviderPicker({
       </div>
       {open && query.trim().length >= 2 && (
         <div className="absolute z-20 mt-1 w-full rounded-lg border shadow-lg max-h-56 overflow-auto" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)' }}>
-          {(data?.data ?? []).length === 0 && !isFetching && (
+          {(data?.items ?? []).length === 0 && !isFetching && (
             <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>No business by that name</p>
           )}
-          {(data?.data ?? []).map((p) => (
+          {(data?.items ?? []).map((p) => (
             <button
               key={p.id}
               onClick={() => { onChange({ id: p.id, name: p.brandName }); setOpen(false); setQuery(''); }}
