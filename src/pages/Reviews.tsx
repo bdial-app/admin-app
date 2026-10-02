@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Eye, Trash2, Star, MessageSquare } from 'lucide-react';
+import { Eye, Trash2, Star, MessageSquare, Plus } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
+import { AddReviewDialog } from '../components/reviews/AddReviewDialog';
 import { useReviews, useUpdateReviewStatus, useRemoveReview } from '../hooks/useReviews';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
@@ -36,6 +37,7 @@ const RatingStars = ({ rating }: { rating: number }) => (
 );
 
 export default function Reviews() {
+  const [showAdd, setShowAdd] = useState(false);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<ReviewStatus | ''>('');
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
@@ -146,7 +148,19 @@ export default function Reviews() {
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Reviews' },
         ]}
+        actions={
+          <button
+            onClick={() => setShowAdd(true)}
+            className="px-4 py-2 text-sm font-medium rounded-lg text-white flex items-center gap-1.5"
+            style={{ background: 'var(--color-primary)' }}
+          >
+            <Plus className="w-4 h-4" />
+            Add Review
+          </button>
+        }
       />
+
+      <AddReviewDialog open={showAdd} onClose={() => setShowAdd(false)} />
 
       {/* Status Tabs */}
       <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>

@@ -29,6 +29,18 @@ export const reviewsService = {
     return data;
   },
 
+  /** Record a review from the admin panel (offline feedback, migrations). */
+  create: async (body: {
+    providerId: string;
+    reviewerId?: string;
+    starRating: number;
+    reviewText?: string;
+    postedAt?: string;
+  }): Promise<Review> => {
+    const { data } = await api.post(URLS.REVIEWS.CREATE, body);
+    return data;
+  },
+
   updateStatus: async (id: string, status: string): Promise<Review> => {
     const { data } = await api.patch(URLS.REVIEWS.UPDATE_STATUS(id), { status });
     return data;
