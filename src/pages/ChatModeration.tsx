@@ -1,30 +1,20 @@
 import { useState } from 'react';
-import { MessageSquare, Eye, XCircle, Lock, Users, Search, Filter, Calendar, X, MessageCircle, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Eye, XCircle, Lock, Users, MessageCircle, AlertTriangle, CheckCircle2, Flag, EyeOff, Ban } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { StatCard } from '../components/ui/StatCard';
 import StatusBadge from '../components/ui/StatusBadge';
-import { useChatConversations, useChatMessages, useRedactMessage, useCloseConversation, useChatStats } from '../hooks/useChat';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import { CHAT_FILTER_DEFS, CHAT_FILTER_KEYS, CHAT_SORTS, chatSegments, withChatOptions } from '../components/chat/chat-filters';
+import { useChatConversations, useChatFilterOptions, useChatMessages, useRedactMessage, useCloseConversation, useChatStats } from '../hooks/useChat';
+import type { ChatFilters } from '../services/chat.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Conversation, Message } from '../types';
 
 const LIMIT = 20;
-
-const STATUS_TABS = [
-  { label: 'All', value: '', icon: MessageSquare },
-  { label: 'Active', value: 'active', icon: CheckCircle2 },
-  { label: 'Archived', value: 'archived', icon: Clock },
-  { label: 'Closed', value: 'closed', icon: Lock },
-];
-
-const TYPE_TABS = [
-  { label: 'All Types', value: '' },
-  { label: 'Direct', value: 'direct' },
-  { label: 'Enquiry', value: 'enquiry' },
-];
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -41,36 +31,37 @@ const timeAgo = (iso: string | null) => {
   return formatDate(iso);
 };
 
+/** Small pill for a safety flag on a row. */
+function Flag_({ icon: Icon, label, color, bg }: { icon: typeof Flag; label: string; color: string; bg: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: bg, color }} title={label}>
+      <Icon className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
 export default function ChatModeration() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [type, setType] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [hasRedacted, setHasRedacted] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(CHAT_FILTER_KEYS);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [confirmClose, setConfirmClose] = useState<Conversation | null>(null);
   const [confirmRedact, setConfirmRedact] = useState<Message | null>(null);
 
   const { data, isLoading } = useChatConversations({
+    ...(filters as ChatFilters),
+    sort: (sort || undefined) as ChatFilters['sort'],
     page,
     limit: LIMIT,
-    status: status || undefined,
     search: search || undefined,
-    type: type || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-    hasRedacted: hasRedacted || undefined,
   });
+  const { data: filterOptions } = useChatFilterOptions();
 
   const { data: messagesData } = useChatMessages(selectedConversation?.id || '');
   const { data: stats } = useChatStats();
   const closeMutation = useCloseConversation();
   const redactMutation = useRedactMessage();
 
-  const activeFilterCount = [type, dateFrom, dateTo, hasRedacted].filter(Boolean).length;
+  const totalCount = filterOptions?.counts.total ?? stats?.totalConversations;
 
   const handleClose = async () => {
     if (!confirmClose) return;
@@ -95,14 +86,6 @@ export default function ChatModeration() {
     }
   };
 
-  const clearFilters = () => {
-    setType('');
-    setDateFrom('');
-    setDateTo('');
-    setHasRedacted('');
-    setPage(1);
-  };
-
   const getParticipantNames = (conversation: Conversation) => {
     if (!conversation.participants || conversation.participants.length === 0) return '—';
     return conversation.participants
@@ -114,6 +97,8 @@ export default function ChatModeration() {
     if (!conversation.participants || conversation.participants.length === 0) return '';
     return conversation.participants.map((p) => p.role).join(' ↔ ');
   };
+
+  const hasFlags = (row: Conversation) => row.reported || row.hasRedacted || row.blocked;
 
   const columns: Column<Conversation>[] = [
     {
@@ -137,6 +122,7 @@ export default function ChatModeration() {
             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
               {getParticipantRoles(row)} • {row.type || 'direct'}
               {row.contextTitle && ` • "${row.contextTitle}"`}
+              {row.providerCity && ` • ${row.providerCity}`}
             </p>
           </div>
         </div>
@@ -154,28 +140,39 @@ export default function ChatModeration() {
       ),
     },
     {
+      key: 'messageCount',
+      header: 'Messages',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1 text-sm tabular-nums" style={{ color: row.messageCount ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+          <MessageCircle className="h-3.5 w-3.5" />
+          {row.messageCount ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'flags',
+      header: 'Flags',
+      render: (row) =>
+        hasFlags(row) ? (
+          <div className="flex flex-wrap items-center gap-1">
+            {row.reported && <Flag_ icon={Flag} label="Reported" color="var(--color-danger)" bg="var(--color-danger-light)" />}
+            {row.hasRedacted && <Flag_ icon={EyeOff} label="Redacted" color="var(--color-warning-dark)" bg="var(--color-warning-light)" />}
+            {row.blocked && <Flag_ icon={Ban} label="Blocked" color="var(--text-secondary)" bg="var(--surface-2)" />}
+          </div>
+        ) : (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
+        ),
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (row) => <StatusBadge status={row.status} />,
     },
     {
-      key: 'type',
-      header: 'Type',
-      render: (row) => (
-        <span
-          className="inline-flex px-2 py-0.5 text-[11px] font-medium rounded capitalize"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          {row.type || 'direct'}
-        </span>
-      ),
-    },
-    {
       key: 'lastMessageAt',
       header: 'Last Activity',
-      sortable: true,
       render: (row) => (
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }} title={formatDate(row.lastMessageAt)}>
+        <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }} title={formatDate(row.lastMessageAt)}>
           {timeAgo(row.lastMessageAt)}
         </span>
       ),
@@ -189,6 +186,7 @@ export default function ChatModeration() {
           className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
           style={{ color: 'var(--text-muted)' }}
           onClick={(e) => { e.stopPropagation(); setSelectedConversation(row); }}
+          aria-label="View conversation"
         >
           <Eye className="w-4 h-4" />
         </button>
@@ -200,7 +198,13 @@ export default function ChatModeration() {
     <div>
       <PageHeader
         title="Chat Moderation"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} conversations` : 'Monitor and moderate conversations'}
+        description={
+          data?.meta
+            ? hasNarrowing && totalCount != null
+              ? `${data.meta.total.toLocaleString()} of ${totalCount.toLocaleString()} conversations match your filters`
+              : `${data.meta.total.toLocaleString()} conversations`
+            : 'Monitor and moderate conversations'
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Chat Moderation' },
@@ -217,128 +221,17 @@ export default function ChatModeration() {
         </div>
       )}
 
-      {/* Search + Status Tabs + Filters */}
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by name, mobile, product title, or message…"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--surface-2)]">
-                <X className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-              </button>
-            )}
-          </div>
-
-          {/* Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-3 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
-            style={{
-              background: showFilters || activeFilterCount > 0 ? 'var(--color-primary-light)' : 'var(--surface-1)',
-              color: showFilters || activeFilterCount > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Status tabs */}
-        <div className="flex gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
-          {STATUS_TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => { setStatus(tab.value); setPage(1); }}
-                className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5"
-                style={{
-                  background: status === tab.value ? 'var(--surface-0)' : 'transparent',
-                  color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
-                }}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Expanded Filters */}
-        {showFilters && (
-          <div
-            className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
-            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
-          >
-            <select
-              value={type}
-              onChange={(e) => { setType(e.target.value); setPage(1); }}
-              className="px-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              {TYPE_TABS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <input
-                type="checkbox"
-                checked={hasRedacted === 'true'}
-                onChange={(e) => { setHasRedacted(e.target.checked ? 'true' : ''); setPage(1); }}
-                className="rounded"
-              />
-              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Has redacted messages</span>
-            </label>
-
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1 transition-colors"
-                style={{ color: 'var(--color-danger)' }}
-              >
-                <X className="w-3 h-3" />
-                Clear all
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <FilterBar
+        defs={withChatOptions(CHAT_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by name, mobile, product title, or message…' }}
+        sort={{ options: CHAT_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: most recent' }}
+        segments={chatSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={totalCount}
+      />
 
       <DataTable<Conversation>
         columns={columns}
@@ -349,8 +242,8 @@ export default function ChatModeration() {
         rowKey={(row) => row.id}
         onRowClick={setSelectedConversation}
         emptyIcon={<MessageSquare className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />}
-        emptyTitle="No conversations found"
-        emptyDescription={search || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'No conversations exist yet'}
+        emptyTitle={hasNarrowing ? 'No conversations match these filters' : 'No conversations yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Conversations appear here as customers message businesses.'}
       />
 
       {/* Conversation Detail + Messages */}
@@ -375,6 +268,15 @@ export default function ChatModeration() {
       >
         {selectedConversation && (
           <div className="space-y-5">
+            {/* Safety flags */}
+            {hasFlags(selectedConversation) && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {selectedConversation.reported && <Flag_ icon={Flag} label="Reported" color="var(--color-danger)" bg="var(--color-danger-light)" />}
+                {selectedConversation.hasRedacted && <Flag_ icon={EyeOff} label="Has redactions" color="var(--color-warning-dark)" bg="var(--color-warning-light)" />}
+                {selectedConversation.blocked && <Flag_ icon={Ban} label="Participant blocked" color="var(--text-secondary)" bg="var(--surface-2)" />}
+              </div>
+            )}
+
             {/* Conversation Meta */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg" style={{ background: 'var(--surface-1)' }}>
@@ -441,6 +343,11 @@ export default function ChatModeration() {
                       {p.unreadCount > 0 && (
                         <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-warning)' }}>
                           {p.unreadCount} unread
+                        </p>
+                      )}
+                      {p.blockedAt && (
+                        <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-danger)' }}>
+                          blocked
                         </p>
                       )}
                     </div>

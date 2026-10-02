@@ -26,18 +26,42 @@ export interface Photo {
   uploadedAt: string;
 }
 
+export type ProductSort = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'display_order';
+
+/**
+ * Query params for GET /admin/products. Booleans travel as 'true' | 'false'
+ * strings so the same values can live in the URL; absent means "don't filter".
+ */
 export interface ProductFilters {
   page?: number;
   limit?: number;
   search?: string;
   providerId?: string;
-  isActive?: boolean | '';
+  isActive?: boolean | 'true' | 'false' | '';
   productType?: 'product' | 'service' | '';
   priceMin?: string;
   priceMax?: string;
   hasImages?: string;
-  sortBy?: string;
-  sortOrder?: string;
+  hasPrice?: string;
+  isHero?: string;
+  categoryId?: string;
+  city?: string;
+  providerStatus?: 'unverified' | 'active' | 'suspended' | 'disabled' | '';
+  sort?: ProductSort | '';
+}
+
+export interface ProductFilterOptions {
+  cities: { name: string; count: number }[];
+  categories: { id: string; name: string; count: number }[];
+  counts: {
+    total: number;
+    active: number;
+    disabled: number;
+    services: number;
+    noImages: number;
+    noPrice: number;
+    hero: number;
+  };
 }
 
 export interface ProductStats {

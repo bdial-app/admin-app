@@ -294,6 +294,8 @@ export const summarizeFilters = (f: AudienceFilters): string[] => {
   if (f.isFeatured) out.push('Featured');
   if (f.missingLogo) out.push('Missing logo');
   if (f.missingProducts) out.push('No products');
+  if (f.locationPrecision === 'approximate') out.push('Location not set');
+  if (f.locationPrecision === 'exact') out.push('Exact location');
   if (f.createdWithinDays) out.push(`Joined within ${f.createdWithinDays}d`);
   if (f.createdBeforeDays) out.push(`Joined before ${f.createdBeforeDays}d`);
   if (f.inactiveDays) out.push(`Inactive ${f.inactiveDays}d+`);

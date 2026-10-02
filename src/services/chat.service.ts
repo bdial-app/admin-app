@@ -1,16 +1,29 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { Conversation, Message, PaginatedResponse } from '../types';
+import type { ChatFilterOptions, Conversation, Message, PaginatedResponse } from '../types';
 
+export type ChatSort = 'recent' | 'oldest' | 'most_messages';
+
+/** Query params for GET /admin/chat/conversations. Toggles travel as 'true'. */
 export interface ChatFilters {
   page?: number;
   limit?: number;
-  status?: string;
   search?: string;
+  status?: string;
   type?: string;
-  dateFrom?: string;
-  dateTo?: string;
+  contextType?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  lastMessageFrom?: string;
+  lastMessageTo?: string;
   hasRedacted?: string;
+  unanswered?: string;
+  reported?: string;
+  blocked?: string;
+  minMessages?: string;
+  inactiveDays?: string;
+  city?: string;
+  sort?: ChatSort | '';
 }
 
 export interface ChatStats {
@@ -20,9 +33,18 @@ export interface ChatStats {
   totalMessages: number;
 }
 
+/** Drop empty values so the backend's whitelist only ever sees real filters. */
+const compact = (filters: ChatFilters) =>
+  Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
 export const chatService = {
   getConversations: async (filters: ChatFilters = {}): Promise<PaginatedResponse<Conversation>> => {
-    const { data } = await api.get(URLS.CHAT.CONVERSATIONS, { params: filters });
+    const { data } = await api.get(URLS.CHAT.CONVERSATIONS, { params: compact(filters) });
+    return data;
+  },
+
+  filterOptions: async (): Promise<ChatFilterOptions> => {
+    const { data } = await api.get(URLS.CHAT.FILTER_OPTIONS);
     return data;
   },
 

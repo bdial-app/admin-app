@@ -245,6 +245,7 @@ export function AudienceBuilder({
                 <Toggle on={!!value.isFeatured} onClick={() => patch({ isFeatured: value.isFeatured ? undefined : true })} label="Featured" />
                 <Toggle on={!!value.missingLogo} onClick={() => patch({ missingLogo: value.missingLogo ? undefined : true })} label="Missing logo" />
                 <Toggle on={!!value.missingProducts} onClick={() => patch({ missingProducts: value.missingProducts ? undefined : true })} label="No products" />
+                <Toggle on={value.locationPrecision === 'approximate'} onClick={() => patch({ locationPrecision: value.locationPrecision === 'approximate' ? undefined : 'approximate' })} label="Location not set" />
               </div>
             </Field>
 

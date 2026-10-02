@@ -114,6 +114,7 @@ export const PERMISSIONS = {
 
   // ── Offers ──
   'offers.view': 'associate',
+  'offers.create': 'admin',
   'offers.approve': 'moderator',
   'offers.update': 'admin',
   'offers.delete': 'admin',

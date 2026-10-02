@@ -7,6 +7,7 @@ export const productKeys = {
   all: ['products'] as const,
   lists: () => [...productKeys.all, 'list'] as const,
   list: (filters: ProductFilters) => [...productKeys.lists(), filters] as const,
+  filterOptions: () => [...productKeys.all, 'filter-options'] as const,
   detail: (id: string) => [...productKeys.all, 'detail', id] as const,
   stats: () => [...productKeys.all, 'stats'] as const,
 };
@@ -15,6 +16,17 @@ export function useProducts(filters: ProductFilters) {
   return useQuery({
     queryKey: productKeys.list(filters),
     queryFn: () => productsService.list(filters),
+    // Keep the last page on screen while a new filter loads, so the table
+    // never flashes empty between two results.
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useProductFilterOptions() {
+  return useQuery({
+    queryKey: productKeys.filterOptions(),
+    queryFn: () => productsService.filterOptions(),
+    staleTime: 5 * 60_000,
   });
 }
 

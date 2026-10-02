@@ -124,7 +124,7 @@ export default function CreateProviderFlow() {
   // ── Existing user picker (users without providers) ─────
   const { data: nonProviderUsers, isLoading: isLoadingPicker } = useUsers({
     search: pickerDebouncedSearch || undefined,
-    hasProvider: false,
+    hasProvider: 'false',
     status: 'active',
     limit: 20,
     page: 1,

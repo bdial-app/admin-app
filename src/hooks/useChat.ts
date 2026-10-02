@@ -5,6 +5,7 @@ export const chatKeys = {
   all: ['chat'] as const,
   conversations: () => [...chatKeys.all, 'conversations'] as const,
   conversationList: (filters: ChatFilters) => [...chatKeys.conversations(), filters] as const,
+  filterOptions: () => [...chatKeys.all, 'filter-options'] as const,
   messages: (conversationId: string) => [...chatKeys.all, 'messages', conversationId] as const,
   stats: () => [...chatKeys.all, 'stats'] as const,
 };
@@ -13,6 +14,15 @@ export function useChatConversations(filters: ChatFilters = {}) {
   return useQuery({
     queryKey: chatKeys.conversationList(filters),
     queryFn: () => chatService.getConversations(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useChatFilterOptions() {
+  return useQuery({
+    queryKey: chatKeys.filterOptions(),
+    queryFn: () => chatService.filterOptions(),
+    staleTime: 5 * 60_000,
   });
 }
 

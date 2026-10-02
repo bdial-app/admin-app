@@ -19,6 +19,7 @@ export const sponsoredKeys = {
   pending: () => [...sponsoredKeys.all, 'pending'] as const,
   stats: () => [...sponsoredKeys.all, 'stats'] as const,
   eligible: (search: string) => [...sponsoredKeys.all, 'eligible', search] as const,
+  filterOptions: () => [...sponsoredKeys.all, 'filter-options'] as const,
 };
 
 const errMsg = (err: any, fallback: string) => err?.response?.data?.message || fallback;
@@ -27,6 +28,15 @@ export function useSponsoredListings(filters: SponsoredFilters) {
   return useQuery({
     queryKey: sponsoredKeys.list(filters),
     queryFn: () => sponsoredService.list(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useSponsorshipFilterOptions() {
+  return useQuery({
+    queryKey: sponsoredKeys.filterOptions(),
+    queryFn: () => sponsoredService.filterOptions(),
+    staleTime: 5 * 60_000,
   });
 }
 

@@ -1,5 +1,24 @@
 import type { DiscountType, ApprovalStatus } from './enums';
 
+/** Body for `POST /admin/offers` — an admin placing a deal on any listing. */
+export interface CreateOfferPayload {
+  providerId: string;
+  title: string;
+  description?: string;
+  discountType: DiscountType;
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscount?: number;
+  /** ISO timestamps. */
+  startsAt: string;
+  endsAt: string;
+  usageLimit?: number;
+  isActive?: boolean;
+  approvalStatus?: 'approved' | 'pending_approval';
+  adminNotes?: string;
+  notifyProvider?: boolean;
+}
+
 export interface ProviderOffer {
   id: string;
   providerId: string;
@@ -21,4 +40,17 @@ export interface ProviderOffer {
   createdAt: string;
   updatedAt: string;
   provider?: import('./provider').Provider;
+}
+
+/** `GET /admin/offers/filter-options` */
+export interface OfferFilterOptions {
+  cities: { name: string; count: number }[];
+  counts: {
+    total: number;
+    live: number;
+    pending: number;
+    ending7d: number;
+    expired: number;
+    neverUsed: number;
+  };
 }

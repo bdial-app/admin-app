@@ -1,22 +1,45 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { PhotoModerationItem, PhotoType } from '../types';
+import type { PaginatedResponse, PhotoFilterOptions, PhotoModerationItem, PhotoType } from '../types';
 
+export type PhotoSort = 'newest' | 'oldest';
+
+/** Query params for GET /admin/photos. */
 export interface PhotoFilters {
   page?: number;
   limit?: number;
-  type?: PhotoType;
+  type?: PhotoType | '';
+  search?: string;
+  city?: string;
+  providerStatus?: string;
+  /** Provider gallery photos only; other kinds have no date and drop out when set. */
+  uploadedFrom?: string;
+  uploadedTo?: string;
+  sort?: PhotoSort | '';
 }
 
 export const photoModerationService = {
-  list: async (filters: PhotoFilters = {}): Promise<PhotoModerationItem[]> => {
+  list: async (filters: PhotoFilters = {}): Promise<PaginatedResponse<PhotoModerationItem>> => {
     const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.type) params.set('type', filters.type);
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    }
     const { data } = await api.get(`${URLS.PHOTOS.LIST}?${params.toString()}`);
-    // Backend returns { items: [...], meta: {...} }
-    return data.items ?? data;
+    const items: PhotoModerationItem[] = data?.items ?? (Array.isArray(data) ? data : []);
+    return {
+      items,
+      meta: data?.meta ?? {
+        total: items.length,
+        page: filters.page ?? 1,
+        limit: filters.limit ?? items.length,
+        totalPages: 1,
+      },
+    };
+  },
+
+  filterOptions: async (): Promise<PhotoFilterOptions> => {
+    const { data } = await api.get(URLS.PHOTOS.FILTER_OPTIONS);
+    return data;
   },
 
   remove: async (id: string, type: PhotoType): Promise<void> => {

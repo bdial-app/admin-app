@@ -17,6 +17,7 @@ export interface ModerationQueue {
 export type PhotoType = 'provider' | 'review' | 'product';
 
 export interface PhotoModerationItem {
+  /** Stable across pages: `${type}:${rowId}:${index}`. */
   id: string;
   imageUrl: string;
   photoType: PhotoType;
@@ -24,7 +25,21 @@ export interface PhotoModerationItem {
   reviewId?: string;
   brandName?: string;
   productName?: string;
-  uploadedAt?: string;
+  city?: string | null;
+  providerStatus?: string;
+  /** Only business gallery photos carry an upload date. */
+  uploadedAt?: string | null;
+}
+
+export interface PhotoFilterOptions {
+  cities: { name: string; count: number }[];
+  counts: {
+    total: number;
+    provider: number;
+    review: number;
+    product: number;
+    uploadedThisWeek: number;
+  };
 }
 
 export interface BulkActionPayload {

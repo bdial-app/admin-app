@@ -1,6 +1,8 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 
+export type SubscriptionSort = 'newest' | 'period_end_asc' | 'period_end_desc';
+
 export interface SubscriptionFilters {
   page?: number;
   limit?: number;
@@ -10,6 +12,27 @@ export interface SubscriptionFilters {
   billingInterval?: string;
   dateFrom?: string;
   dateTo?: string;
+  gateway?: string;
+  renewingWithinDays?: string | number;
+  cancelAtPeriodEnd?: string;
+  periodEndFrom?: string;
+  periodEndTo?: string;
+  city?: string;
+  sort?: SubscriptionSort;
+}
+
+export interface SubscriptionFilterOptions {
+  cities: { name: string; count: number }[];
+  plans: { id: string; name: string; count: number }[];
+  counts: {
+    total: number;
+    active: number;
+    trialing: number;
+    pastDue: number;
+    cancelling: number;
+    renews7d: number;
+    apple: number;
+  };
 }
 
 export interface SubscriptionPlan {
@@ -65,23 +88,28 @@ export interface SubscriptionStats {
   byInterval: { interval: string; count: string }[];
 }
 
+/** Query string with only the params that carry a value, so the API's DTO never sees empty keys. */
+const compact = (filters: object) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters as Record<string, unknown>)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  return params.toString();
+};
+
 export const subscriptionsService = {
   list: async (filters: SubscriptionFilters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.status) params.set('status', filters.status);
-    if (filters.search) params.set('search', filters.search);
-    if (filters.planId) params.set('planId', filters.planId);
-    if (filters.billingInterval) params.set('billingInterval', filters.billingInterval);
-    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-    if (filters.dateTo) params.set('dateTo', filters.dateTo);
-    const { data } = await api.get(`${URLS.SUBSCRIPTIONS.LIST}?${params.toString()}`);
-    const items = data?.subscriptions ?? data?.items ?? data?.data ?? data ?? [];
+    const { data } = await api.get(`${URLS.SUBSCRIPTIONS.LIST}?${compact(filters)}`);
+    const items = data?.items ?? data?.subscriptions ?? data?.data ?? [];
     return {
-      items,
+      items: (Array.isArray(items) ? items : []) as Subscription[],
       meta: data?.meta ?? { total: data?.total ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 25, totalPages: Math.ceil((data?.total ?? 0) / (filters.limit ?? 25)) || 1 },
     };
+  },
+
+  filterOptions: async (): Promise<SubscriptionFilterOptions> => {
+    const { data } = await api.get(URLS.SUBSCRIPTIONS.FILTER_OPTIONS);
+    return data;
   },
 
   getStats: async (): Promise<SubscriptionStats> => {

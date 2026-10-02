@@ -14,8 +14,10 @@ export const URLS = {
   // â”€â”€ Admin Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   USERS: {
     LIST: '/admin/users',
+    FILTER_OPTIONS: '/admin/users/filter-options',
     DETAIL: (id: string) => `/admin/users/${id}`,
     UPDATE: (id: string) => `/admin/users/${id}`,
+    UPDATE_MOBILE: (id: string) => `/admin/users/${id}/mobile-number`,
     SUSPEND: (id: string) => `/admin/users/${id}/pause`,
     UNSUSPEND: (id: string) => `/admin/users/${id}/unpause`,
     DELETE: (id: string) => `/admin/users/${id}`,
@@ -27,6 +29,7 @@ export const URLS = {
   // ── Admin Providers ──────────────────────────────────────
   PROVIDERS: {
     LIST: '/admin/providers',
+    EXPORT: '/admin/providers/export',
     PENDING: '/admin/providers/pending',
     DETAIL: (id: string) => `/admin/providers/${id}`,
     APPROVE: (id: string) => `/admin/providers/${id}/approve`,
@@ -49,6 +52,7 @@ export const URLS = {
     GEOCODE: '/admin/providers/geocode',
     LOCATION_STATS: '/admin/providers/location-stats',
     LOCATION_CANDIDATES: '/admin/providers/location-candidates',
+    PIN_BY_NAME: '/admin/providers/pin-by-name',
     STATS: '/admin/providers/stats',
     WARNINGS: (id: string) => `/admin/providers/${id}/warnings`,
     WOMEN_LED_PENDING: '/admin/providers/women-led/pending',
@@ -73,6 +77,7 @@ export const URLS = {
   // â”€â”€ Admin Products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   PRODUCTS: {
     LIST: '/admin/products',
+    FILTER_OPTIONS: '/admin/products/filter-options',
     CREATE: '/admin/products',
     DETAIL: (id: string) => `/admin/products/${id}`,
     UPDATE: (id: string) => `/admin/products/${id}`,
@@ -88,6 +93,7 @@ export const URLS = {
   // â”€â”€ Admin Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   REVIEWS: {
     LIST: '/admin/reviews',
+    CREATE: '/admin/reviews',
     DETAIL: (id: string) => `/admin/reviews/${id}`,
     UPDATE_STATUS: (id: string) => `/admin/reviews/${id}/status`,
     REPORTS: '/admin/reviews/reports',
@@ -106,6 +112,7 @@ export const URLS = {
   // â”€â”€ Admin Verifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   VERIFICATIONS: {
     LIST: '/admin/verifications',
+    FILTER_OPTIONS: '/admin/verifications/filter-options',
     DETAIL: (id: string) => `/admin/verifications/${id}`,
     REVIEW: (id: string) => `/admin/verifications/${id}/review`,
     STATUS: (id: string) => `/admin/verifications/${id}/status`,
@@ -141,6 +148,7 @@ export const URLS = {
   // â”€â”€ Admin Sponsored â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   SPONSORED: {
     LIST: '/admin/sponsorships',
+    FILTER_OPTIONS: '/admin/sponsorships/filter-options',
     CREATE: '/admin/sponsorships',
     DETAIL: (id: string) => `/admin/sponsorships/${id}`,
     UPDATE: (id: string) => `/admin/sponsorships/${id}`,
@@ -161,6 +169,8 @@ export const URLS = {
   // â”€â”€ Admin Offers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   OFFERS: {
     LIST: '/admin/offers',
+    CREATE: '/admin/offers',
+    FILTER_OPTIONS: '/admin/offers/filter-options',
     DETAIL: (id: string) => `/admin/offers/${id}`,
     UPDATE: (id: string) => `/admin/offers/${id}`,
     DELETE: (id: string) => `/admin/offers/${id}`,
@@ -181,6 +191,7 @@ export const URLS = {
   // â”€â”€ Admin Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   CHAT: {
     CONVERSATIONS: '/admin/chat/conversations',
+    FILTER_OPTIONS: '/admin/chat/conversations/filter-options',
     MESSAGES: (id: string) => `/admin/chat/conversations/${id}/messages`,
     REMOVE_MESSAGE: (id: string) => `/admin/chat/messages/${id}/remove`,
     CLOSE: (id: string) => `/admin/chat/conversations/${id}/close`,
@@ -247,6 +258,7 @@ export const URLS = {
   // -- Photo Moderation --------------------------------
   PHOTOS: {
     LIST: '/admin/photos',
+    FILTER_OPTIONS: '/admin/photos/filter-options',
     DELETE: (id: string) => `/admin/photos/${id}`,
   },
 
@@ -269,6 +281,7 @@ export const URLS = {
   // -- Vouchers ----------------------------------------
   VOUCHERS: {
     LIST: '/admin/vouchers',
+    FILTER_OPTIONS: '/admin/vouchers/filter-options',
     CREATE: '/admin/vouchers',
     UPDATE: (id: string) => `/admin/vouchers/${id}`,
     DETAIL: (id: string) => `/admin/vouchers/${id}`,
@@ -279,6 +292,8 @@ export const URLS = {
   // -- Payments ----------------------------------------
   PAYMENTS: {
     LIST: '/admin/payments',
+    FILTER_OPTIONS: '/admin/payments/filter-options',
+    REVENUE: '/admin/payments/revenue',
     REVENUE_STATS: '/admin/payments/stats',
     REVENUE_ANALYTICS: '/admin/payments/analytics',
   },
@@ -286,6 +301,7 @@ export const URLS = {
   // -- Subscriptions -----------------------------------
   SUBSCRIPTIONS: {
     LIST: '/admin/subscriptions',
+    FILTER_OPTIONS: '/admin/subscriptions/filter-options',
     STATS: '/admin/subscriptions/stats',
     PLANS: '/admin/subscription-plans',
     UPDATE_PLAN: (id: string) => `/admin/subscription-plans/${id}`,

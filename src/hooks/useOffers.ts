@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { offersService, type OfferFilters } from '../services/offers.service';
-import type { ProviderOffer } from '../types';
+import type { CreateOfferPayload, ProviderOffer } from '../types';
 import { toast } from 'react-toastify';
 
 export const offerKeys = {
@@ -10,12 +10,22 @@ export const offerKeys = {
   detail: (id: string) => [...offerKeys.all, 'detail', id] as const,
   pending: () => [...offerKeys.all, 'pending'] as const,
   stats: () => [...offerKeys.all, 'stats'] as const,
+  filterOptions: () => [...offerKeys.all, 'filter-options'] as const,
 };
 
 export function useOffers(filters: OfferFilters) {
   return useQuery({
     queryKey: offerKeys.list(filters),
     queryFn: () => offersService.list(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useOfferFilterOptions() {
+  return useQuery({
+    queryKey: offerKeys.filterOptions(),
+    queryFn: () => offersService.filterOptions(),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -24,6 +34,16 @@ export function useOffer(id: string) {
     queryKey: offerKeys.detail(id),
     queryFn: () => offersService.getById(id),
     enabled: !!id,
+  });
+}
+
+export function useCreateOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateOfferPayload) => offersService.create(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: offerKeys.all });
+    },
   });
 }
 

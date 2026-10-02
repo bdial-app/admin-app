@@ -11,13 +11,20 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { FilterBar, Select, useUrlFilters } from '../components/ui/filters';
+import {
+  SPONSORSHIP_FILTER_DEFS, SPONSORSHIP_FILTER_KEYS, SPONSORSHIP_OP_STATUS, SPONSORSHIP_SORTS,
+  sponsorshipSegments, withSponsorshipOptions, type SponsorshipOpStatus,
+} from '../components/sponsorships/sponsorship-filters';
 import {
   useSponsoredListings, useSponsoredStats, useUpdateSponsored, usePendingSponsorships, useApproveSponsorship,
   useRejectSponsorship, useSponsorshipAnalytics, useCreateSponsored, useStopSponsored, useResumeSponsored,
   useTopUpSponsored, useDeleteSponsored, useBulkSponsored, useStopAllSponsored, useSponsorshipEligibleProviders,
+  useSponsorshipFilterOptions,
 } from '../hooks/useSponsored';
 import { useFeatureFlags, useUpdateFeatureFlags } from '../hooks/useFeatureFlags';
 import { useFlatCategories } from '../hooks/useCategories';
+import type { SponsoredFilters } from '../services/sponsored.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type {
@@ -26,31 +33,17 @@ import type {
 } from '../types';
 
 const LIMIT = 10;
+const EMPTY_SELECTION: Set<string> = new Set();
 
-const TYPE_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Carousel', value: 'carousel' },
-  { label: 'Inline', value: 'inline' },
-  { label: 'Top Result', value: 'top_result' },
+const BILLING_OPTIONS = [
+  { value: 'free', label: 'Free (complimentary)' },
+  { value: 'paid', label: 'Paid (budget-based)' },
 ];
 
-const STATUS_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Running', value: 'true' },
-  { label: 'Stopped', value: 'false' },
-];
-
-const APPROVAL_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending_approval' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
-];
-
-const SOURCE_TABS = [
-  { label: 'All sources', value: '' },
-  { label: 'Admin granted', value: 'admin_granted' },
-  { label: 'Provider paid', value: 'provider_paid' },
+const APPROVAL_OPTIONS = [
+  { value: 'approved', label: 'Approved' },
+  { value: 'pending_approval', label: 'Pending approval' },
+  { value: 'rejected', label: 'Rejected' },
 ];
 
 const PLACEMENT_OPTIONS: { value: SponsoredType; label: string; hint: string }[] = [
@@ -72,16 +65,19 @@ const formatCurrency = (val: number) => `₹${Number(val).toLocaleString('en-IN'
 const toDateInput = (iso?: string | null) => (iso ? new Date(iso).toISOString().split('T')[0] : '');
 const addDays = (from: Date, days: number) => new Date(from.getTime() + days * 86400000);
 
-function getOperationalStatus(listing: SponsoredListing): { label: string; color: string; bg: string } {
-  if (listing.approvalStatus === 'rejected') return { label: 'Rejected', color: 'var(--color-danger-dark)', bg: 'var(--color-danger-light)' };
-  if (listing.approvalStatus === 'pending_approval') return { label: 'Pending', color: 'var(--color-warning-dark)', bg: 'var(--color-warning-light)' };
+/** Same vocabulary as the `opStatus` filter, computed from the row. */
+function getOpStatusKey(listing: SponsoredListing): SponsorshipOpStatus {
+  if (listing.approvalStatus === 'rejected') return 'rejected';
+  if (listing.approvalStatus === 'pending_approval') return 'pending';
   const now = new Date();
-  if (new Date(listing.endsAt) <= now) return { label: 'Expired', color: 'var(--text-muted)', bg: 'var(--surface-2)' };
-  if (!listing.isActive) return { label: 'Stopped', color: 'var(--color-warning-dark)', bg: 'var(--color-warning-light)' };
-  if (listing.billingMode === 'paid' && Number(listing.spentAmount) >= Number(listing.budgetAmount)) return { label: 'Budget Exhausted', color: 'var(--color-danger-dark)', bg: 'var(--color-danger-light)' };
-  if (new Date(listing.startsAt) > now) return { label: 'Scheduled', color: 'var(--color-info)', bg: 'var(--surface-2)' };
-  return { label: 'Live', color: 'var(--color-success-dark)', bg: 'var(--color-success-light)' };
+  if (new Date(listing.endsAt) <= now) return 'expired';
+  if (!listing.isActive) return 'stopped';
+  if (listing.billingMode === 'paid' && Number(listing.spentAmount) >= Number(listing.budgetAmount)) return 'exhausted';
+  if (new Date(listing.startsAt) > now) return 'scheduled';
+  return 'live';
 }
+
+const getOperationalStatus = (listing: SponsoredListing) => SPONSORSHIP_OP_STATUS[getOpStatusKey(listing)];
 
 type DetailTab = 'overview' | 'performance' | 'settings';
 
@@ -130,13 +126,7 @@ const emptyCreateForm = (): CreateForm => ({
 });
 
 export default function Sponsorships() {
-  const [page, setPage] = useState(1);
-  const [type, setType] = useState('');
-  const [isActive, setIsActive] = useState('');
-  const [approvalFilter, setApprovalFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(SPONSORSHIP_FILTER_KEYS);
   // Track the open row by id and resolve it from the live list, so the panel
   // reflects mutations without an effect. The snapshot covers rows that drop
   // off the current page.
@@ -147,7 +137,13 @@ export default function Sponsorships() {
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'approve' | 'reject' | 'stop' | 'delete' } | null>(null);
   const [actionNotes, setActionNotes] = useState('');
   const [analyticsPeriod, setAnalyticsPeriod] = useState('7d');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Bulk selection is tied to the view it was made in: when the filters,
+  // search, sort or page change, the rows change too, so the selection
+  // silently resets rather than carrying hidden ids into the next action.
+  const viewKey = `${JSON.stringify(filters)}|${search}|${sort}|${page}`;
+  const [selection, setSelection] = useState<{ viewKey: string; ids: Set<string> }>({ viewKey, ids: EMPTY_SELECTION });
+  const selectedIds = selection.viewKey === viewKey ? selection.ids : EMPTY_SELECTION;
+  const setSelectedIds = (ids: Set<string>) => setSelection({ viewKey, ids });
   const [bulkConfirm, setBulkConfirm] = useState<BulkSponsorshipAction | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm());
@@ -158,23 +154,18 @@ export default function Sponsorships() {
   const [confirmFlagOff, setConfirmFlagOff] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
-
-  useEffect(() => {
     const t = setTimeout(() => setDebouncedProviderSearch(providerSearch.trim()), 250);
     return () => clearTimeout(t);
   }, [providerSearch]);
 
   const { data, isLoading } = useSponsoredListings({
-    page, limit: LIMIT,
-    type: type || undefined,
-    isActive: isActive || undefined,
-    approvalStatus: approvalFilter || undefined,
-    source: sourceFilter || undefined,
-    search: debouncedSearch || undefined,
+    ...(filters as SponsoredFilters),
+    sort: (sort || undefined) as SponsoredFilters['sort'],
+    page,
+    limit: LIMIT,
+    search: search || undefined,
   });
+  const { data: filterOptions } = useSponsorshipFilterOptions();
   const { data: stats } = useSponsoredStats();
   const { data: pendingList } = usePendingSponsorships();
   const { data: flags } = useFeatureFlags();
@@ -474,19 +465,9 @@ export default function Sponsorships() {
     },
   ];
 
-  const tabGroup = (tabs: { label: string; value: string }[], current: string, onPick: (v: string) => void) => (
-    <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-      {tabs.map((tab) => (
-        <button key={tab.value} onClick={() => { onPick(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap" style={{
-          background: current === tab.value ? 'var(--surface-0)' : 'transparent',
-          color: current === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-          boxShadow: current === tab.value ? 'var(--shadow-sm)' : 'none',
-        }}>
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  );
+  const subtitle = data?.meta && hasNarrowing
+    ? `${data.meta.total.toLocaleString()}${filterOptions ? ` of ${filterOptions.counts.total.toLocaleString()}` : ''} sponsorships match your filters`
+    : 'Place, pause and manage promotional placements for any business — complimentary or paid';
 
   const selectedRows = items.filter((i) => selectedIds.has(i.id));
   const anySelectedRunning = selectedRows.some((r) => r.isActive);
@@ -497,7 +478,7 @@ export default function Sponsorships() {
     <div>
       <PageHeader
         title="Sponsored Listings"
-        description="Place, pause and manage promotional placements for any business — complimentary or paid"
+        description={subtitle}
         breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Sponsorships' }]}
         actions={
           <div className="flex items-center gap-2">
@@ -562,24 +543,17 @@ export default function Sponsorships() {
         </div>
       )}
 
-      {/* Search + Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-shrink-0" style={{ minWidth: '220px' }}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Search provider or city…"
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-            className={`${inputCls} pl-9`}
-            style={inputStyle}
-          />
-        </div>
-        {tabGroup(TYPE_TABS, type, setType)}
-        {tabGroup(STATUS_TABS, isActive, setIsActive)}
-        {tabGroup(APPROVAL_TABS, approvalFilter, setApprovalFilter)}
-        {tabGroup(SOURCE_TABS, sourceFilter, setSourceFilter)}
-      </div>
+      <FilterBar
+        defs={withSponsorshipOptions(SPONSORSHIP_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by business or city…' }}
+        sort={{ options: SPONSORSHIP_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+        segments={sponsorshipSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
 
       <DataTable<SponsoredListing>
         columns={columns}
@@ -593,8 +567,8 @@ export default function Sponsorships() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         emptyIcon={<Megaphone className="w-8 h-8" />}
-        emptyTitle="No sponsorships match"
-        emptyDescription="Adjust the filters or add a sponsor for any business."
+        emptyTitle={hasNarrowing ? 'No sponsorships match these filters' : 'No sponsorships yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Add a sponsor for any business to get started.'}
         bulkActions={
           <div className="flex items-center gap-1.5">
             {anySelectedRunning && (
@@ -834,10 +808,12 @@ export default function Sponsorships() {
               <input type="number" min={0} step={1} value={createForm.priority} onChange={(e) => setCreateForm((p) => ({ ...p, priority: e.target.value }))} className={inputCls} style={inputStyle} />
             </FormField>
             <FormField label="Approval">
-              <select value={createForm.approvalStatus} onChange={(e) => setCreateForm((p) => ({ ...p, approvalStatus: e.target.value as ApprovalStatus }))} className={inputCls} style={inputStyle}>
-                <option value="approved">Approved (serve now)</option>
-                <option value="pending_approval">Pending approval</option>
-              </select>
+              <Select
+                value={createForm.approvalStatus}
+                onChange={(v) => setCreateForm((p) => ({ ...p, approvalStatus: v as ApprovalStatus }))}
+                options={[{ value: 'approved', label: 'Approved (serve now)' }, { value: 'pending_approval', label: 'Pending approval' }]}
+                className="w-full"
+              />
             </FormField>
           </div>
           <FormField label="Internal note" description="Admin-only. Never shown to the provider or to customers.">
@@ -1166,15 +1142,20 @@ export default function Sponsorships() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <FormField label="Placement">
-                    <select value={editForm.type ?? selected.type} onChange={(e) => setEditForm((prev) => ({ ...prev, type: e.target.value as SponsoredType }))} className={inputCls} style={inputStyle}>
-                      {PLACEMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <Select
+                      value={editForm.type ?? selected.type}
+                      onChange={(v) => setEditForm((prev) => ({ ...prev, type: v as SponsoredType }))}
+                      options={PLACEMENT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                      className="w-full"
+                    />
                   </FormField>
                   <FormField label="Billing">
-                    <select value={editForm.billingMode ?? selected.billingMode} onChange={(e) => setEditForm((prev) => ({ ...prev, billingMode: e.target.value as SponsoredBillingMode }))} className={inputCls} style={inputStyle}>
-                      <option value="free">Free (complimentary)</option>
-                      <option value="paid">Paid (budget-based)</option>
-                    </select>
+                    <Select
+                      value={editForm.billingMode ?? selected.billingMode}
+                      onChange={(v) => setEditForm((prev) => ({ ...prev, billingMode: v as SponsoredBillingMode }))}
+                      options={BILLING_OPTIONS}
+                      className="w-full"
+                    />
                   </FormField>
                 </div>
 
@@ -1240,11 +1221,12 @@ export default function Sponsorships() {
                     <input type="number" min={0} step={1} value={editForm.priority ?? 0} onChange={(e) => setEditForm((prev) => ({ ...prev, priority: Number(e.target.value) }))} className={inputCls} style={inputStyle} />
                   </FormField>
                   <FormField label="Approval">
-                    <select value={editForm.approvalStatus ?? selected.approvalStatus} onChange={(e) => setEditForm((prev) => ({ ...prev, approvalStatus: e.target.value as ApprovalStatus }))} className={inputCls} style={inputStyle}>
-                      <option value="approved">Approved</option>
-                      <option value="pending_approval">Pending approval</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
+                    <Select
+                      value={editForm.approvalStatus ?? selected.approvalStatus}
+                      onChange={(v) => setEditForm((prev) => ({ ...prev, approvalStatus: v as ApprovalStatus }))}
+                      options={APPROVAL_OPTIONS}
+                      className="w-full"
+                    />
                   </FormField>
                 </div>
                 <FormField label="Internal note" description="Admin-only.">

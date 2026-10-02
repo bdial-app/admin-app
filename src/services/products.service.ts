@@ -1,25 +1,17 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
-import type { Product, ProductFilters, ProductStats } from '../types';
+import type { Product, ProductFilters, ProductFilterOptions, ProductStats } from '../types';
 import type { BulkActionPayload } from '../types';
 
 export const productsService = {
   list: async (filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> => {
+    // Only non-empty values travel; the backend DTO rejects unknown keys but
+    // treats an absent one as "don't filter".
     const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.search) params.set('search', filters.search);
-    if (filters.providerId) params.set('providerId', filters.providerId);
-    if (filters.isActive !== undefined && filters.isActive !== '') {
-      params.set('isActive', String(filters.isActive));
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
     }
-    if (filters.productType) params.set('productType', filters.productType);
-    if (filters.priceMin) params.set('priceMin', filters.priceMin);
-    if (filters.priceMax) params.set('priceMax', filters.priceMax);
-    if (filters.hasImages) params.set('hasImages', filters.hasImages);
-    if (filters.sortBy) params.set('sortBy', filters.sortBy);
-    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
     const { data } = await api.get(`${URLS.PRODUCTS.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
@@ -30,6 +22,11 @@ export const productsService = {
         totalPages: data?.totalPages ?? 1,
       },
     };
+  },
+
+  filterOptions: async (): Promise<ProductFilterOptions> => {
+    const { data } = await api.get(URLS.PRODUCTS.FILTER_OPTIONS);
+    return data;
   },
 
   stats: async (): Promise<ProductStats> => {

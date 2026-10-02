@@ -40,6 +40,20 @@ export interface SponsoredListing {
   warning?: string;
 }
 
+/** `GET /admin/sponsorships/filter-options` */
+export interface SponsorshipFilterOptions {
+  cities: { name: string; count: number }[];
+  counts: {
+    total: number;
+    live: number;
+    pending: number;
+    ending7d: number;
+    budget80: number;
+    adminGranted: number;
+    rejected: number;
+  };
+}
+
 export interface SponsorshipDailyData {
   date: string;
   impressions: number;
