@@ -1,15 +1,17 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
-import type { Verification, VerificationFilters } from '../types';
+import type { Verification, VerificationFilters, VerificationFilterOptions } from '../types';
 
 export const verificationsService = {
   list: async (filters: VerificationFilters = {}): Promise<PaginatedResponse<Verification>> => {
     const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    }
+    // The endpoint accepts both `limit` and the legacy `rows`; send both so
+    // either generation of the backend pages the same way.
     if (filters.limit) params.set('rows', String(filters.limit));
-    if (filters.status) params.set('status', filters.status);
-    if (filters.search) params.set('search', filters.search);
     const { data } = await api.get(`${URLS.VERIFICATIONS.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
@@ -20,6 +22,11 @@ export const verificationsService = {
         totalPages: data?.totalPages ?? 1,
       },
     };
+  },
+
+  filterOptions: async (): Promise<VerificationFilterOptions> => {
+    const { data } = await api.get(URLS.VERIFICATIONS.FILTER_OPTIONS);
+    return data;
   },
 
   getById: async (id: string): Promise<Verification> => {

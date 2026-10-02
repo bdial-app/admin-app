@@ -1,45 +1,56 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, UserX, Shield, UserPlus, Store, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, UserX, Shield, UserPlus, Store, Trash2, Pencil, Bell, Users as UsersIcon } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { EditUserDialog } from '../components/users/EditUserDialog';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import { USER_FILTER_DEFS, USER_FILTER_KEYS, USER_SORTS, userSegments, withCityOptions } from '../components/users/user-filters';
 import StatusBadge from '../components/ui/StatusBadge';
-import { useUsers, useSuspendUser, useUnsuspendUser, useSoftDeleteUser } from '../hooks/useUsers';
+import { useUsers, useUserFilterOptions, useSuspendUser, useUnsuspendUser, useSoftDeleteUser } from '../hooks/useUsers';
 import { ROUTES } from '../utils/constants';
 import { PermissionGate } from '../components/auth/PermissionGate';
 import { toast } from 'react-toastify';
-import type { User, UserStatus } from '../types';
+import type { User, UserFilters } from '../types';
 
 const LIMIT = 10;
-const STATUS_OPTIONS: { label: string; value: UserStatus | '' }[] = [
-  { label: 'All Status', value: '' },
-  { label: 'Active', value: 'active' },
-  { label: 'Suspended', value: 'suspended' },
-  { label: 'Paused', value: 'paused' },
-  { label: 'Deleted', value: 'deleted' },
-];
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'Never';
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDate(iso);
+}
+
+const PLATFORM_LABEL = { android: 'Android', ios: 'iPhone', web: 'Web' } as const;
+
 export default function Users() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<UserStatus | ''>('');
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(USER_FILTER_KEYS);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [confirmPause, setConfirmPause] = useState<User | null>(null);
   const [confirmActivate, setConfirmActivate] = useState<User | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
+  const [editUser, setEditUser] = useState<User | null>(null);
 
   const { data, isLoading } = useUsers({
+    ...(filters as UserFilters),
+    sort: (sort || undefined) as UserFilters['sort'],
     page,
     limit: LIMIT,
     search: search || undefined,
-    status: status || undefined,
   });
+  const { data: filterOptions } = useUserFilterOptions();
 
   const suspendMutation = useSuspendUser();
   const unsuspendMutation = useUnsuspendUser();
@@ -98,12 +109,37 @@ export default function Users() {
             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
               {row.name || '—'}
             </p>
-            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs truncate flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
               {row.mobileNumber || row.email || '—'}
+              {Array.isArray(row.pushPlatforms) && row.pushPlatforms.length > 0 && (
+                <span title={`Push enabled: ${row.pushPlatforms.map((p) => PLATFORM_LABEL[p]).join(', ')}`} className="inline-flex">
+                  <Bell className="w-3 h-3" style={{ color: 'var(--color-success)' }} />
+                </span>
+              )}
             </p>
           </div>
         </div>
       ),
+    },
+    {
+      key: 'business',
+      header: 'Business',
+      render: (row) =>
+        row.provider ? (
+          <div className="min-w-0 flex flex-col items-start gap-1">
+            <Link
+              to={ROUTES.PROVIDER_VIEW.replace(':id', row.provider.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="text-sm font-medium truncate max-w-[12rem] hover:underline"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {row.provider.brandName}
+            </Link>
+            <StatusBadge status={row.provider.status} />
+          </div>
+        ) : (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Customer</span>
+        ),
     },
     {
       key: 'role',
@@ -112,11 +148,11 @@ export default function Users() {
         <span
           className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full capitalize"
           style={{
-            background: row.role === 'admin' ? 'var(--color-info-light)' : 'var(--surface-2)',
-            color: row.role === 'admin' ? 'var(--color-info-dark)' : 'var(--text-secondary)',
+            background: row.role !== 'customer' ? 'var(--color-info-light)' : 'var(--surface-2)',
+            color: row.role !== 'customer' ? 'var(--color-info-dark)' : 'var(--text-secondary)',
           }}
         >
-          {row.role}
+          {row.role.replace('_', ' ')}
         </span>
       ),
     },
@@ -131,6 +167,19 @@ export default function Users() {
       render: (row) => (
         <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           {[row.area, row.city].filter(Boolean).join(', ') || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'lastSeenAt',
+      header: 'Last active',
+      render: (row) => (
+        <span
+          className="text-sm whitespace-nowrap"
+          title={row.lastSeenAt ? new Date(row.lastSeenAt).toLocaleString('en-IN') : 'No activity recorded'}
+          style={{ color: row.lastSeenAt ? 'var(--text-secondary)' : 'var(--text-muted)' }}
+        >
+          {timeAgo(row.lastSeenAt)}
         </span>
       ),
     },
@@ -166,7 +215,13 @@ export default function Users() {
     <div>
       <PageHeader
         title="Users"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} users total` : undefined}
+        description={
+          data?.meta
+            ? hasNarrowing && filterOptions
+              ? `${data.meta.total.toLocaleString()} of ${filterOptions.counts.total.toLocaleString()} users match your filters`
+              : `${data.meta.total.toLocaleString()} users total`
+            : undefined
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Users' },
@@ -183,33 +238,29 @@ export default function Users() {
         }
       />
 
+      <FilterBar
+        defs={withCityOptions(USER_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by name, mobile, or email…' }}
+        sort={{ options: USER_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+        segments={userSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
+
       <DataTable<User>
         columns={columns}
         data={data?.items ?? []}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearch={(q) => { setSearch(q); setPage(1); }}
-        searchPlaceholder="Search by name, mobile, or email…"
-        searchValue={search}
         rowKey={(row) => row.id}
         onRowClick={setSelectedUser}
-        filters={
-          <select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value as UserStatus | ''); setPage(1); }}
-            className="px-3 py-2 text-sm rounded-lg focus-ring"
-            style={{
-              background: 'var(--surface-0)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        }
+        emptyIcon={<UsersIcon className="w-10 h-10" />}
+        emptyTitle={hasNarrowing ? 'No users match these filters' : 'No users yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : undefined}
       />
 
       {/* User Detail Panel */}
@@ -221,6 +272,16 @@ export default function Users() {
         actions={
           selectedUser && (
             <>
+              <PermissionGate permission="users.update">
+                <button
+                  onClick={() => setEditUser(selectedUser)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+                >
+                  <Pencil className="w-4 h-4 inline mr-1.5" />
+                  Edit
+                </button>
+              </PermissionGate>
               {selectedUser.status === 'active' && !selectedUser.provider && (
                 <button
                   onClick={() => navigate(`${ROUTES.CREATE_PROVIDER}?mobile=${selectedUser.mobileNumber}`)}
@@ -318,6 +379,18 @@ export default function Users() {
           </div>
         )}
       </DetailPanel>
+
+      {/* Edit User */}
+      <EditUserDialog
+        user={editUser}
+        open={!!editUser}
+        onClose={() => setEditUser(null)}
+        onSaved={(updated) => {
+          setEditUser(updated);
+          // Keep the panel behind the dialog in step with what was just saved.
+          setSelectedUser((prev) => (prev && prev.id === updated.id ? updated : prev));
+        }}
+      />
 
       {/* Pause Confirmation */}
       <ConfirmDialog

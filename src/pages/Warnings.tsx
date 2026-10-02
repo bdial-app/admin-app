@@ -4,11 +4,18 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
+import { ProviderPicker, type PickedProvider } from '../components/ui/ProviderPicker';
 
 import { useWarnings, useCreateWarning } from '../hooks/useWarnings';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { ProviderWarning } from '../types';
+
+const WARNING_TYPE_OPTIONS = [
+  { value: 'policy_violation', label: 'Policy Violation', hint: 'Broke a listing or conduct rule' },
+  { value: 'content_warning', label: 'Content Warning', hint: 'Photos or wording that need changing' },
+  { value: 'report_warning', label: 'Report Warning', hint: 'Follows a customer report' },
+];
 
 const LIMIT = 20;
 
@@ -58,7 +65,9 @@ export default function Warnings() {
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<ProviderWarning | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ providerId: '', warningType: 'policy_violation', title: '', message: '' });
+  const [createForm, setCreateForm] = useState({ warningType: 'policy_violation', title: '', message: '' });
+  const [createProvider, setCreateProvider] = useState<PickedProvider | null>(null);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useWarnings({
     page,
@@ -86,16 +95,26 @@ export default function Warnings() {
 
   const activeFilterCount = [warningType, isRead, dateFrom, dateTo].filter(Boolean).length;
 
+  const resetCreate = () => {
+    setCreateForm({ warningType: 'policy_violation', title: '', message: '' });
+    setCreateProvider(null);
+    setCreateErrors({});
+  };
+
   const handleCreate = async () => {
-    if (!createForm.providerId || !createForm.title || !createForm.message) {
-      toast.error('Please fill all required fields');
-      return;
-    }
+    // Name the missing field instead of a blanket "fill all required fields".
+    const next: Record<string, string> = {};
+    if (!createProvider) next.providerId = 'Choose the business this warning is for';
+    if (!createForm.title.trim()) next.title = 'Give the warning a short title';
+    if (!createForm.message.trim()) next.message = 'Explain what happened and what must change';
+    setCreateErrors(next);
+    if (Object.keys(next).length > 0) return;
+
     try {
-      await createMutation.mutateAsync(createForm);
-      toast.success('Warning issued successfully');
+      await createMutation.mutateAsync({ ...createForm, providerId: createProvider!.id });
+      toast.success(`Warning issued to ${createProvider!.name}`);
       setShowCreate(false);
-      setCreateForm({ providerId: '', warningType: 'policy_violation', title: '', message: '' });
+      resetCreate();
     } catch {
       toast.error('Failed to create warning');
     }
@@ -459,7 +478,7 @@ export default function Warnings() {
       {/* Create Warning Panel */}
       <DetailPanel
         open={showCreate}
-        onClose={() => setShowCreate(false)}
+        onClose={() => { setShowCreate(false); resetCreate(); }}
         title="Issue New Warning"
         subtitle="Send a formal warning to a provider"
         actions={
@@ -475,34 +494,65 @@ export default function Warnings() {
         }
       >
         <div className="space-y-5">
+          {/* Who it goes to — searched by name, never a pasted id. */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
-              Provider ID *
+              Business *
             </label>
-            <input
-              type="text"
-              value={createForm.providerId}
-              onChange={(e) => setCreateForm({ ...createForm, providerId: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              placeholder="Paste provider UUID"
+            <ProviderPicker
+              value={createProvider}
+              invalid={!!createErrors.providerId}
+              onChange={(p) => {
+                setCreateProvider(p);
+                setCreateErrors((e) => ({ ...e, providerId: '' }));
+              }}
+              placeholder="Search a business by name…"
             />
+            {createErrors.providerId ? (
+              <p className="text-[11px] mt-1" style={{ color: 'var(--color-danger)' }}>{createErrors.providerId}</p>
+            ) : (
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                Start typing — results come from live listings.
+              </p>
+            )}
           </div>
+
+          {/* Type as cards: each says what it means, so the choice is informed. */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Warning Type *
             </label>
-            <select
-              value={createForm.warningType}
-              onChange={(e) => setCreateForm({ ...createForm, warningType: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              <option value="policy_violation">Policy Violation</option>
-              <option value="content_warning">Content Warning</option>
-              <option value="report_warning">Report Warning</option>
-            </select>
+            <div className="grid gap-2">
+              {WARNING_TYPE_OPTIONS.map((opt) => {
+                const picked = createForm.warningType === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCreateForm({ ...createForm, warningType: opt.value })}
+                    className="text-left px-3 py-2.5 rounded-lg transition-colors"
+                    style={{
+                      background: picked ? 'var(--surface-1)' : 'transparent',
+                      border: `1px solid ${picked ? 'var(--color-warning)' : 'var(--border-default)'}`,
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full shrink-0"
+                        style={{
+                          border: `2px solid ${picked ? 'var(--color-warning)' : 'var(--border-default)'}`,
+                          background: picked ? 'var(--color-warning)' : 'transparent',
+                        }}
+                      />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
+                    </span>
+                    <span className="block text-[11px] mt-0.5 ml-5.5" style={{ color: 'var(--text-muted)' }}>{opt.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Title *
@@ -510,28 +560,75 @@ export default function Warnings() {
             <input
               type="text"
               value={createForm.title}
-              onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+              maxLength={80}
+              onChange={(e) => {
+                setCreateForm({ ...createForm, title: e.target.value });
+                setCreateErrors((er) => ({ ...er, title: '' }));
+              }}
               className="w-full px-3 py-2.5 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              style={{
+                background: 'var(--surface-1)',
+                border: `1px solid ${createErrors.title ? 'var(--color-danger)' : 'var(--border-default)'}`,
+                color: 'var(--text-primary)',
+              }}
               placeholder="e.g. Inappropriate content detected"
             />
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px]" style={{ color: createErrors.title ? 'var(--color-danger)' : 'var(--text-muted)' }}>
+                {createErrors.title || 'Shown as the heading in their app.'}
+              </p>
+              <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{createForm.title.length}/80</span>
+            </div>
           </div>
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Message *
             </label>
             <textarea
               value={createForm.message}
-              onChange={(e) => setCreateForm({ ...createForm, message: e.target.value })}
+              maxLength={600}
+              onChange={(e) => {
+                setCreateForm({ ...createForm, message: e.target.value });
+                setCreateErrors((er) => ({ ...er, message: '' }));
+              }}
               className="w-full px-3 py-2.5 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', resize: 'none' }}
+              style={{
+                background: 'var(--surface-1)',
+                border: `1px solid ${createErrors.message ? 'var(--color-danger)' : 'var(--border-default)'}`,
+                color: 'var(--text-primary)',
+                resize: 'none',
+              }}
               rows={5}
               placeholder="Describe the reason and consequences of this warning…"
             />
-            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-              This message will be shown to the provider in their app.
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px]" style={{ color: createErrors.message ? 'var(--color-danger)' : 'var(--text-muted)' }}>
+                {createErrors.message || 'This message will be shown to the provider in their app.'}
+              </p>
+              <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{createForm.message.length}/600</span>
+            </div>
           </div>
+
+          {/* What they will see, before it is sent. */}
+          {(createForm.title || createForm.message) && (
+            <div className="rounded-lg p-3" style={{ background: 'var(--surface-1)', border: '1px dashed var(--border-default)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+                Preview — what {createProvider?.name || 'the provider'} sees
+              </p>
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--color-warning)' }} />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {createForm.title || 'Warning title'}
+                  </p>
+                  <p className="text-xs mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>
+                    {createForm.message || 'Your message will appear here.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </DetailPanel>
     </div>

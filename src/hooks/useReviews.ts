@@ -25,6 +25,22 @@ export function useReview(id: string) {
   });
 }
 
+export function useCreateReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      providerId: string;
+      reviewerId?: string;
+      starRating: number;
+      reviewText?: string;
+      postedAt?: string;
+    }) => reviewsService.create(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: reviewKeys.all });
+    },
+  });
+}
+
 export function useUpdateReviewStatus() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Plus, Eye, Copy, ToggleLeft, ToggleRight, Tag, Percent, Hash, Calendar,
-  Shield, Sparkles, Search, Filter, X, CheckCircle2, XCircle,
+  Shield, Sparkles, CheckCircle2, XCircle,
   IndianRupee, TrendingUp, Gift, Ticket,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -9,8 +9,13 @@ import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { FormField } from '../components/ui/FormField';
 import { StatCard } from '../components/ui/StatCard';
-import { useVouchers, useVoucherStats, useCreateVoucher, useUpdateVoucher, useVoucherRedemptions } from '../hooks/useVouchers';
-import type { Voucher, VoucherRedemption } from '../services/vouchers.service';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import {
+  VOUCHER_APPLICABLE_TO, VOUCHER_FILTER_DEFS, VOUCHER_FILTER_KEYS, VOUCHER_OP_STATUS, VOUCHER_SORTS,
+  voucherSegments, withVoucherOptions, type VoucherOpStatus,
+} from '../components/vouchers/voucher-filters';
+import { useVouchers, useVoucherFilterOptions, useVoucherStats, useCreateVoucher, useUpdateVoucher, useVoucherRedemptions } from '../hooks/useVouchers';
+import type { Voucher, VoucherFilters, VoucherRedemption } from '../services/vouchers.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 
@@ -21,20 +26,7 @@ const DISCOUNT_TYPES = [
   { value: 'fixed_amount', label: 'Fixed Amount (\u20B9)', icon: IndianRupee },
 ];
 
-const APPLICABLE_TO = [
-  { value: 'sponsorship', label: 'Sponsorship', emoji: '\uD83D\uDE80' },
-  { value: 'lead_unlock', label: 'Lead Unlock', emoji: '\uD83D\uDD13' },
-  { value: 'subscription', label: 'Subscription', emoji: '\u2B50' },
-  { value: 'badge', label: 'Badge', emoji: '\uD83C\uDFC5' },
-  { value: 'deal_unlock', label: 'Deal Unlock', emoji: '\uD83C\uDFAB' },
-  { value: 'deal_creation', label: 'Deal Creation', emoji: '\uD83C\uDFF7\uFE0F' },
-];
-
-const STATUS_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'true', label: 'Active' },
-  { value: 'false', label: 'Inactive' },
-];
+const APPLICABLE_TO = VOUCHER_APPLICABLE_TO;
 
 const formatCurrency = (v: number | null | undefined) => {
   if (v == null) return '\u20B90';
@@ -44,43 +36,47 @@ const formatCurrency = (v: number | null | undefined) => {
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-const isExpired = (v: Voucher) => v.validUntil && new Date(v.validUntil) < new Date();
+const isExpired = (v: Voucher) => !!v.validUntil && new Date(v.validUntil) < new Date();
 const isFullyUsed = (v: Voucher) => v.maxUses !== null && v.usedCount >= v.maxUses;
+const isScheduled = (v: Voucher) => !!v.validFrom && new Date(v.validFrom) > new Date();
+
+/** Whole days until `validUntil`; null when there is no expiry. */
+const daysUntilExpiry = (v: Voucher) =>
+  v.validUntil ? Math.ceil((new Date(v.validUntil).getTime() - Date.now()) / 86400000) : null;
+
+/** Same vocabulary as the `opStatus` filter, computed from the row. */
+function voucherOpStatus(v: Voucher): VoucherOpStatus {
+  if (!v.isActive) return 'inactive';
+  if (isExpired(v)) return 'expired';
+  if (isFullyUsed(v)) return 'exhausted';
+  if (isScheduled(v)) return 'scheduled';
+  return 'live';
+}
 
 export default function Vouchers() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [discountTypeFilter, setDiscountTypeFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(VOUCHER_FILTER_KEYS);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [viewRedemptions, setViewRedemptions] = useState<string | null>(null);
 
   const { data, isLoading } = useVouchers({
+    ...(filters as VoucherFilters),
+    sort: (sort || undefined) as VoucherFilters['sort'],
     page,
     limit: LIMIT,
-    isActive: statusFilter || undefined,
     search: search || undefined,
-    discountType: discountTypeFilter || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
   });
+  const { data: filterOptions } = useVoucherFilterOptions();
   const { data: stats } = useVoucherStats();
   const { data: redemptions } = useVoucherRedemptions(viewRedemptions ?? '');
   const createMutation = useCreateVoucher();
   const updateMutation = useUpdateVoucher();
 
-  const activeFilterCount = [discountTypeFilter, dateFrom, dateTo].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setDiscountTypeFilter('');
-    setDateFrom('');
-    setDateTo('');
-    setPage(1);
-  };
+  const subtitle = data?.meta
+    ? hasNarrowing
+      ? `${data.meta.total.toLocaleString()}${filterOptions ? ` of ${filterOptions.counts.total.toLocaleString()}` : ''} vouchers match your filters`
+      : `${data.meta.total.toLocaleString()} voucher codes`
+    : 'Manage discount codes & coupons';
 
   // ─── Form State ────────────────────────
   const [form, setForm] = useState({
@@ -230,12 +226,19 @@ export default function Vouchers() {
       header: 'Validity',
       render: (v) => {
         const expired = isExpired(v);
+        const daysLeft = daysUntilExpiry(v);
+        const expiringSoon = !expired && v.isActive && daysLeft != null && daysLeft <= 7;
         return (
           <div>
             <p className="text-xs" style={{ color: expired ? 'var(--color-danger)' : 'var(--text-primary)' }}>
               {v.validUntil ? formatDate(v.validUntil) : 'No expiry'}
             </p>
             {expired && <p className="text-[9px] font-bold" style={{ color: 'var(--color-danger)' }}>EXPIRED</p>}
+            {expiringSoon && (
+              <p className="text-[10px] font-semibold mt-0.5" style={{ color: daysLeft <= 2 ? 'var(--color-danger)' : 'var(--color-warning-dark)' }}>
+                {daysLeft <= 0 ? 'Expiring today' : `Expiring in ${daysLeft}d`}
+              </p>
+            )}
           </div>
         );
       },
@@ -244,20 +247,16 @@ export default function Vouchers() {
       key: 'status',
       header: 'Status',
       render: (v) => {
-        const expired = isExpired(v);
-        const full = isFullyUsed(v);
-        const statusColor = !v.isActive ? 'var(--text-muted)' :
-          expired || full ? 'var(--color-danger)' : 'var(--color-success)';
-        const statusBg = !v.isActive ? 'var(--surface-2)' :
-          expired || full ? 'var(--color-danger-light)' : 'var(--color-success-light)';
-        const statusLabel = !v.isActive ? 'Inactive' : expired ? 'Expired' : full ? 'Exhausted' : 'Active';
+        const status = voucherOpStatus(v);
+        const s = VOUCHER_OP_STATUS[status];
+        const Icon = status === 'live' ? CheckCircle2 : status === 'scheduled' ? Calendar : XCircle;
         return (
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded"
-            style={{ background: statusBg, color: statusColor }}
+            style={{ background: s.bg, color: s.color }}
           >
-            {v.isActive && !expired && !full ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-            {statusLabel}
+            <Icon className="w-3 h-3" />
+            {s.label}
           </span>
         );
       },
@@ -300,7 +299,7 @@ export default function Vouchers() {
     <div>
       <PageHeader
         title="Vouchers"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} voucher codes` : 'Manage discount codes & coupons'}
+        description={subtitle}
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Vouchers' },
@@ -346,113 +345,17 @@ export default function Vouchers() {
         </div>
       )}
 
-      {/* Search + Filters */}
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by voucher code or description\u2026"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--surface-2)]">
-                <X className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-              </button>
-            )}
-          </div>
-
-          {/* Status Pills */}
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-            {STATUS_FILTERS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => { setStatusFilter(opt.value); setPage(1); }}
-                className="px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors"
-                style={{
-                  background: statusFilter === opt.value ? 'var(--surface-0)' : 'transparent',
-                  color: statusFilter === opt.value ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: statusFilter === opt.value ? 'var(--shadow-sm)' : 'none',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-3 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
-            style={{
-              background: showFilters || activeFilterCount > 0 ? 'var(--color-primary-light)' : 'var(--surface-1)',
-              color: showFilters || activeFilterCount > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Expanded Filters */}
-        {showFilters && (
-          <div
-            className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
-            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
-          >
-            <select
-              value={discountTypeFilter}
-              onChange={(e) => { setDiscountTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              <option value="">All Types</option>
-              <option value="percentage">Percentage</option>
-              <option value="fixed_amount">Fixed Amount</option>
-            </select>
-
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1"
-                style={{ color: 'var(--color-danger)' }}
-              >
-                <X className="w-3 h-3" /> Clear all
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <FilterBar
+        defs={withVoucherOptions(VOUCHER_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by voucher code or description\u2026' }}
+        sort={{ options: VOUCHER_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+        segments={voucherSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
 
       {/* Data Table */}
       <DataTable<Voucher>
@@ -464,8 +367,8 @@ export default function Vouchers() {
         rowKey={(v) => v.id}
         onRowClick={setSelectedVoucher}
         emptyIcon={<Ticket className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />}
-        emptyTitle="No vouchers found"
-        emptyDescription={search || statusFilter || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'Create your first voucher to get started'}
+        emptyTitle={hasNarrowing ? 'No vouchers match these filters' : 'No vouchers yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Create your first voucher to get started'}
       />
 
       {/* ═══════════════════════════════════════════════════ */}
@@ -512,6 +415,7 @@ export default function Vouchers() {
               <DetailCell label="Used / Max" value={`${selectedVoucher.usedCount}${selectedVoucher.maxUses ? ` / ${selectedVoucher.maxUses}` : ' (unlimited)'}`} />
               <DetailCell label="Per Provider Limit" value={selectedVoucher.maxUsesPerProvider ? String(selectedVoucher.maxUsesPerProvider) : 'Unlimited'} />
               <DetailCell label="Created" value={formatDate(selectedVoucher.createdAt)} />
+              <DetailCell label="Created By" value={selectedVoucher.creator?.name ?? '—'} />
             </div>
 
             {/* Validity */}

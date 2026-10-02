@@ -6,6 +6,7 @@ export const verificationKeys = {
   all: ['verifications'] as const,
   lists: () => [...verificationKeys.all, 'list'] as const,
   list: (filters: VerificationFilters) => [...verificationKeys.lists(), filters] as const,
+  filterOptions: () => [...verificationKeys.all, 'filter-options'] as const,
   detail: (id: string) => [...verificationKeys.all, 'detail', id] as const,
 };
 
@@ -13,6 +14,15 @@ export function useVerifications(filters: VerificationFilters) {
   return useQuery({
     queryKey: verificationKeys.list(filters),
     queryFn: () => verificationsService.list(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useVerificationFilterOptions() {
+  return useQuery({
+    queryKey: verificationKeys.filterOptions(),
+    queryFn: () => verificationsService.filterOptions(),
+    staleTime: 5 * 60_000,
   });
 }
 

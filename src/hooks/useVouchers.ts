@@ -8,10 +8,15 @@ export const voucherKeys = {
   detail: (id: string) => [...voucherKeys.all, 'detail', id] as const,
   redemptions: (id: string) => [...voucherKeys.all, 'redemptions', id] as const,
   stats: () => [...voucherKeys.all, 'stats'] as const,
+  filterOptions: () => [...voucherKeys.all, 'filter-options'] as const,
 };
 
 export function useVouchers(filters: VoucherFilters) {
-  return useQuery({ queryKey: voucherKeys.list(filters), queryFn: () => vouchersService.list(filters) });
+  return useQuery({ queryKey: voucherKeys.list(filters), queryFn: () => vouchersService.list(filters), placeholderData: (prev) => prev });
+}
+
+export function useVoucherFilterOptions() {
+  return useQuery({ queryKey: voucherKeys.filterOptions(), queryFn: () => vouchersService.filterOptions(), staleTime: 5 * 60_000 });
 }
 
 export function useVoucher(id: string) {

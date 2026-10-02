@@ -12,18 +12,33 @@ import type {
   BulkSponsorshipResult,
   StopAllSponsorshipsResult,
   SponsoredBillingMode,
+  SponsorshipFilterOptions,
 } from '../types';
 
+export type SponsoredSort = 'newest' | 'ending_soon' | 'spend_desc' | 'impressions_desc' | 'clicks_desc' | 'ctr_desc';
+
+/** Query params for `GET /admin/sponsorships`; values mirror the URL, so they are strings. */
 export interface SponsoredFilters {
   page?: number;
   limit?: number;
   isActive?: string;
   type?: string;
   approvalStatus?: string;
+  opStatus?: string;
   source?: string;
   billingMode?: string;
   providerId?: string;
   search?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  endsFrom?: string;
+  endsTo?: string;
+  budgetMin?: string;
+  budgetMax?: string;
+  spentPctMin?: string;
+  city?: string;
+  minImpressions?: string;
+  sort?: SponsoredSort;
 }
 
 export interface SponsoredStats {
@@ -45,15 +60,9 @@ export interface SponsoredStats {
 export const sponsoredService = {
   list: async (filters: SponsoredFilters = {}): Promise<PaginatedResponse<SponsoredListing>> => {
     const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.isActive) params.set('isActive', filters.isActive);
-    if (filters.type) params.set('type', filters.type);
-    if (filters.approvalStatus) params.set('approvalStatus', filters.approvalStatus);
-    if (filters.source) params.set('source', filters.source);
-    if (filters.billingMode) params.set('billingMode', filters.billingMode);
-    if (filters.providerId) params.set('providerId', filters.providerId);
-    if (filters.search) params.set('search', filters.search);
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    }
     const { data } = await api.get(`${URLS.SPONSORED.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
@@ -64,6 +73,11 @@ export const sponsoredService = {
         totalPages: data?.totalPages ?? 1,
       },
     };
+  },
+
+  filterOptions: async (): Promise<SponsorshipFilterOptions> => {
+    const { data } = await api.get(URLS.SPONSORED.FILTER_OPTIONS);
+    return data;
   },
 
   getById: async (id: string): Promise<SponsoredListing> => {

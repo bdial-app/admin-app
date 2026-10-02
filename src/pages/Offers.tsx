@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gift, Eye, Pencil, Trash2, Percent, DollarSign, TrendingUp, Check, X } from 'lucide-react';
+import { Gift, Eye, Pencil, Trash2, Percent, DollarSign, TrendingUp, Check, X, Plus } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -7,40 +7,70 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useOffers, useOfferStats, useUpdateOffer, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
+import { FilterBar, Select, useUrlFilters } from '../components/ui/filters';
+import {
+  OFFER_FILTER_DEFS, OFFER_FILTER_KEYS, OFFER_OP_STATUS, OFFER_SORTS, offerSegments, withOfferOptions, type OfferOpStatus,
+} from '../components/offers/offer-filters';
+import { useOffers, useOfferFilterOptions, useOfferStats, useUpdateOffer, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
+import { useFlatCategories } from '../hooks/useCategories';
+import { CreateDealPanel } from '../components/offers/CreateDealPanel';
+import { PermissionGate } from '../components/auth/PermissionGate';
+import type { OfferFilters } from '../services/offers.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { ProviderOffer } from '../types';
+import type { DiscountType, ProviderOffer } from '../types';
 
 const LIMIT = 10;
-const STATUS_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Active', value: 'true' },
-  { label: 'Inactive', value: 'false' },
+
+const DISCOUNT_TYPE_OPTIONS = [
+  { value: 'percentage', label: 'Percentage' },
+  { value: 'flat', label: 'Flat' },
 ];
 
-const APPROVAL_TABS = [
-  { label: 'All', value: '' },
-  { label: 'Pending', value: 'pending_approval' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
-];
+const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border';
+const inputStyle = { background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } as const;
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
+/** Same vocabulary as the `opStatus` filter, computed from the row. */
+function offerOpStatus(offer: ProviderOffer): OfferOpStatus {
+  const now = Date.now();
+  if (!offer.isActive) return 'inactive';
+  if (new Date(offer.endsAt).getTime() < now) return 'expired';
+  if (offer.usageLimit != null && offer.usageCount >= offer.usageLimit) return 'exhausted';
+  if (new Date(offer.startsAt).getTime() > now) return 'scheduled';
+  return 'live';
+}
+
+function OpStatusBadge({ offer }: { offer: ProviderOffer }) {
+  const s = OFFER_OP_STATUS[offerOpStatus(offer)];
+  return (
+    <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: s.bg, color: s.color }}>
+      {s.label}
+    </span>
+  );
+}
+
 export default function Offers() {
-  const [page, setPage] = useState(1);
-  const [isActive, setIsActive] = useState('');
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(OFFER_FILTER_KEYS);
   const [selected, setSelected] = useState<ProviderOffer | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<ProviderOffer>>({});
   const [confirmDelete, setConfirmDelete] = useState<ProviderOffer | null>(null);
-  const [approvalFilter, setApprovalFilter] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
   const [rejectNotes, setRejectNotes] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
-  const { data, isLoading } = useOffers({ page, limit: LIMIT, isActive: isActive || undefined });
+  const { data, isLoading } = useOffers({
+    ...(filters as OfferFilters),
+    sort: (sort || undefined) as OfferFilters['sort'],
+    page,
+    limit: LIMIT,
+    search: search || undefined,
+  });
+  const { data: filterOptions } = useOfferFilterOptions();
+  const { data: categories } = useFlatCategories();
   const { data: stats } = useOfferStats();
   const { data: pendingList } = usePendingOffers();
   const updateMutation = useUpdateOffer();
@@ -48,9 +78,11 @@ export default function Offers() {
   const approveMutation = useApproveOffer();
   const rejectMutation = useRejectOffer();
 
-  const filteredItems = approvalFilter
-    ? (data?.items ?? []).filter((i) => i.approvalStatus === approvalFilter)
-    : (data?.items ?? []);
+  const subtitle = data?.meta
+    ? hasNarrowing
+      ? `${data.meta.total.toLocaleString()}${filterOptions ? ` of ${filterOptions.counts.total.toLocaleString()}` : ''} offers match your filters`
+      : `${data.meta.total.toLocaleString()} offers across all providers`
+    : 'Manage discount offers across all providers';
 
   const openEdit = (offer: ProviderOffer) => {
     setEditForm({
@@ -107,7 +139,10 @@ export default function Offers() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{row.title}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{row.provider?.brandName || row.providerId.slice(0, 8)}</p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              {row.provider?.brandName || row.providerId.slice(0, 8)}
+              {row.provider?.city ? ` · ${row.provider.city}` : ''}
+            </p>
           </div>
         </div>
       ),
@@ -136,13 +171,7 @@ export default function Offers() {
     {
       key: 'status',
       header: 'Status',
-      render: (row) => {
-        const now = new Date();
-        const isExpired = new Date(row.endsAt) < now;
-        if (!row.isActive) return <StatusBadge status="disabled" />;
-        if (isExpired) return <StatusBadge status="expired" />;
-        return <StatusBadge status="active" />;
-      },
+      render: (row) => <OpStatusBadge offer={row} />,
     },
     {
       key: 'approval',
@@ -152,11 +181,22 @@ export default function Offers() {
     {
       key: 'dates',
       header: 'Validity',
-      render: (row) => (
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {formatDate(row.startsAt)} → {formatDate(row.endsAt)}
-        </span>
-      ),
+      render: (row) => {
+        const daysLeft = Math.ceil((new Date(row.endsAt).getTime() - Date.now()) / 86400000);
+        const live = offerOpStatus(row) === 'live';
+        return (
+          <div>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {formatDate(row.startsAt)} → {formatDate(row.endsAt)}
+            </span>
+            {live && daysLeft <= 7 && (
+              <p className="text-[10px] font-semibold mt-0.5" style={{ color: daysLeft <= 3 ? 'var(--color-danger)' : 'var(--color-warning-dark)' }}>
+                Ends in {Math.max(daysLeft, 0)}d
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',
@@ -176,6 +216,7 @@ export default function Offers() {
             style={{ color: 'var(--text-muted)' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            title="View"
           >
             <Eye className="w-4 h-4" />
           </button>
@@ -208,9 +249,23 @@ export default function Offers() {
     <div>
       <PageHeader
         title="Provider Offers"
-        description="Manage discount offers across all providers"
+        description={subtitle}
         breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Offers' }]}
+        actions={
+          <PermissionGate permission="offers.create">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              <Plus className="w-4 h-4" />
+              Create Deal
+            </button>
+          </PermissionGate>
+        }
       />
+
+      <CreateDealPanel open={showCreate} onClose={() => setShowCreate(false)} />
 
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -221,39 +276,29 @@ export default function Offers() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-4 mb-4">
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-          {STATUS_TABS.map((tab) => (
-            <button key={tab.value} onClick={() => { setIsActive(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
-              background: isActive === tab.value ? 'var(--surface-0)' : 'transparent',
-              color: isActive === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: isActive === tab.value ? 'var(--shadow-sm)' : 'none',
-            }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-          {APPROVAL_TABS.map((tab) => (
-            <button key={tab.value} onClick={() => { setApprovalFilter(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors" style={{
-              background: approvalFilter === tab.value ? 'var(--surface-0)' : 'transparent',
-              color: approvalFilter === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: approvalFilter === tab.value ? 'var(--shadow-sm)' : 'none',
-            }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterBar
+        defs={withOfferOptions(OFFER_FILTER_DEFS, filterOptions, categories)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by offer title or business…' }}
+        sort={{ options: OFFER_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+        segments={offerSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
 
       <DataTable<ProviderOffer>
         columns={columns}
-        data={filteredItems}
+        data={data?.items ?? []}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
         rowKey={(r) => r.id}
         onRowClick={(r) => { setSelected(r); setEditMode(false); }}
+        emptyIcon={<Gift className="w-10 h-10" />}
+        emptyTitle={hasNarrowing ? 'No offers match these filters' : 'No offers yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Offers appear here as providers create them — or add one yourself with Create Deal.'}
       />
 
       <DetailPanel
@@ -295,14 +340,7 @@ export default function Offers() {
               ))}
               <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
                 <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
-                <div className="mt-1">
-                  {(() => {
-                    const isExpired = new Date(selected.endsAt) < new Date();
-                    if (!selected.isActive) return <StatusBadge status="disabled" />;
-                    if (isExpired) return <StatusBadge status="expired" />;
-                    return <StatusBadge status="active" />;
-                  })()}
-                </div>
+                <div className="mt-1"><OpStatusBadge offer={selected} /></div>
               </div>
               <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
                 <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Approval</p>
@@ -317,37 +355,45 @@ export default function Offers() {
                 <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{selected.description}</p>
               </div>
             )}
+            {selected.adminNotes && (
+              <div>
+                <p className="text-xs font-medium uppercase mb-1" style={{ color: 'var(--text-muted)' }}>Review notes</p>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{selected.adminNotes}</p>
+              </div>
+            )}
           </div>
         )}
         {selected && editMode && (
           <div className="space-y-4">
             <FormField label="Title">
-              <input type="text" value={editForm.title ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+              <input type="text" value={editForm.title ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))} className={inputCls} style={inputStyle} />
             </FormField>
             <FormField label="Description">
-              <textarea value={editForm.description ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="w-full px-3 py-2 text-sm rounded-lg border resize-none" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+              <textarea value={editForm.description ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className={`${inputCls} resize-none`} style={inputStyle} />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Discount Type">
-                <select value={editForm.discountType ?? 'percentage'} onChange={(e) => setEditForm(prev => ({ ...prev, discountType: e.target.value as 'percentage' | 'flat' }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}>
-                  <option value="percentage">Percentage</option>
-                  <option value="flat">Flat</option>
-                </select>
+                <Select
+                  value={editForm.discountType ?? 'percentage'}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, discountType: v as DiscountType }))}
+                  options={DISCOUNT_TYPE_OPTIONS}
+                  className="w-full"
+                />
               </FormField>
               <FormField label="Discount Value">
-                <input type="number" value={editForm.discountValue ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, discountValue: Number(e.target.value) }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+                <input type="number" value={editForm.discountValue ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, discountValue: Number(e.target.value) }))} className={inputCls} style={inputStyle} />
               </FormField>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Min Order Amount">
-                <input type="number" value={editForm.minOrderAmount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, minOrderAmount: e.target.value ? Number(e.target.value) : null }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+                <input type="number" value={editForm.minOrderAmount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, minOrderAmount: e.target.value ? Number(e.target.value) : null }))} className={inputCls} style={inputStyle} />
               </FormField>
               <FormField label="Max Discount">
-                <input type="number" value={editForm.maxDiscount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, maxDiscount: e.target.value ? Number(e.target.value) : null }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+                <input type="number" value={editForm.maxDiscount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, maxDiscount: e.target.value ? Number(e.target.value) : null }))} className={inputCls} style={inputStyle} />
               </FormField>
             </div>
             <FormField label="Usage Limit">
-              <input type="number" value={editForm.usageLimit ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, usageLimit: e.target.value ? Number(e.target.value) : null }))} placeholder="Leave empty for unlimited" className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
+              <input type="number" value={editForm.usageLimit ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, usageLimit: e.target.value ? Number(e.target.value) : null }))} placeholder="Leave empty for unlimited" className={inputCls} style={inputStyle} />
             </FormField>
             <FormField label="Active">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -395,8 +441,8 @@ export default function Offers() {
             onChange={(e) => setRejectNotes(e.target.value)}
             placeholder="Reason for rejection..."
             rows={3}
-            className="w-full mt-3 px-3 py-2 text-sm rounded-lg border resize-none"
-            style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+            className={`${inputCls} mt-3 resize-none`}
+            style={inputStyle}
           />
         )}
       </ConfirmDialog>

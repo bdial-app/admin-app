@@ -1,26 +1,35 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { AxiosError } from 'axios';
 import {
-  DollarSign, TrendingUp, TrendingDown, CreditCard, Users, Crown,
+  DollarSign, CreditCard, Users, Crown,
   ArrowUpRight, ArrowDownRight, Calendar, Zap, Star, ShoppingBag,
-  Ticket, Unlock, Tag, BarChart3, PieChart, Activity,
+  Ticket, Unlock, Tag, BarChart3, PieChart, Activity, Receipt, RotateCcw, Globe, Wallet,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
-import { useRevenueAnalytics } from '../hooks/usePayments';
+import { FilterBar, useUrlFilters, shortDate } from '../components/ui/filters';
+import { REVENUE_FILTER_DEFS, REVENUE_FILTER_KEYS, toRevenueParams, withOptions } from '../components/revenue/revenue-filters';
+import { PAYMENT_TYPE_OPTIONS } from '../components/payments/payment-filters';
+import { usePaymentFilterOptions, useRevenue, useRevenueAnalytics } from '../hooks/usePayments';
+import { useSubscriptionPlans } from '../hooks/useSubscriptions';
+import type { RevenueGranularity, RevenueReport } from '../services/payments.service';
 import { ROUTES } from '../utils/constants';
 
 const formatCurrency = (v: number | null | undefined) => {
-  if (v == null || isNaN(Number(v))) return '\u20B90';
+  if (v == null || isNaN(Number(v))) return '₹0';
   const n = Number(v);
-  if (n >= 10000000) return `\u20B9${(n / 10000000).toFixed(1)}Cr`;
-  if (n >= 100000) return `\u20B9${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000) return `\u20B9${(n / 1000).toFixed(1)}K`;
-  return `\u20B9${n.toLocaleString('en-IN')}`;
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(1)}Cr`;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+  return `₹${n.toLocaleString('en-IN')}`;
 };
 
-const formatCurrencyFull = (v: number | null | undefined) => {
-  if (v == null || isNaN(Number(v))) return '\u20B90';
-  return `\u20B9${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const formatCurrencyFull = (v: number | string | null | undefined) => {
+  if (v == null || isNaN(Number(v))) return '₹0';
+  return `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 };
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -40,29 +49,28 @@ const TYPE_META: Record<string, { label: string; color: string; icon: typeof Dol
 
 const PLAN_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
 
+const TOOLTIP_STYLE = { background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 } as const;
+
 type Tab = 'overview' | 'plans' | 'deals';
+
+/** Axis label for a series bucket, by how the API bucketed the range. */
+function formatBucket(bucket: string, granularity: RevenueGranularity): string {
+  const d = new Date(bucket.length <= 7 ? `${bucket}-01T00:00:00` : bucket.length === 10 ? `${bucket}T00:00:00` : bucket);
+  if (isNaN(d.getTime())) return bucket;
+  if (granularity === 'month') return `${MONTH_NAMES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
 
 export default function Revenue() {
   const [tab, setTab] = useState<Tab>('overview');
+  const { values, update, replace } = useUrlFilters(REVENUE_FILTER_KEYS);
+  const params = useMemo(() => toRevenueParams(values), [values]);
+  const comparing = values.compare === 'true';
+
+  const { data: report, isLoading: reportLoading, isError: reportFailed, error: reportError } = useRevenue(params);
+  const { data: filterOptions } = usePaymentFilterOptions();
+  const { data: plans } = useSubscriptionPlans();
   const { data, isLoading } = useRevenueAnalytics();
-
-  if (isLoading) {
-    return (
-      <div>
-        <PageHeader title="Revenue" description="Loading analytics\u2026" breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Revenue' }]} />
-        <div className="flex items-center justify-center py-24">
-          <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-default)', borderTopColor: 'var(--color-primary)' }} />
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-  const { overview, plans, deals } = data;
-
-  const growthPct = overview.lastMonthRevenue > 0
-    ? ((overview.thisMonthRevenue - overview.lastMonthRevenue) / overview.lastMonthRevenue * 100)
-    : 0;
 
   const tabs: { key: Tab; label: string; icon: typeof DollarSign }[] = [
     { key: 'overview', label: 'Overview', icon: PieChart },
@@ -70,75 +78,289 @@ export default function Revenue() {
     { key: 'deals', label: 'Deals Revenue', icon: ShoppingBag },
   ];
 
+  const periodLabel = report?.range
+    ? `${shortDate(report.range.from)} – ${shortDate(report.range.to)}`
+    : params.from
+      ? `${shortDate(params.from)} – ${params.to ? shortDate(params.to) : 'today'}`
+      : 'Last 30 days';
+
   return (
     <div>
       <PageHeader
         title="Revenue"
-        description="Comprehensive revenue analytics across all monetization models"
+        description={report ? `${formatCurrencyFull(report.totals.revenue)} across ${Number(report.totals.transactions).toLocaleString('en-IN')} transactions · ${periodLabel}` : 'Comprehensive revenue analytics across all monetization models'}
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Revenue' },
         ]}
       />
 
-      {/* ═══════ TOP STATS ═══════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(overview.totalRevenue)}
-          icon={<DollarSign className="w-5 h-5" />}
-          accent="var(--color-primary)"
-        />
-        <StatCard
-          title="This Month"
-          value={formatCurrency(overview.thisMonthRevenue)}
-          icon={growthPct >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-          accent={growthPct >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}
-          trend={growthPct !== 0 ? { value: Math.round(growthPct), label: 'vs last month' } : undefined}
-        />
-        <StatCard
-          title="MRR"
-          value={formatCurrency(overview.mrr)}
-          icon={<Activity className="w-5 h-5" />}
-          accent="#6366f1"
-        />
-        <StatCard
-          title="ARR"
-          value={formatCurrency(overview.arr)}
-          icon={<BarChart3 className="w-5 h-5" />}
-          accent="#f59e0b"
-        />
-        <StatCard
-          title="Active Subs"
-          value={overview.activeSubscriptions}
-          icon={<Users className="w-5 h-5" />}
-          accent="var(--color-info)"
-        />
+      {/* ═══════ FILTERED REPORT ═══════ */}
+      <FilterBar
+        defs={withOptions(REVENUE_FILTER_DEFS, filterOptions, plans)}
+        values={values}
+        onChange={update}
+        onReplace={replace}
+      />
+
+      <ReportBlock report={report} loading={reportLoading} failed={reportFailed} error={reportError as AxiosError<{ message?: string | string[] }> | null} comparing={comparing} periodLabel={periodLabel} />
+
+      {/* ═══════ ALL-TIME ANALYTICS ═══════ */}
+      <div className="mt-8 mb-3 flex items-baseline justify-between">
+        <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>All-time breakdown</h2>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Not affected by the filters above</span>
       </div>
 
-      {/* ═══════ TAB SWITCHER ═══════ */}
-      <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: 'var(--surface-1)' }}>
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all"
-            style={{
-              background: tab === t.key ? 'var(--surface-0)' : 'transparent',
-              color: tab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: tab === t.key ? 'var(--shadow-sm)' : 'none',
-            }}
-          >
-            <t.icon className="w-4 h-4" />
-            {t.label}
-          </button>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-default)', borderTopColor: 'var(--color-primary)' }} />
+        </div>
+      ) : data ? (
+        <>
+          {/* ═══════ TAB SWITCHER ═══════ */}
+          <div className="flex gap-1 p-1 rounded-xl mb-6" style={{ background: 'var(--surface-1)' }}>
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  background: tab === t.key ? 'var(--surface-0)' : 'transparent',
+                  color: tab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                  boxShadow: tab === t.key ? 'var(--shadow-sm)' : 'none',
+                }}
+              >
+                <t.icon className="w-4 h-4" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ═══════ TAB CONTENT ═══════ */}
+          {tab === 'overview' && <OverviewTab overview={data.overview} plansRevenue={data.plans.totalRevenue} dealsRevenue={data.deals.totalRevenue} report={report} periodLabel={periodLabel} />}
+          {tab === 'plans' && <PlansTab plans={data.plans} />}
+          {tab === 'deals' && <DealsTab deals={data.deals} />}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILTERED REPORT: KPI TILES + TIME SERIES
+// ═══════════════════════════════════════════════════════════
+
+function ReportBlock({ report, loading, failed, error, comparing, periodLabel }: {
+  report?: RevenueReport;
+  loading: boolean;
+  failed: boolean;
+  error: AxiosError<{ message?: string | string[] }> | null;
+  comparing: boolean;
+  periodLabel: string;
+}) {
+  if (failed && !report) {
+    const status = error?.response?.status;
+    const apiMessage = error?.response?.data?.message;
+    const detail = status === 404
+      ? 'The revenue report endpoint (GET /admin/payments/revenue) is not available on this API yet.'
+      : Array.isArray(apiMessage) ? apiMessage.join(' · ') : apiMessage || error?.message || 'The request failed.';
+    return (
+      <div className="rounded-xl p-8 text-center mb-2" style={{ background: 'var(--surface-0)', border: '1px dashed var(--border-strong)' }}>
+        <BarChart3 className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Revenue report unavailable</p>
+        <p className="text-xs mt-1 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>{detail}</p>
+        <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>Your filters are kept in the address bar; the chart will fill in once the API answers.</p>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl p-5 h-[104px] animate-pulse" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }} />
+          ))}
+        </div>
+        <div className="rounded-xl h-[320px] animate-pulse" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }} />
+      </div>
+    );
+  }
+
+  const t = report.totals;
+  const prev = comparing ? report.previous : undefined;
+  const prevAvg = prev && Number(prev.transactions) > 0 ? Number(prev.revenue) / Number(prev.transactions) : undefined;
+  const prevLabel = prev?.from && prev?.to ? `${shortDate(prev.from)} – ${shortDate(prev.to)}` : 'previous period';
+  const pointInTime = 'Measured right now, across all subscriptions; the filters above do not apply.';
+
+  return (
+    <div className={`space-y-4 transition-opacity ${loading ? 'opacity-60' : ''}`}>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <KpiTile title="Revenue" value={formatCurrencyFull(t.revenue)} icon={<DollarSign className="w-5 h-5" />} accent="var(--color-primary)" current={Number(t.revenue)} previous={prev ? Number(prev.revenue) : undefined} previousLabel={prevLabel} money />
+        <KpiTile title="Transactions" value={Number(t.transactions).toLocaleString('en-IN')} icon={<Receipt className="w-5 h-5" />} accent="var(--color-info)" current={Number(t.transactions)} previous={prev ? Number(prev.transactions) : undefined} previousLabel={prevLabel} />
+        <KpiTile title="Avg order" value={formatCurrencyFull(t.avgOrder)} icon={<Wallet className="w-5 h-5" />} accent="#8b5cf6" current={Number(t.avgOrder)} previous={prevAvg} previousLabel={prevLabel} money />
+        <KpiTile title="Refunds" value={formatCurrencyFull(t.refunds)} icon={<RotateCcw className="w-5 h-5" />} accent="var(--color-danger)" current={Number(t.refunds)} previous={prev ? Number(prev.refunds) : undefined} previousLabel={prevLabel} money invert />
+        <KpiTile title="MRR" value={formatCurrencyFull(t.mrr)} icon={<Activity className="w-5 h-5" />} accent="#f59e0b" hint="Point-in-time, ignores filters" tooltip={pointInTime} />
+        <KpiTile title="Active subs" value={Number(t.activeSubscriptions).toLocaleString('en-IN')} icon={<Users className="w-5 h-5" />} accent="var(--color-success)" hint="Point-in-time, ignores filters" tooltip={pointInTime} />
+      </div>
+
+      <SeriesChart report={report} periodLabel={periodLabel} />
+    </div>
+  );
+}
+
+function KpiTile({ title, value, icon, accent, current, previous, previousLabel, money, invert, hint, tooltip }: {
+  title: string; value: string; icon: React.ReactNode; accent: string;
+  current?: number; previous?: number;
+  /** The compared period, e.g. "4 Aug – 2 Sep". */
+  previousLabel?: string;
+  /** Format the previous value as money. */
+  money?: boolean;
+  /** An increase is bad (refunds). */
+  invert?: boolean;
+  hint?: string;
+  tooltip?: string;
+}) {
+  let delta: { pct: number | null; dir: 'up' | 'down' | 'flat' } | null = null;
+  if (previous !== undefined && current !== undefined) {
+    const diff = current - previous;
+    const dir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+    delta = { pct: previous > 0 ? (diff / previous) * 100 : null, dir };
+  }
+  const good = delta ? (delta.dir === 'flat' ? null : (delta.dir === 'up') !== !!invert) : null;
+  const deltaColor = good == null ? 'var(--text-muted)' : good ? 'var(--color-success)' : 'var(--color-danger)';
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-sm)' }} title={tooltip}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{title}</p>
+          <p className="text-xl font-bold mt-1 tracking-tight truncate tabular-nums" style={{ color: 'var(--text-primary)' }} title={value}>{value}</p>
+        </div>
+        <div className="p-2 rounded-lg flex-shrink-0" style={{ background: `color-mix(in srgb, ${accent} 12%, transparent)`, color: accent }}>{icon}</div>
+      </div>
+      {delta ? (
+        <p className="mt-2 flex items-center gap-1.5 text-xs tabular-nums min-w-0" title={`${previousLabel ?? 'Previous period'}: ${money ? formatCurrencyFull(previous) : previous?.toLocaleString('en-IN')}`}>
+          <span className="font-semibold flex-shrink-0" style={{ color: deltaColor }}>
+            {delta.dir === 'up' ? '▲' : delta.dir === 'down' ? '▼' : '–'}
+            {delta.pct != null ? ` ${Math.abs(delta.pct).toFixed(1)}%` : delta.dir === 'flat' ? ' 0%' : ' new'}
+          </span>
+          <span className="truncate" style={{ color: 'var(--text-muted)' }}>vs {previousLabel ?? (money ? formatCurrency(previous) : previous?.toLocaleString('en-IN'))}</span>
+        </p>
+      ) : hint ? (
+        <p className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function SeriesChart({ report, periodLabel }: { report: RevenueReport; periodLabel: string }) {
+  const granularity = report.range?.granularity ?? 'day';
+  const series = report.series ?? [];
+  // Stack by type when the API gives a breakdown; otherwise one bar per bucket.
+  const types = PAYMENT_TYPE_OPTIONS.map((t) => t.value).filter((ty) => series.some((s) => Number(s.byType?.[ty] ?? 0) > 0));
+  const rows = series.map((s) => ({
+    bucket: s.bucket,
+    label: formatBucket(s.bucket, granularity),
+    total: Number(s.revenue),
+    transactions: Number(s.transactions),
+    ...Object.fromEntries(types.map((ty) => [ty, Number(s.byType?.[ty] ?? 0)])),
+  }));
+  const hasRevenue = rows.some((r) => r.total > 0);
+  const keys = types.length ? types : ['total'];
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Revenue over time</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{periodLabel} · by {granularity}</p>
+        </div>
+        {types.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {types.map((ty) => (
+              <span key={ty} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: TYPE_META[ty]?.color ?? '#94a3b8' }} />
+                {TYPE_META[ty]?.label ?? ty}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {rows.length === 0 || !hasRevenue ? (
+        <div className="flex flex-col items-center justify-center h-[260px] text-center">
+          <BarChart3 className="w-8 h-8 mb-2" style={{ color: 'var(--text-muted)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No revenue in this period</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Widen the date range or clear a filter to see payments.</p>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={{ stroke: 'var(--border-default)' }} interval="preserveStartEnd" minTickGap={24} />
+            <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCurrency(Number(v))} width={64} />
+            <Tooltip
+              cursor={{ fill: 'var(--surface-2)', opacity: 0.6 }}
+              contentStyle={TOOLTIP_STYLE}
+              labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}
+              itemStyle={{ color: 'var(--text-secondary)', padding: 0 }}
+              formatter={(v, name) => [formatCurrencyFull(Number(v)), String(name)]}
+              labelFormatter={(_, payload) => {
+                const row = payload?.[0]?.payload as (typeof rows)[number] | undefined;
+                return row ? `${row.label} · ${formatCurrencyFull(row.total)} · ${row.transactions.toLocaleString('en-IN')} txns` : '';
+              }}
+            />
+            {keys.map((k, i) => (
+              <Bar
+                key={k}
+                dataKey={k}
+                stackId="revenue"
+                name={k === 'total' ? 'Revenue' : TYPE_META[k]?.label ?? k}
+                fill={k === 'total' ? 'var(--color-primary)' : TYPE_META[k]?.color ?? '#94a3b8'}
+                radius={i === keys.length - 1 ? [4, 4, 0, 0] : 0}
+                maxBarSize={48}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+/** Ranked list with proportional bars, as the Analytics page draws its city lists. */
+function RankedList({ title, icon, items, color, unit }: {
+  title: string; icon: React.ReactNode;
+  items: { name: string; revenue: number; count: number }[];
+  color: string; unit: string;
+}) {
+  const max = items[0]?.revenue || 1;
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{title}</p>
+      </div>
+      <div className="space-y-2">
+        {items.map((c, i) => (
+          <div key={`${c.name}-${i}`} className="flex items-center gap-2">
+            <span className="text-xs w-5 text-right font-mono" style={{ color: 'var(--text-muted)' }}>{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-0.5 gap-2">
+                <span className="text-xs font-medium truncate capitalize" style={{ color: 'var(--text-primary)' }}>{c.name || 'Unknown'}</span>
+                <span className="text-xs tabular-nums flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrencyFull(c.revenue)}</span>
+                  <span className="ml-1.5" style={{ color: 'var(--text-muted)' }}>{c.count.toLocaleString('en-IN')} {unit}</span>
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full" style={{ background: 'var(--surface-2)' }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${(c.revenue / max) * 100}%`, background: color }} />
+              </div>
+            </div>
+          </div>
         ))}
+        {items.length === 0 && <p className="text-sm py-4 text-center" style={{ color: 'var(--text-muted)' }}>No data for this period</p>}
       </div>
-
-      {/* ═══════ TAB CONTENT ═══════ */}
-      {tab === 'overview' && <OverviewTab overview={overview} plansRevenue={plans.totalRevenue} dealsRevenue={deals.totalRevenue} />}
-      {tab === 'plans' && <PlansTab plans={plans} />}
-      {tab === 'deals' && <DealsTab deals={deals} />}
     </div>
   );
 }
@@ -147,12 +369,16 @@ export default function Revenue() {
 // OVERVIEW TAB
 // ═══════════════════════════════════════════════════════════
 
-function OverviewTab({ overview, plansRevenue, dealsRevenue }: {
+function OverviewTab({ overview, plansRevenue, dealsRevenue, report, periodLabel }: {
   overview: NonNullable<ReturnType<typeof useRevenueAnalytics>['data']>['overview'];
   plansRevenue: number;
   dealsRevenue: number;
+  report?: RevenueReport;
+  periodLabel: string;
 }) {
   const otherRevenue = overview.totalRevenue - plansRevenue - dealsRevenue;
+  const byGateway = (report?.byGateway ?? []).map((g) => ({ name: g.gateway === 'apple' ? 'Apple IAP' : g.gateway, revenue: Number(g.revenue), count: Number(g.count) })).sort((a, b) => b.revenue - a.revenue);
+  const byCity = (report?.byCity ?? []).map((c) => ({ name: c.city, revenue: Number(c.revenue), count: Number(c.count) })).sort((a, b) => b.revenue - a.revenue);
 
   return (
     <div className="space-y-6">
@@ -264,6 +490,14 @@ function OverviewTab({ overview, plansRevenue, dealsRevenue }: {
           <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>Completed billing cycle</p>
         </div>
       </div>
+
+      {/* Filtered period: by gateway and by city (from /payments/revenue) */}
+      {report && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RankedList title={`By gateway · ${periodLabel}`} icon={<CreditCard className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />} items={byGateway} color="var(--color-primary)" unit="txns" />
+          <RankedList title={`Top cities · ${periodLabel}`} icon={<Globe className="w-4 h-4" style={{ color: '#10b981' }} />} items={byCity.slice(0, 10)} color="#10b981" unit="txns" />
+        </div>
+      )}
     </div>
   );
 }

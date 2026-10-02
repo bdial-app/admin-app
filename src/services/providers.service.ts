@@ -55,13 +55,22 @@ export interface ProviderLocationResult {
   note?: string;
 }
 
+/**
+ * Tiers, best to worst: precise (owner/rooftop/street), neighbourhood
+ * (locality — distance still shown), approximate (city centre, "In Pune"),
+ * missing (no coordinates, never in nearby results).
+ */
 export interface LocationStats {
   total: number;
   precise: number;
+  neighbourhood: number;
   approximate: number;
   missing: number;
   byPrecision: Record<string, number>;
+  /** Weak pins with address text no geocoder has been asked about yet. */
   improvable: number;
+  /** Weak pins Google Places could still find by name or phone. */
+  nameSearchable: number;
 }
 
 /** What auto-fill actually saved for one provider. */
@@ -76,6 +85,31 @@ export interface AutoImageResult {
 }
 
 export const providersService = {
+  /**
+   * CSV of every provider the given filters match — the whole result set, not
+   * the page on screen. Returns the file plus what the server says it holds.
+   */
+  exportCsv: async (
+    filters: ProviderFilters = {},
+  ): Promise<{ blob: Blob; filename: string; count: number; truncated: boolean }> => {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.city) params.set('city', filters.city);
+    if (filters.isFeatured !== undefined) params.set('isFeatured', String(filters.isFeatured));
+    if (filters.isWomenLed !== undefined) params.set('isWomenLed', String(filters.isWomenLed));
+    if (filters.categoryId) params.set('categoryId', filters.categoryId);
+    const res = await api.get(`${URLS.PROVIDERS.EXPORT}?${params.toString()}`, { responseType: 'blob' });
+    const disposition = String(res.headers['content-disposition'] ?? '');
+    const named = /filename="?([^"]+)"?/.exec(disposition)?.[1];
+    return {
+      blob: res.data as Blob,
+      filename: named || `providers-${new Date().toISOString().slice(0, 10)}.csv`,
+      count: Number(res.headers['x-export-count'] ?? 0),
+      truncated: String(res.headers['x-export-truncated'] ?? '') === 'true',
+    };
+  },
+
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
     const params = new URLSearchParams();
     if (filters.page) params.set('page', String(filters.page));
@@ -221,9 +255,21 @@ export const providersService = {
     return data;
   },
 
-  /** Ids of providers with a missing or weak pin, newest first. */
-  locationCandidates: async (limit = 200): Promise<string[]> => {
-    const { data } = await api.get(`${URLS.PROVIDERS.LOCATION_CANDIDATES}?limit=${limit}`);
+  /**
+   * Ids of providers with a missing or weak pin, newest first.
+   * 'text' = has an address to geocode; 'name' = worth asking Google Places by name/phone.
+   */
+  locationCandidates: async (limit = 200, kind: 'text' | 'name' = 'text'): Promise<string[]> => {
+    const { data } = await api.get(`${URLS.PROVIDERS.LOCATION_CANDIDATES}?limit=${limit}&kind=${kind}`);
+    return data;
+  },
+
+  /**
+   * Asks Google Places for the business itself (phone first, then name within
+   * the city). Misses and look-alikes are left untouched. Up to 50 ids per call.
+   */
+  pinByName: async (ids: string[]): Promise<ProviderLocationResult[]> => {
+    const { data } = await api.post(URLS.PROVIDERS.PIN_BY_NAME, { ids }, { timeout: 180_000 });
     return data;
   },
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, FileText, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -7,37 +7,48 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { VerificationStepper } from '../components/ui/VerificationStepper';
 import { DocumentViewer } from '../components/ui/DocumentViewer';
-import { useVerifications, useReviewVerification } from '../hooks/useVerifications';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import {
+  VERIFICATION_FILTER_DEFS, VERIFICATION_FILTER_KEYS, VERIFICATION_SORTS, verificationSegments, withVerificationOptions,
+} from '../components/verifications/verification-filters';
+import { useVerifications, useVerificationFilterOptions, useReviewVerification } from '../hooks/useVerifications';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { Verification, DocStatus } from '../types';
+import type { Verification, VerificationFilters } from '../types';
 
 const LIMIT = 10;
-const STATUS_TABS: { label: string; value: DocStatus | 'in_review' | '' }[] = [
-  { label: 'All', value: '' },
-  { label: 'In Review', value: 'in_review' as any },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
-];
+/** Amber from this many days without a decision. */
+const WAITING_WARN_DAYS = 3;
 
-const formatDate = (iso: string | null) =>
+const formatDate = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
+/**
+ * Days an application has been waiting. Decided applications are not waiting
+ * (whatever the server sends); otherwise prefer the server's `waitingDays`
+ * and fall back to deriving it from `createdAt`.
+ */
+function waitingDaysOf(v: Verification): number | null {
+  if (v.status === 'approved' || v.status === 'rejected') return null;
+  if (v.waitingDays != null) return v.waitingDays;
+  if (!v.createdAt) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86_400_000));
+}
+
 export default function Verifications() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<DocStatus | 'in_review' | ''>('');
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(VERIFICATION_FILTER_KEYS);
   const [selected, setSelected] = useState<Verification | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'reject'; verification: Verification } | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
 
   const { data, isLoading } = useVerifications({
+    ...(filters as VerificationFilters),
+    sort: (sort || undefined) as VerificationFilters['sort'],
     page,
     limit: LIMIT,
-    status: status || undefined,
     search: search || undefined,
   });
+  const { data: filterOptions } = useVerificationFilterOptions();
 
   const reviewMutation = useReviewVerification();
 
@@ -63,7 +74,7 @@ export default function Verifications() {
   const columns: Column<Verification>[] = [
     {
       key: 'user',
-      header: 'User',
+      header: 'Applicant',
       render: (row) => (
         <div className="flex items-center gap-3">
           <div
@@ -77,11 +88,16 @@ export default function Verifications() {
               {row.user?.name || '—'}
             </p>
             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-              {row.user?.mobileNumber || '—'}
+              {[row.user?.mobileNumber, row.user?.city].filter(Boolean).join(' · ') || '—'}
             </p>
           </div>
         </div>
       ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: 'aadhaarStatus',
@@ -90,7 +106,7 @@ export default function Verifications() {
     },
     {
       key: 'ijamatStatus',
-      header: 'Ijamat',
+      header: 'iJamat',
       render: (row) => <StatusBadge status={row.ijamatStatus} />,
     },
     {
@@ -105,19 +121,49 @@ export default function Verifications() {
           )}
           {row.ijamatDocUrl && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-              <FileText className="w-3 h-3" /> Ijamat
+              <FileText className="w-3 h-3" /> iJamat
             </span>
           )}
+          {!row.aadhaarDocUrl && !row.ijamatDocUrl && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>}
         </div>
       ),
+    },
+    {
+      key: 'waiting',
+      header: 'Waiting',
+      render: (row) => {
+        const days = waitingDaysOf(row);
+        const warn = days != null && days >= WAITING_WARN_DAYS;
+        return (
+          <div className="whitespace-nowrap">
+            {days == null ? (
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>—</p>
+            ) : (
+              <p className="text-sm font-semibold tabular-nums" style={{ color: warn ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+                {days === 0 ? 'Today' : `${days}d`}
+              </p>
+            )}
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }} title={row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN') : undefined}>
+              {row.createdAt ? `Submitted ${formatDate(row.createdAt)}` : 'Submission date unknown'}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'reviewedAt',
       header: 'Reviewed',
       render: (row) => (
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {formatDate(row.reviewedAt)}
-        </span>
+        <div className="whitespace-nowrap">
+          <p className="text-sm" style={{ color: row.reviewedAt ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+            {formatDate(row.reviewedAt)}
+          </p>
+          {(row.reviewer?.name || row.reviewerName) && (
+            <p className="text-xs truncate max-w-[10rem]" style={{ color: 'var(--text-muted)' }}>
+              by {row.reviewer?.name || row.reviewerName}
+            </p>
+          )}
+        </div>
       ),
     },
     {
@@ -131,6 +177,7 @@ export default function Verifications() {
           onClick={(e) => { e.stopPropagation(); setSelected(row); }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          aria-label="View verification"
         >
           <Eye className="w-4 h-4" />
         </button>
@@ -138,34 +185,36 @@ export default function Verifications() {
     },
   ];
 
+  const selectedWaiting = selected ? waitingDaysOf(selected) : null;
+
   return (
     <div>
       <PageHeader
         title="Verifications"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} submissions` : undefined}
+        description={
+          data?.meta
+            ? hasNarrowing && filterOptions
+              ? `${data.meta.total.toLocaleString()} of ${filterOptions.counts.total.toLocaleString()} submissions match your filters`
+              : `${data.meta.total.toLocaleString()} submissions`
+            : undefined
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Verifications' },
         ]}
       />
 
-      {/* Status Tabs */}
-      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-1)' }}>
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => { setStatus(tab.value); setPage(1); }}
-            className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-            style={{
-              background: status === tab.value ? 'var(--surface-0)' : 'transparent',
-              color: status === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: status === tab.value ? 'var(--shadow-sm)' : 'none',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        defs={withVerificationOptions(VERIFICATION_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by name or mobile…' }}
+        sort={{ options: VERIFICATION_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: oldest first' }}
+        segments={verificationSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
 
       <DataTable<Verification>
         columns={columns}
@@ -173,11 +222,11 @@ export default function Verifications() {
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearch={(q) => { setSearch(q); setPage(1); }}
-        searchPlaceholder="Search by name or mobile…"
-        searchValue={search}
         rowKey={(row) => row.id}
         onRowClick={setSelected}
+        emptyIcon={<ShieldCheck className="w-10 h-10" />}
+        emptyTitle={hasNarrowing ? 'No submissions match these filters' : 'No verification submissions yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Applications appear here as users submit their documents.'}
       />
 
       {/* Verification Detail Panel */}
@@ -224,7 +273,7 @@ export default function Verifications() {
                   {selected.user?.name || '—'}
                 </h3>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {selected.user?.mobileNumber || '—'}
+                  {[selected.user?.mobileNumber, selected.user?.city].filter(Boolean).join(' · ') || '—'}
                 </p>
               </div>
             </div>
@@ -242,8 +291,23 @@ export default function Verifications() {
                 <div className="mt-1"><StatusBadge status={selected.aadhaarStatus} /></div>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Ijamat Status</p>
+                <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>iJamat Status</p>
                 <div className="mt-1"><StatusBadge status={selected.ijamatStatus} /></div>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Submitted</p>
+                <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                  {formatDate(selected.createdAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Waiting</p>
+                <p
+                  className="text-sm font-medium mt-0.5"
+                  style={{ color: selectedWaiting != null && selectedWaiting >= WAITING_WARN_DAYS ? 'var(--color-warning)' : 'var(--text-primary)' }}
+                >
+                  {selectedWaiting == null ? 'Decided' : selectedWaiting === 0 ? 'Submitted today' : `${selectedWaiting} day${selectedWaiting === 1 ? '' : 's'}`}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Reviewed At</p>
@@ -274,8 +338,8 @@ export default function Verifications() {
                 {selected.ijamatDocUrl && (
                   <DocumentViewer
                     url={selected.ijamatDocUrl}
-                    label="Ijamat Document"
-                    caption={selected.ijamatNumber ? `Ijamat no. ${selected.ijamatNumber}` : undefined}
+                    label="iJamat Document"
+                    caption={selected.ijamatNumber ? `iJamat no. ${selected.ijamatNumber}` : undefined}
                   />
                 )}
               </div>

@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
-  Package, Wrench, Search, Store, X, ImagePlus, Eye, EyeOff, IndianRupee, Check,
+  Package, Wrench, X, ImagePlus, Eye, EyeOff, IndianRupee, Check,
 } from 'lucide-react';
-import { useProviders } from '../../hooks/useProviders';
 import { SearchableCategoryPicker } from '../ui/SearchableCategoryPicker';
+import { ProviderPicker } from '../ui/ProviderPicker';
 import type { ProductFormValues } from './product-form-values';
 
 
@@ -33,11 +33,10 @@ export function ProductForm({ value, onChange, images, onImagesChange, maxImages
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 p-5">
       <div className="space-y-6 min-w-0">
         <Section title="Whose shop" required done={!!value.providerId}>
-          <ProviderField
-            providerId={value.providerId}
-            providerName={value.providerName}
+          <ProviderPicker
+            value={value.providerId ? { id: value.providerId, name: value.providerName } : null}
             locked={lockProvider}
-            onPick={(p) => onChange({ ...value, providerId: p?.id ?? '', providerName: p?.name ?? '' })}
+            onChange={(p) => onChange({ ...value, providerId: p?.id ?? '', providerName: p?.name ?? '' })}
           />
           {!value.providerId && (
             <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -258,65 +257,3 @@ function Section({ title, required, done, children }: { title: string; required?
   );
 }
 
-/** Type-ahead over real businesses — never a free-text name. */
-function ProviderField({
-  providerId, providerName, locked, onPick,
-}: {
-  providerId: string;
-  providerName: string;
-  locked?: boolean;
-  onPick: (p: { id: string; name: string } | null) => void;
-}) {
-  const [search, setSearch] = useState('');
-  const { data } = useProviders({ page: 1, limit: 8, search: search || undefined });
-
-  if (providerId) {
-    return (
-      <div className="flex items-center justify-between p-2.5 rounded-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-        <span className="flex items-center gap-2 min-w-0">
-          <Store className="w-4 h-4 shrink-0" style={{ color: 'var(--color-primary)' }} />
-          <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{providerName}</span>
-        </span>
-        {!locked && (
-          <button type="button" onClick={() => onPick(null)} className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-primary)' }}>
-            Change
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search a business by name…"
-          className="input w-full pl-9"
-        />
-      </div>
-      {search && (
-        <div className="mt-1.5 max-h-48 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border-default)' }}>
-          {(data?.items ?? []).length === 0 ? (
-            <p className="text-xs px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>No business by that name</p>
-          ) : (
-            (data?.items ?? []).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => { onPick({ id: p.id, name: p.brandName }); setSearch(''); }}
-                className="w-full text-left px-3 py-2 text-sm hover:opacity-80"
-                style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
-              >
-                {p.brandName}
-                {p.city ? <span className="text-xs ml-1.5" style={{ color: 'var(--text-muted)' }}>· {p.city}</span> : null}
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}

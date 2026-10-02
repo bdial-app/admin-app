@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import {
-  Search, Filter, X, Package, Image, ImageOff, Eye,
+  X, Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
   CheckCircle2, XCircle, ShoppingBag, Wrench,
   ChevronLeft, ChevronRight, Star, Plus,
@@ -13,7 +13,9 @@ import { ProductForm } from '../components/products/ProductForm';
 import { emptyProductForm, type ProductFormValues } from '../components/products/product-form-values';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
-import { useProducts, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct, useUploadProductImages, useDeleteProductImage } from '../hooks/useProducts';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import { PRODUCT_FILTER_DEFS, PRODUCT_FILTER_KEYS, PRODUCT_SORTS, productSegments, withProductOptions } from '../components/products/product-filters';
+import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct, useUploadProductImages, useDeleteProductImage } from '../hooks/useProducts';
 import { productsService } from '../services/products.service';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -25,44 +27,21 @@ const LIMIT = 25;
 const formatPrice = (price: number | null | undefined) =>
   price != null && price > 0 ? `\u20B9${Number(price).toLocaleString('en-IN')}` : '\u2014';
 
-const STATUS_PILLS = [
-  { value: '', label: 'All' },
-  { value: 'true', label: 'Active' },
-  { value: 'false', label: 'Disabled' },
-];
-
-const TYPE_PILLS = [
-  { value: '', label: 'All Types' },
-  { value: 'product', label: 'Products', icon: ShoppingBag },
-  { value: 'service', label: 'Services', icon: Wrench },
-];
-
 export default function Products() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'' | 'product' | 'service'>('');
-  const [priceMin, setPriceMin] = useState('');
-  const [priceMax, setPriceMax] = useState('');
-  const [hasImages, setHasImages] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(PRODUCT_FILTER_KEYS);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
   const [imageViewIdx, setImageViewIdx] = useState(0);
 
-  const filters: ProductFilters = {
+  const { data, isLoading } = useProducts({
+    ...(filters as ProductFilters),
+    sort: (sort || undefined) as ProductFilters['sort'],
     page,
     limit: LIMIT,
     search: search || undefined,
-    isActive: statusFilter === 'true' ? true : statusFilter === 'false' ? false : '',
-    productType: (typeFilter as '' | 'product' | 'service') || undefined,
-    priceMin: priceMin || undefined,
-    priceMax: priceMax || undefined,
-    hasImages: hasImages || undefined,
-  };
-
-  const { data, isLoading } = useProducts(filters);
+  });
+  const { data: filterOptions } = useProductFilterOptions();
   const { data: stats } = useProductStats();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
@@ -71,15 +50,8 @@ export default function Products() {
   const deleteImageMutation = useDeleteProductImage();
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  const activeFilterCount = [typeFilter, priceMin, priceMax, hasImages].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setTypeFilter('');
-    setPriceMin('');
-    setPriceMax('');
-    setHasImages('');
-    setPage(1);
-  };
+  const typeFilter = filters.productType ?? '';
+  const totalCount = filterOptions?.counts.total ?? stats?.total;
 
   const handleToggle = async (product: Product) => {
     try {
@@ -177,8 +149,9 @@ export default function Products() {
       }
       toast.success(`${createForm.productType === 'service' ? 'Service' : 'Product'} created for ${createForm.providerName}`);
       setCreateOpen(false);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Failed to create product');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to create product');
     } finally {
       setCreating(false);
     }
@@ -390,7 +363,13 @@ export default function Products() {
     <div>
       <PageHeader
         title="Products"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} products & services` : 'Manage provider products & services'}
+        description={
+          data?.meta
+            ? hasNarrowing && totalCount != null
+              ? `${data.meta.total.toLocaleString()} of ${totalCount.toLocaleString()} products & services match your filters`
+              : `${data.meta.total.toLocaleString()} products & services`
+            : 'Manage provider products & services'
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Products' },
@@ -457,7 +436,7 @@ export default function Products() {
                 return (
                   <button
                     key={t.type}
-                    onClick={() => { setTypeFilter(typeFilter === t.type ? '' : t.type as '' | 'product' | 'service'); setPage(1); }}
+                    onClick={() => update({ productType: typeFilter === t.type ? undefined : t.type })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
                       background: typeFilter === t.type ? (isService ? '#6366f115' : 'var(--color-success-light)') : 'var(--surface-1)',
@@ -487,118 +466,18 @@ export default function Products() {
         </div>
       )}
 
-      {/* ═══ Search + Filters ═══ */}
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by product name, description, provider\u2026"
-              className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--surface-2)]">
-                <X className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-              </button>
-            )}
-          </div>
-
-          {/* Status Pills */}
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-            {STATUS_PILLS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => { setStatusFilter(opt.value); setPage(1); }}
-                className="px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors"
-                style={{
-                  background: statusFilter === opt.value ? 'var(--surface-0)' : 'transparent',
-                  color: statusFilter === opt.value ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: statusFilter === opt.value ? 'var(--shadow-sm)' : 'none',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-3 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
-            style={{
-              background: showFilters || activeFilterCount > 0 ? 'var(--color-primary-light)' : 'var(--surface-1)',
-              color: showFilters || activeFilterCount > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Expanded Filters */}
-        {showFilters && (
-          <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => { setTypeFilter(e.target.value as '' | 'product' | 'service'); setPage(1); }}
-                className="px-3 py-2 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {TYPE_PILLS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Price Range</label>
-              <div className="flex items-center gap-1.5">
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
-                  <input type="number" value={priceMin} onChange={(e) => { setPriceMin(e.target.value); setPage(1); }} placeholder="Min" min={0}
-                    className="w-20 pl-5 pr-1 py-2 text-sm rounded-lg focus-ring"
-                    style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                </div>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>\u2013</span>
-                <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
-                  <input type="number" value={priceMax} onChange={(e) => { setPriceMax(e.target.value); setPage(1); }} placeholder="Max" min={0}
-                    className="w-20 pl-5 pr-1 py-2 text-sm rounded-lg focus-ring"
-                    style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Images</label>
-              <select
-                value={hasImages}
-                onChange={(e) => { setHasImages(e.target.value); setPage(1); }}
-                className="px-3 py-2 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                <option value="">All</option>
-                <option value="true">With images</option>
-                <option value="false">No images</option>
-              </select>
-            </div>
-            {activeFilterCount > 0 && (
-              <button onClick={clearFilters} className="px-3 py-2 text-xs font-medium rounded-md flex items-center gap-1" style={{ color: 'var(--color-danger)' }}>
-                <X className="w-3 h-3" /> Clear all
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ═══ Filters ═══ */}
+      <FilterBar
+        defs={withProductOptions(PRODUCT_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by product name, description, business…' }}
+        sort={{ options: PRODUCT_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: display order' }}
+        segments={productSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={totalCount}
+      />
 
       {/* ═══ Data Table ═══ */}
       <DataTable<Product>
@@ -610,8 +489,8 @@ export default function Products() {
         rowKey={(row) => row.id}
         onRowClick={setSelectedProduct}
         emptyIcon={<Package className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />}
-        emptyTitle="No products found"
-        emptyDescription={search || statusFilter || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'Products will appear here as providers add them'}
+        emptyTitle={hasNarrowing ? 'No products match these filters' : 'No products yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Products will appear here as providers add them'}
       />
 
       {/* ═══════════════════════════════════════════════════ */}

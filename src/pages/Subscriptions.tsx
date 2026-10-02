@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Crown, Plus, Pencil, ToggleLeft, ToggleRight, X, Zap, Users, Target, Sparkles,
-  Search, Filter, Calendar, Eye, Copy, Clock, CheckCircle2, XCircle,
+  Eye, Copy, Clock, CheckCircle2, XCircle,
   PauseCircle, AlertTriangle, CreditCard, Infinity,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -9,24 +9,19 @@ import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
 import { FormField } from '../components/ui/FormField';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
 import {
-  useSubscriptions, useSubscriptionPlans, useSubscriptionStats,
+  SUBSCRIPTION_FILTER_DEFS, SUBSCRIPTION_FILTER_KEYS, SUBSCRIPTION_SORTS, subscriptionSegments, withOptions,
+} from '../components/subscriptions/subscription-filters';
+import {
+  useSubscriptions, useSubscriptionPlans, useSubscriptionStats, useSubscriptionFilterOptions,
   useCreatePlan, useUpdatePlan,
 } from '../hooks/useSubscriptions';
-import type { Subscription, SubscriptionPlan } from '../services/subscriptions.service';
+import type { Subscription, SubscriptionFilters, SubscriptionPlan } from '../services/subscriptions.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 
 const LIMIT = 25;
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'All', icon: null },
-  { value: 'active', label: 'Active', icon: CheckCircle2 },
-  { value: 'trialing', label: 'Trial', icon: Clock },
-  { value: 'past_due', label: 'Past Due', icon: AlertTriangle },
-  { value: 'paused', label: 'Paused', icon: PauseCircle },
-  { value: 'canceled', label: 'Canceled', icon: XCircle },
-];
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof CheckCircle2 }> = {
   active: { color: 'var(--color-success)', bg: 'var(--color-success-light)', icon: CheckCircle2 },
@@ -35,12 +30,6 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: typeof Ch
   paused: { color: '#d97706', bg: '#fef3c7', icon: PauseCircle },
   canceled: { color: 'var(--color-danger)', bg: 'var(--color-danger-light)', icon: XCircle },
 };
-
-const BILLING_OPTIONS = [
-  { value: '', label: 'All Billing' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
-];
 
 const SPONSORSHIP_OPTIONS = ['inline', 'carousel', 'top_result'];
 
@@ -93,15 +82,8 @@ export default function Subscriptions() {
   // ─── State ─────────────────────────────
   const [tab, setTab] = useState<'subscriptions' | 'plans'>('subscriptions');
 
-  // Subscription list state
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [billingFilter, setBillingFilter] = useState('');
-  const [planFilter, setPlanFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  // Subscription list filters live in the URL
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(SUBSCRIPTION_FILTER_KEYS);
   const [selected, setSelected] = useState<Subscription | null>(null);
 
   // Plan form state
@@ -111,30 +93,18 @@ export default function Subscriptions() {
 
   // ─── Queries ───────────────────────────
   const { data, isLoading } = useSubscriptions({
+    ...(filters as SubscriptionFilters),
+    sort: (sort || undefined) as SubscriptionFilters['sort'],
     page,
     limit: LIMIT,
-    status: statusFilter || undefined,
     search: search || undefined,
-    planId: planFilter || undefined,
-    billingInterval: billingFilter || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
   });
 
+  const { data: filterOptions } = useSubscriptionFilterOptions();
   const { data: stats } = useSubscriptionStats();
   const { data: plans } = useSubscriptionPlans();
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
-
-  const activeFilterCount = [billingFilter, planFilter, dateFrom, dateTo].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setBillingFilter('');
-    setPlanFilter('');
-    setDateFrom('');
-    setDateTo('');
-    setPage(1);
-  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -325,7 +295,13 @@ export default function Subscriptions() {
     <div>
       <PageHeader
         title="Subscriptions"
-        description="Provider subscriptions & plan management"
+        description={
+          tab === 'subscriptions' && data?.meta
+            ? hasNarrowing && filterOptions
+              ? `${data.meta.total.toLocaleString()} of ${filterOptions.counts.total.toLocaleString()} subscriptions match your filters`
+              : `${data.meta.total.toLocaleString()} subscriptions`
+            : 'Provider subscriptions & plan management'
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Subscriptions' },
@@ -420,126 +396,18 @@ export default function Subscriptions() {
       {/* ═══════════════════════════════════════════════════ */}
       {tab === 'subscriptions' && (
         <>
-          {/* Search + Quick Filters */}
-          <div className="flex flex-col gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  placeholder="Search by provider name or subscription ID…"
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-                  style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                />
-                {search && (
-                  <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--surface-2)]">
-                    <X className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-                  </button>
-                )}
-              </div>
-
-              {/* Status Pills */}
-              <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                {STATUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setStatusFilter(opt.value); setPage(1); }}
-                    className="px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1"
-                    style={{
-                      background: statusFilter === opt.value ? 'var(--surface-0)' : 'transparent',
-                      color: statusFilter === opt.value ? 'var(--text-primary)' : 'var(--text-muted)',
-                      boxShadow: statusFilter === opt.value ? 'var(--shadow-sm)' : 'none',
-                    }}
-                  >
-                    {opt.icon && <opt.icon className="w-3 h-3" />}
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Filter Toggle */}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-3 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
-                style={{
-                  background: showFilters || activeFilterCount > 0 ? 'var(--color-primary-light)' : 'var(--surface-1)',
-                  color: showFilters || activeFilterCount > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
-                  border: '1px solid var(--border-default)',
-                }}
-              >
-                <Filter className="w-4 h-4" />
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Expanded Filters */}
-            {showFilters && (
-              <div
-                className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
-              >
-                <select
-                  value={billingFilter}
-                  onChange={(e) => { setBillingFilter(e.target.value); setPage(1); }}
-                  className="px-3 py-2 text-sm rounded-lg focus-ring"
-                  style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                >
-                  {BILLING_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={planFilter}
-                  onChange={(e) => { setPlanFilter(e.target.value); setPage(1); }}
-                  className="px-3 py-2 text-sm rounded-lg focus-ring"
-                  style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                >
-                  <option value="">All Plans</option>
-                  {(plans ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                    className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                    style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                    className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                    style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                  />
-                </div>
-
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={clearFilters}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1"
-                    style={{ color: 'var(--color-danger)' }}
-                  >
-                    <X className="w-3 h-3" /> Clear all
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <FilterBar
+            defs={withOptions(SUBSCRIPTION_FILTER_DEFS, filterOptions, plans)}
+            values={filters}
+            onChange={update}
+            onReplace={replace}
+            search={{ value: search, onChange: setSearch, placeholder: 'Search by provider name or subscription ID…' }}
+            sort={{ options: SUBSCRIPTION_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+            segments={subscriptionSegments(filterOptions)}
+            resultCount={hasNarrowing ? data?.meta?.total : undefined}
+            totalCount={filterOptions?.counts.total}
+            panelKey={tab}
+          />
 
           {/* Subscriptions Table */}
           <DataTable<Subscription>
@@ -551,8 +419,8 @@ export default function Subscriptions() {
             rowKey={(s) => s.id}
             onRowClick={setSelected}
             emptyIcon={<CreditCard className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />}
-            emptyTitle="No subscriptions found"
-            emptyDescription={search || statusFilter || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'No provider subscriptions yet'}
+            emptyTitle={hasNarrowing ? 'No subscriptions match these filters' : 'No subscriptions yet'}
+            emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'No provider subscriptions yet'}
           />
         </>
       )}

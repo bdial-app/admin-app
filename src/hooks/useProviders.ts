@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { providersService, type ProviderImagesPayload } from '../services/providers.service';
 import type { ProviderFilters, Provider, BulkActionPayload } from '../types';
@@ -18,6 +19,38 @@ export function useProviders(filters: ProviderFilters) {
     queryKey: providerKeys.list(filters),
     queryFn: () => providersService.list(filters),
   });
+}
+
+/**
+ * Downloads the filtered providers as a CSV file. Kept out of react-query: it
+ * is a one-off action with a file as its result, not state worth caching.
+ */
+export function useExportProviders() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const exportProviders = async (filters: ProviderFilters) => {
+    setIsExporting(true);
+    try {
+      const { blob, filename, count, truncated } = await providersService.exportCsv(filters);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (count === 0) toast.info('No providers matched these filters — the file is empty');
+      else if (truncated) toast.warn(`Exported the first ${count.toLocaleString()} providers — narrow the filters for the rest`);
+      else toast.success(`Exported ${count.toLocaleString()} provider${count === 1 ? '' : 's'}`);
+    } catch {
+      toast.error('Could not export providers');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return { exportProviders, isExporting };
 }
 
 export function usePendingProviders() {

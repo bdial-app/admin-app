@@ -5,12 +5,25 @@ export const subscriptionKeys = {
   all: ['subscriptions'] as const,
   lists: () => [...subscriptionKeys.all, 'list'] as const,
   list: (filters: SubscriptionFilters) => [...subscriptionKeys.lists(), filters] as const,
+  filterOptions: () => [...subscriptionKeys.all, 'filter-options'] as const,
   plans: () => [...subscriptionKeys.all, 'plans'] as const,
   stats: () => [...subscriptionKeys.all, 'stats'] as const,
 };
 
 export function useSubscriptions(filters: SubscriptionFilters) {
-  return useQuery({ queryKey: subscriptionKeys.list(filters), queryFn: () => subscriptionsService.list(filters) });
+  return useQuery({
+    queryKey: subscriptionKeys.list(filters),
+    queryFn: () => subscriptionsService.list(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useSubscriptionFilterOptions() {
+  return useQuery({
+    queryKey: subscriptionKeys.filterOptions(),
+    queryFn: () => subscriptionsService.filterOptions(),
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useSubscriptionStats() {
@@ -28,6 +41,7 @@ export function useCreatePlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: subscriptionKeys.plans() });
       qc.invalidateQueries({ queryKey: subscriptionKeys.stats() });
+      qc.invalidateQueries({ queryKey: subscriptionKeys.filterOptions() });
     },
   });
 }
@@ -39,6 +53,7 @@ export function useUpdatePlan() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: subscriptionKeys.plans() });
       qc.invalidateQueries({ queryKey: subscriptionKeys.stats() });
+      qc.invalidateQueries({ queryKey: subscriptionKeys.filterOptions() });
     },
   });
 }

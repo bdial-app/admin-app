@@ -1,19 +1,15 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
-import type { User, UserFilters } from '../types';
+import type { User, UserFilters, UserFilterOptions } from '../types';
 import type { BulkActionPayload } from '../types';
 
 export const usersService = {
   list: async (filters: UserFilters = {}): Promise<PaginatedResponse<User>> => {
     const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.search) params.set('search', filters.search);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.role) params.set('role', filters.role);
-    if (filters.city) params.set('city', filters.city);
-    if (filters.hasProvider !== undefined) params.set('hasProvider', String(filters.hasProvider));
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    }
     const { data } = await api.get(`${URLS.USERS.LIST}?${params.toString()}`);
     // Normalize backend response into PaginatedResponse
     return {
@@ -27,6 +23,11 @@ export const usersService = {
     };
   },
 
+  filterOptions: async (): Promise<UserFilterOptions> => {
+    const { data } = await api.get(URLS.USERS.FILTER_OPTIONS);
+    return data;
+  },
+
   getById: async (id: string): Promise<User> => {
     const { data } = await api.get(URLS.USERS.DETAIL(id));
     return data;
@@ -34,6 +35,12 @@ export const usersService = {
 
   update: async (id: string, body: Partial<User>): Promise<User> => {
     const { data } = await api.patch(URLS.USERS.UPDATE(id), body);
+    return data;
+  },
+
+  /** The OTP is checked server-side in this same call, so it cannot be skipped. */
+  updateMobileNumber: async (id: string, mobileNumber: string, otp: string): Promise<User> => {
+    const { data } = await api.patch(URLS.USERS.UPDATE_MOBILE(id), { mobileNumber, otp });
     return data;
   },
 

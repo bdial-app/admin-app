@@ -1,12 +1,29 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { PaginatedResponse, ProviderOffer } from '../types';
+import type { CreateOfferPayload, PaginatedResponse, ProviderOffer, OfferFilterOptions } from '../types';
 
+export type OfferSort = 'newest' | 'ending_soon' | 'most_used' | 'discount_desc';
+
+/** Query params for `GET /admin/offers`; values mirror the URL, so they are strings. */
 export interface OfferFilters {
   page?: number;
   limit?: number;
+  search?: string;
   isActive?: string;
+  approvalStatus?: string;
+  opStatus?: string;
+  discountType?: string;
+  discountMin?: string;
+  discountMax?: string;
+  endsFrom?: string;
+  endsTo?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  usage?: string;
+  city?: string;
+  categoryId?: string;
   providerId?: string;
+  sort?: OfferSort;
 }
 
 export interface OfferStats {
@@ -15,14 +32,17 @@ export interface OfferStats {
   totalUsage: number;
 }
 
+const toParams = (filters: object) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  return params.toString();
+};
+
 export const offersService = {
   list: async (filters: OfferFilters = {}): Promise<PaginatedResponse<ProviderOffer>> => {
-    const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.isActive) params.set('isActive', filters.isActive);
-    if (filters.providerId) params.set('providerId', filters.providerId);
-    const { data } = await api.get(`${URLS.OFFERS.LIST}?${params.toString()}`);
+    const { data } = await api.get(`${URLS.OFFERS.LIST}?${toParams(filters)}`);
     return {
       items: data?.items ?? data?.data ?? [],
       meta: data?.meta ?? {
@@ -32,6 +52,16 @@ export const offersService = {
         totalPages: data?.totalPages ?? 1,
       },
     };
+  },
+
+  filterOptions: async (): Promise<OfferFilterOptions> => {
+    const { data } = await api.get(URLS.OFFERS.FILTER_OPTIONS);
+    return data;
+  },
+
+  create: async (body: CreateOfferPayload): Promise<ProviderOffer> => {
+    const { data } = await api.post(URLS.OFFERS.CREATE, body);
+    return data;
   },
 
   getById: async (id: string): Promise<ProviderOffer> => {
@@ -55,7 +85,7 @@ export const offersService = {
 
   getPending: async (): Promise<ProviderOffer[]> => {
     const { data } = await api.get(URLS.OFFERS.PENDING);
-    return data;
+    return Array.isArray(data) ? data : data?.items ?? [];
   },
 
   approve: async (id: string, notes?: string): Promise<ProviderOffer> => {

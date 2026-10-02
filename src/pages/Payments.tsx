@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  CreditCard, ExternalLink, Search, Filter, Calendar, X, TrendingUp,
+  CreditCard, ExternalLink, TrendingUp,
   IndianRupee, ArrowUpRight, ArrowDownRight, Receipt, Clock,
   CheckCircle2, XCircle, RefreshCw, Zap, Eye, Copy,
 } from 'lucide-react';
@@ -9,37 +9,14 @@ import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { StatCard } from '../components/ui/StatCard';
 import StatusBadge from '../components/ui/StatusBadge';
-import { usePayments, useRevenueStats } from '../hooks/usePayments';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
+import { PAYMENT_FILTER_DEFS, PAYMENT_FILTER_KEYS, PAYMENT_SORTS, paymentSegments, withOptions } from '../components/payments/payment-filters';
+import { usePayments, usePaymentFilterOptions, useRevenueStats } from '../hooks/usePayments';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { Payment } from '../services/payments.service';
+import type { Payment, PaymentFilters } from '../services/payments.service';
 
 const LIMIT = 25;
-
-const TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
-  { value: 'sponsorship', label: 'Sponsorship' },
-  { value: 'lead_unlock', label: 'Lead Unlock' },
-  { value: 'subscription', label: 'Subscription' },
-  { value: 'badge', label: 'Badge' },
-  { value: 'deal_unlock', label: 'Deal Unlock' },
-  { value: 'deal_creation', label: 'Deal Creation' },
-];
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'succeeded', label: 'Succeeded' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'refunded', label: 'Refunded' },
-];
-
-const GATEWAY_OPTIONS = [
-  { value: '', label: 'All Gateways' },
-  { value: 'razorpay', label: 'Razorpay' },
-  { value: 'apple', label: 'Apple IAP' },
-];
 
 const STATUS_ICONS: Record<string, typeof CheckCircle2> = {
   succeeded: CheckCircle2,
@@ -81,39 +58,18 @@ const timeAgo = (iso: string) => {
 };
 
 export default function Payments() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [gatewayFilter, setGatewayFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(PAYMENT_FILTER_KEYS);
   const [selected, setSelected] = useState<Payment | null>(null);
 
   const { data, isLoading } = usePayments({
+    ...(filters as PaymentFilters),
+    sort: (sort || undefined) as PaymentFilters['sort'],
     page,
     limit: LIMIT,
-    type: typeFilter || undefined,
-    status: statusFilter || undefined,
     search: search || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-    gateway: gatewayFilter || undefined,
   });
-
+  const { data: filterOptions } = usePaymentFilterOptions();
   const { data: stats } = useRevenueStats();
-
-  const activeFilterCount = [typeFilter, statusFilter, gatewayFilter, dateFrom, dateTo].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setTypeFilter('');
-    setStatusFilter('');
-    setGatewayFilter('');
-    setDateFrom('');
-    setDateTo('');
-    setPage(1);
-  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -243,7 +199,13 @@ export default function Payments() {
     <div>
       <PageHeader
         title="Payments"
-        description={data?.meta ? `${data.meta.total.toLocaleString()} transactions` : 'Payment transactions & revenue'}
+        description={
+          data?.meta
+            ? hasNarrowing && filterOptions
+              ? `${data.meta.total.toLocaleString()} of ${filterOptions.counts.total.toLocaleString()} transactions match your filters`
+              : `${data.meta.total.toLocaleString()} transactions`
+            : 'Payment transactions & revenue'
+        }
         breadcrumbs={[
           { label: 'Dashboard', path: ROUTES.DASHBOARD },
           { label: 'Payments' },
@@ -307,136 +269,17 @@ export default function Payments() {
         </div>
       )}
 
-      {/* Search + Filters */}
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by provider name, payment ID, or order ID…"
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--surface-2)]">
-                <X className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Status Pills */}
-          <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-            {STATUS_OPTIONS.slice(0, 4).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => { setStatusFilter(opt.value); setPage(1); }}
-                className="px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors"
-                style={{
-                  background: statusFilter === opt.value ? 'var(--surface-0)' : 'transparent',
-                  color: statusFilter === opt.value ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: statusFilter === opt.value ? 'var(--shadow-sm)' : 'none',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filters Toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-3 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors"
-            style={{
-              background: showFilters || activeFilterCount > 0 ? 'var(--color-primary-light)' : 'var(--surface-1)',
-              color: showFilters || activeFilterCount > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
-              border: '1px solid var(--border-default)',
-            }}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: 'var(--color-primary)' }}>
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Expanded Filters */}
-        {showFilters && (
-          <div
-            className="flex flex-wrap items-center gap-3 p-3 rounded-lg"
-            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
-          >
-            <select
-              value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              {TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            <select
-              value={gatewayFilter}
-              onChange={(e) => { setGatewayFilter(e.target.value); setPage(1); }}
-              className="px-3 py-2 text-sm rounded-lg focus-ring"
-              style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              {GATEWAY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="px-2 py-1.5 text-sm rounded-lg focus-ring"
-                style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-              />
-            </div>
-
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1 transition-colors"
-                style={{ color: 'var(--color-danger)' }}
-              >
-                <X className="w-3 h-3" />
-                Clear all
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <FilterBar
+        defs={withOptions(PAYMENT_FILTER_DEFS, filterOptions)}
+        values={filters}
+        onChange={update}
+        onReplace={replace}
+        search={{ value: search, onChange: setSearch, placeholder: 'Search by provider, payment ID or order ID…' }}
+        sort={{ options: PAYMENT_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
+        segments={paymentSegments(filterOptions)}
+        resultCount={hasNarrowing ? data?.meta?.total : undefined}
+        totalCount={filterOptions?.counts.total}
+      />
 
       {/* Data Table */}
       <DataTable<Payment>
@@ -448,8 +291,8 @@ export default function Payments() {
         rowKey={(p) => p.id}
         onRowClick={setSelected}
         emptyIcon={<CreditCard className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />}
-        emptyTitle="No payments found"
-        emptyDescription={search || activeFilterCount > 0 ? 'Try adjusting your search or filters' : 'No payment transactions yet'}
+        emptyTitle={hasNarrowing ? 'No payments match these filters' : 'No payments yet'}
+        emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'No payment transactions yet'}
       />
 
       {/* Payment Detail Panel */}
