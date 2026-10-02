@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { providersService } from '../services/providers.service';
 import { providerKeys } from '../hooks/useProviders';
-import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2, Download } from 'lucide-react';
 import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
 import { CategoryFilter } from '../components/providers/CategoryFilter';
 import { LocationHealthCard } from '../components/providers/LocationHealthCard';
@@ -21,6 +21,7 @@ import {
   useSuspendProvider,
   useUnsuspendProvider,
   useBulkDeleteProviders,
+  useExportProviders,
 } from '../hooks/useProviders';
 import { ROUTES } from '../utils/constants';
 import IconByName from '../components/IconByName';
@@ -88,6 +89,16 @@ export default function Providers() {
     search: search || undefined,
     status: status || undefined,
   });
+
+  const { exportProviders, isExporting } = useExportProviders();
+  // What the export will contain: the filters, never the page on screen.
+  const exportFilters = {
+    categoryId: categoryId || undefined,
+    search: search || undefined,
+    status: status || undefined,
+  };
+  const isFiltered = Boolean(search || status || categoryId);
+  const matching = data?.meta?.total;
 
   const approveMutation = useApproveProvider();
   const suspendMutation = useSuspendProvider();
@@ -279,6 +290,22 @@ export default function Providers() {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => void exportProviders(exportFilters)}
+              disabled={isExporting}
+              title={
+                matching === undefined
+                  ? 'Download providers as a CSV file'
+                  : isFiltered
+                    ? `Downloads the ${matching.toLocaleString()} providers matching your filters`
+                    : `Downloads all ${matching.toLocaleString()} providers`
+              }
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)', background: 'var(--surface-0)' }}
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isExporting ? 'Exporting…' : isFiltered ? `Export ${matching?.toLocaleString() ?? ''}`.trim() : 'Export All'}
+            </button>
             <button
               onClick={() => navigate(ROUTES.BULK_IMPORT_PROVIDERS)}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors"
