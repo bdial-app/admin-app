@@ -61,6 +61,8 @@
 [data-theme="light"] {
   --surface-0:      #FFFFFF;
   --surface-1:      #F8FAFC;
+  /* Chart series 1. Checked against this surface: contrast >= 3:1. */
+  --chart-series-1: #4F46E5;
   --surface-2:      #F1F5F9;
   --surface-3:      #E2E8F0;
 
@@ -95,6 +97,8 @@
 [data-theme="dark"] {
   --surface-0:      #0F172A;
   --surface-1:      #1E293B;
+  /* One step lighter: #4F46E5 is only 2.84:1 on this surface, #6366F1 clears 3:1. */
+  --chart-series-1: #6366F1;
   --surface-2:      #334155;
   --surface-3:      #475569;
 

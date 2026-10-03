@@ -27,6 +27,7 @@ export const ROUTES = {
   BULK_IMPORT_PROVIDERS: '/providers/bulk-import',
   PHOTO_MODERATION: '/photo-moderation',
   FEATURE_FLAGS: '/feature-flags',
+  APP_VERSIONS: '/app-versions',
   MODERATION_QUEUE: '/moderation-queue',
   VOUCHERS: '/vouchers',
   SUBSCRIPTIONS: '/subscriptions',

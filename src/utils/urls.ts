@@ -204,6 +204,7 @@ export const URLS = {
     EVENTS: '/admin/analytics/events',
     SEARCH_TRENDS: '/admin/analytics/search-trends',
     GEOGRAPHIC: '/admin/analytics/geographic',
+    CATEGORY_STATS: '/admin/analytics/categories',
   },
 
   // â”€â”€ Admin Users (admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -266,6 +267,11 @@ export const URLS = {
   FEATURE_FLAGS: {
     LIST: '/admin/feature-flags',
     UPDATE: '/admin/feature-flags',
+  },
+
+  APP_VERSION: {
+    GET: '/admin/app-version',
+    UPDATE: '/admin/app-version',
   },
 
   // -- CSV Export --------------------------------------

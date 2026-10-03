@@ -106,6 +106,41 @@ export interface SearchTrends {
   topCities: { city: string; count: number }[];
 }
 
+/**
+ * Category coverage. Each business is counted once, under one primary category,
+ * so `primary` sums to the number of businesses. `listed` counts every business
+ * linked to a category, which is what a customer browsing it would find.
+ */
+export interface CategoryStats {
+  totals: {
+    categories: number;
+    active: number;
+    topLevel: number;
+    subcategories: number;
+    inUse: number;
+    empty: number;
+    liveBusinesses: number;
+    businessesListed: number;
+    uncategorised: number;
+    /** Businesses that chose more than one category; only their primary is counted. */
+    multiCategory: number;
+    avgCategoriesPerBusiness: number;
+  };
+  /** Parents with their subcategories rolled in, each business counted once. */
+  topLevel: { id: string; name: string; primary: number; listed: number }[];
+  categories: {
+    id: string;
+    name: string;
+    parentId: string | null;
+    parentName: string | null;
+    isActive: boolean;
+    /** Businesses whose primary category is this one — these sum to the total. */
+    primary: number;
+    /** Businesses a customer finds when browsing it, primary or not. */
+    listed: number;
+  }[];
+}
+
 export interface GeographicStats {
   usersByCity: { city: string; count: number }[];
   providersByCity: { city: string; count: number }[];

@@ -20,11 +20,12 @@ export default function SystemSettings() {
   const [createForm, setCreateForm] = useState({ key: '', value: '', type: 'string', group: '', description: '' });
 
   // Group settings by group field — exclude feature_flags & limits (managed in Feature Flags page)
+  // and app_version (App Versions page, which validates what a typo here would not)
   const grouped = useMemo(() => {
     if (!settings) return {};
     const groups: Record<string, SystemSetting[]> = {};
     for (const s of settings) {
-      if (s.group === 'feature_flags' || s.group === 'limits') continue;
+      if (s.group === 'feature_flags' || s.group === 'limits' || s.group === 'app_version') continue;
       const g = s.group || 'General';
       if (!groups[g]) groups[g] = [];
       groups[g].push(s);

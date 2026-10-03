@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import {
   BarChart3, Search, Globe, Activity, TrendingUp, MousePointerClick,
-  Users, Store, Loader2, Eye, Zap, MessageSquare,
+  Users, Store, Loader2, Eye, Zap, MessageSquare, LayoutGrid, FolderOpen, FolderX, Layers,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
-import { useAnalyticsOverview, useSearchTrends, useGeographicStats } from '../hooks/useAnalytics';
+import { useAnalyticsOverview, useSearchTrends, useGeographicStats, useCategoryStats } from '../hooks/useAnalytics';
 import { ROUTES } from '../utils/constants';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area,
+  PieChart, Pie, Cell, AreaChart, Area, LabelList,
 } from 'recharts';
 
 const TABS = [
   { label: 'Overview', value: 'overview', icon: BarChart3 },
   { label: 'Search Trends', value: 'search', icon: Search },
+  { label: 'Categories', value: 'categories', icon: LayoutGrid },
   { label: 'Geographic', value: 'geographic', icon: Globe },
 ];
 
@@ -241,6 +242,181 @@ function SearchTrendsTab() {
   );
 }
 
+/**
+ * What the catalogue covers: how many businesses sit in each category, and
+ * which categories are still empty.
+ *
+ * One measure, so the bars are one hue — shading them by value would re-encode
+ * the length they already show. Counts overlap because a business can be
+ * listed in several categories, which the caption says out loud.
+ */
+function CategoriesTab() {
+  const { data, isLoading } = useCategoryStats();
+  const [grouping, setGrouping] = useState<'topLevel' | 'all'>('topLevel');
+  const [showEmpty, setShowEmpty] = useState(false);
+
+  if (isLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-primary)' }} /></div>;
+  }
+  if (!data) return null;
+
+  const t = data.totals;
+  const rows = grouping === 'topLevel'
+    ? data.topLevel.map((c) => ({ id: c.id, name: c.name, primary: c.primary, listed: c.listed, parentName: null as string | null }))
+    : data.categories.map((c) => ({ id: c.id, name: c.name, primary: c.primary, listed: c.listed, parentName: c.parentName }));
+  // Ranked by the counted figure; the table can also fall back to what a
+  // customer would find, so a category that is only ever a second choice is
+  // still not called empty.
+  const ranked = [...rows].sort((a, b) => b.primary - a.primary || b.listed - a.listed);
+  const chartRows = ranked.filter((r) => r.primary > 0).slice(0, 12);
+  const tableRows = showEmpty ? ranked : ranked.filter((r) => r.listed > 0);
+  const widest = chartRows[0]?.primary ?? 1;
+
+  const kpis = [
+    { title: 'Categories in use', value: `${t.inUse}`, icon: <FolderOpen className="w-5 h-5" />, accent: 'var(--color-primary)' },
+    { title: 'Empty categories', value: `${t.empty}`, icon: <FolderX className="w-5 h-5" />, accent: 'var(--color-warning)' },
+    { title: 'Businesses listed', value: t.businessesListed.toLocaleString(), icon: <Store className="w-5 h-5" />, accent: 'var(--color-success)' },
+    { title: 'In 2+ categories', value: t.multiCategory.toLocaleString(), icon: <Layers className="w-5 h-5" />, accent: '#06B6D4' },
+    { title: 'Not categorised', value: `${t.uncategorised}`, icon: <Store className="w-5 h-5" />, accent: t.uncategorised > 0 ? 'var(--color-danger)' : 'var(--text-muted)' },
+  ];
+
+  const toggle = (value: 'topLevel' | 'all', label: string) => (
+    <button
+      key={value}
+      onClick={() => setGrouping(value)}
+      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+      style={{
+        background: grouping === value ? 'var(--surface-0)' : 'transparent',
+        color: grouping === value ? 'var(--text-primary)' : 'var(--text-muted)',
+        boxShadow: grouping === value ? 'var(--shadow-sm)' : 'none',
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {kpis.map((k) => <StatCard key={k.title} {...k} />)}
+      </div>
+
+      {/* Coverage, as a sentence and a meter — two numbers do not need a pie. */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            {t.inUse} of {t.categories} categories have a business in them
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {t.topLevel} top-level · {t.subcategories} subcategories
+          </p>
+        </div>
+        <div className="mt-2.5 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+          <div style={{ width: `${(t.inUse / Math.max(1, t.categories)) * 100}%`, height: '100%', background: 'var(--chart-series-1)' }} />
+        </div>
+        <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          {t.empty} categories are still empty — nothing shows when a customer opens them.
+        </p>
+      </div>
+
+      {/* Ranked bars */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Businesses per category</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {grouping === 'topLevel'
+                ? 'Top 12 top-level categories, each business counted once under its primary category and rolled into that category\u2019s family.'
+                : 'Top 12 categories, each business counted once under its primary category.'}
+            </p>
+          </div>
+          <div className="flex gap-1 p-1 rounded-lg shrink-0" style={{ background: 'var(--surface-1)' }}>
+            {toggle('topLevel', 'Top-level')}
+            {toggle('all', 'All categories')}
+          </div>
+        </div>
+
+        {chartRows.length === 0 ? (
+          <p className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No business is listed in any category yet.</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(240, chartRows.length * 34)}>
+            <BarChart data={chartRows} layout="vertical" margin={{ top: 8, right: 44, bottom: 8, left: 8 }}>
+              <CartesianGrid horizontal={false} stroke="var(--border-light)" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} allowDecimals={false} />
+              <YAxis
+                dataKey="name" type="category" width={190} interval={0}
+                tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                tickLine={false} axisLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: 'var(--surface-1)' }}
+                contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
+                formatter={(value) => [`${value} ${Number(value) === 1 ? 'business' : 'businesses'}`, '']}
+              />
+              <Bar dataKey="primary" fill="var(--chart-series-1)" radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={false}>
+                <LabelList dataKey="primary" position="right" style={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Every business is counted once, so these add up to the {t.businessesListed.toLocaleString()} listed.
+          {t.multiCategory > 0 && ` ${t.multiCategory} chose more than one category; the most specific one is used.`}
+        </p>
+      </div>
+
+      {/* Every category, so nothing is gated behind the top 12 */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 p-4 pb-3">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            {grouping === 'topLevel' ? 'All top-level categories' : 'All categories'}
+            <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>({tableRows.length})</span>
+          </p>
+          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+            <input type="checkbox" checked={showEmpty} onChange={(e) => setShowEmpty(e.target.checked)} className="rounded" />
+            Show empty categories
+          </label>
+        </div>
+        <div className="max-h-[420px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0" style={{ background: 'var(--surface-1)' }}>
+              <tr>
+                <th className="text-left font-medium px-4 py-2 text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Category</th>
+                <th className="text-right font-medium px-4 py-2 text-xs uppercase tracking-wider w-28" style={{ color: 'var(--text-muted)' }} title="Businesses counted here — each business counts once, under its primary category">Businesses</th>
+                <th className="text-right font-medium px-4 py-2 text-xs uppercase tracking-wider w-32" style={{ color: 'var(--text-muted)' }} title="What a customer finds when browsing this category, including businesses whose primary category is elsewhere">Shown to customers</th>
+                <th className="px-4 py-2 w-40" />
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((c) => (
+                <tr key={c.id} style={{ borderTop: '1px solid var(--border-light)' }}>
+                  <td className="px-4 py-2" style={{ color: 'var(--text-primary)' }}>
+                    {c.name}
+                    {/* A real space, not just the margin: screen readers and copy-paste
+                        would otherwise read "Stitchingin Tailoring". */}
+                    {c.parentName && <>{' '}<span className="text-xs" style={{ color: 'var(--text-muted)' }}>in {c.parentName}</span></>}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums" style={{ color: c.primary ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {c.primary || '—'}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums" style={{ color: c.listed ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                    {c.listed || '—'}
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                      <div style={{ width: `${(c.primary / Math.max(1, widest)) * 100}%`, height: '100%', background: 'var(--chart-series-1)' }} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GeographicTab() {
   const { data, isLoading } = useGeographicStats();
 
@@ -320,6 +496,7 @@ export default function Analytics() {
 
       {tab === 'overview' && <OverviewTab />}
       {tab === 'search' && <SearchTrendsTab />}
+      {tab === 'categories' && <CategoriesTab />}
       {tab === 'geographic' && <GeographicTab />}
     </div>
   );
