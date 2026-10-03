@@ -40,6 +40,7 @@ const BulkImport = lazy(() => import('./pages/BulkImport'));
 const PhotoModeration = lazy(() => import('./pages/PhotoModeration'));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags'));
 const AppVersions = lazy(() => import('./pages/AppVersions'));
+const Audience = lazy(() => import('./pages/Audience'));
 const ModerationQueuePage = lazy(() => import('./pages/ModerationQueue'));
 const Vouchers = lazy(() => import('./pages/Vouchers'));
 const PaymentsPage = lazy(() => import('./pages/Payments'));
@@ -150,6 +151,7 @@ function App() {
 
             {/* Insights */}
             <Route path={ROUTES.ANALYTICS} element={<RoleRoute minRole="admin"><Analytics /></RoleRoute>} />
+            <Route path={ROUTES.AUDIENCE} element={<RoleRoute minRole="admin"><Audience /></RoleRoute>} />
 
             {/* System */}
             <Route path={ROUTES.ADMIN_USERS} element={<RoleRoute minRole="moderator"><AdminUsers /></RoleRoute>} />

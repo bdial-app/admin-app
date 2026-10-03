@@ -274,6 +274,14 @@ export const URLS = {
     UPDATE: '/admin/app-version',
   },
 
+  AUDIENCE: {
+    LIVE: '/admin/audience/live',
+    OVERVIEW: '/admin/audience/overview',
+    RETENTION: '/admin/audience/retention',
+    REACH: '/admin/audience/reach',
+    ADS: '/admin/audience/ads',
+  },
+
   // -- CSV Export --------------------------------------
   EXPORT: {
     CSV: (entity: string) => `/admin/export/${entity}`,
