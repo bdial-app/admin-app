@@ -269,6 +269,11 @@ export const URLS = {
     UPDATE: '/admin/feature-flags',
   },
 
+  APP_VERSION: {
+    GET: '/admin/app-version',
+    UPDATE: '/admin/app-version',
+  },
+
   // -- CSV Export --------------------------------------
   EXPORT: {
     CSV: (entity: string) => `/admin/export/${entity}`,
