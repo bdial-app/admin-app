@@ -1,6 +1,6 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { AnalyticsOverview, SearchTrends, GeographicStats } from '../types';
+import type { AnalyticsOverview, SearchTrends, GeographicStats, CategoryStats } from '../types';
 
 export const analyticsService = {
   getOverview: async (): Promise<AnalyticsOverview> => {
@@ -10,6 +10,11 @@ export const analyticsService = {
 
   getSearchTrends: async (days = 30): Promise<SearchTrends> => {
     const { data } = await api.get(`${URLS.ANALYTICS.SEARCH_TRENDS}?days=${days}`);
+    return data;
+  },
+
+  getCategoryStats: async (): Promise<CategoryStats> => {
+    const { data } = await api.get(URLS.ANALYTICS.CATEGORY_STATS);
     return data;
   },
 

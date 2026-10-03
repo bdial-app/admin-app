@@ -204,6 +204,7 @@ export const URLS = {
     EVENTS: '/admin/analytics/events',
     SEARCH_TRENDS: '/admin/analytics/search-trends',
     GEOGRAPHIC: '/admin/analytics/geographic',
+    CATEGORY_STATS: '/admin/analytics/categories',
   },
 
   // â”€â”€ Admin Users (admins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
