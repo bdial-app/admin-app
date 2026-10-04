@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Pause, Play, XCircle, RotateCcw, Copy, Download, Pencil, Trash2, ChevronLeft, Loader2, AlertTriangle, ExternalLink, Users,
+  Pause, Play, XCircle, RotateCcw, Copy, Download, Pencil, Trash2, ChevronLeft, Loader2, AlertTriangle, ExternalLink, Users, Clock,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -25,6 +25,9 @@ import { ROUTES } from '../../utils/constants';
 import type { WaMessageRow, WaMessageStatus } from '../../types';
 
 const LIMIT = 20;
+
+/** 9 → "9:00 AM", 21 → "9:00 PM". */
+const fmtHour = (h: number) => `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'AM' : 'PM'}`;
 const MSG_TABS: { label: string; value: WaMessageStatus | '' }[] = [
   { label: 'All', value: '' },
   { label: 'Queued', value: 'queued' },
@@ -173,6 +176,20 @@ export default function CampaignDetail() {
           </div>
         )}
       </div>
+
+      {/* A campaign started outside the send window sits at "sending" with nothing
+          going out until the window opens — say so, or it looks stuck. */}
+      {c.status === 'sending' && c.nextSendAt && (
+        <div className="flex gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--color-info-light)', color: 'var(--color-info-dark)' }}>
+          <Clock className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            <strong>Waiting for the send window.</strong>{' '}
+            {settings ? `Messages only go out between ${fmtHour(settings.sendWindowStart)} and ${fmtHour(settings.sendWindowEnd)} India time. ` : ''}
+            The next ones go at <strong>{fmtDateTime(c.nextSendAt)}</strong>.{' '}
+            <Link to={WA_ROUTES.settings} className="underline">Change the window</Link>
+          </span>
+        </div>
+      )}
 
       {c.failureReason && (
         <div className="flex gap-2 p-3 rounded-lg text-sm" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}>

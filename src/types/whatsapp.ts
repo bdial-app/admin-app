@@ -356,6 +356,8 @@ export interface WaCampaign extends WaCampaignSummary {
   failureReason: string | null;
   skipBreakdown: WaSkipBreakdown;
   failureBreakdown: WaFailureBreakdownItem[];
+  /** When the next message held back by the send window goes out; null if none is waiting. */
+  nextSendAt: string | null;
 }
 
 export interface WaCampaignPayload {
