@@ -254,10 +254,10 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
                 return (
                   <button key={c} type="button" disabled={readOnly} onClick={() => patch({ category: c })} className="text-left p-3.5 rounded-xl transition-all disabled:cursor-default" style={{ background: on ? 'var(--color-primary-light)' : 'var(--surface-1)', border: `1px solid ${on ? 'var(--color-primary)' : 'var(--border-default)'}` }}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{CATEGORY_LABEL[c]}</span>
+                      <span className="text-sm font-semibold" style={{ color: on ? 'var(--color-primary)' : 'var(--text-primary)' }}>{CATEGORY_LABEL[c]}</span>
                       <span className="text-xs font-semibold tabular-nums" style={{ color: on ? 'var(--color-primary)' : 'var(--text-muted)' }}>{formatInr(rateFor(c, settings?.rates), 4)}</span>
                     </div>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{CATEGORY_GUIDE[c]}</p>
+                    <p className="text-xs mt-1" style={{ color: on ? 'var(--color-primary)' : 'var(--text-muted)', opacity: on ? 0.8 : 1 }}>{CATEGORY_GUIDE[c]}</p>
                   </button>
                 );
               })}
