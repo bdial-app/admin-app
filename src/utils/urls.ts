@@ -108,6 +108,11 @@ export const URLS = {
     CONFIRM: (id: string) => `/admin/google-reviews/confirm/${id}`,
     UNLINK: (id: string) => `/admin/google-reviews/unlink/${id}`,
     REFRESH: (id: string) => `/admin/google-reviews/refresh/${id}`,
+    USAGE: '/admin/google-reviews/usage',
+    AUTO_MATCH: '/admin/google-reviews/auto-match',
+    SYNC_DUE: '/admin/google-reviews/sync-due',
+    SYNC: (id: string) => `/admin/google-reviews/sync/${id}`,
+    STORED: (id: string) => `/admin/google-reviews/reviews/${id}`,
   },
   // â”€â”€ Admin Verifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   VERIFICATIONS: {
