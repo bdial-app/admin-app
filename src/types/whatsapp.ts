@@ -347,10 +347,14 @@ export interface WaFailureBreakdownItem {
   count: number;
 }
 
+/** 'fixed': headerMediaUrl for everyone. 'provider_logo': each business's own logo card. */
+export type WaHeaderMediaSource = 'fixed' | 'provider_logo';
+
 export interface WaCampaign extends WaCampaignSummary {
   audience: AudienceFilters;
   variableMapping: WaVariableMapping;
   headerMediaUrl: string | null;
+  headerMediaSource: WaHeaderMediaSource;
   buttonUrlParams: WaButtonUrlParams | null;
   ratePerMinute: number | null;
   failureReason: string | null;
@@ -366,6 +370,7 @@ export interface WaCampaignPayload {
   audience: AudienceFilters;
   variableMapping: WaVariableMapping;
   headerMediaUrl?: string;
+  headerMediaSource?: WaHeaderMediaSource;
   buttonUrlParams?: WaButtonUrlParams;
   ratePerMinute?: number;
 }
