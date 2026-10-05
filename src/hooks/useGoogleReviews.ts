@@ -6,6 +6,8 @@ export const googleReviewKeys = {
   providers: () => [...googleReviewKeys.all, 'providers'] as const,
   providerList: (filters: GoogleProvidersFilters) => [...googleReviewKeys.providers(), filters] as const,
   trustOverview: () => [...googleReviewKeys.all, 'trust-overview'] as const,
+  usage: () => [...googleReviewKeys.all, 'usage'] as const,
+  stored: (providerId: string) => [...googleReviewKeys.all, 'stored', providerId] as const,
 };
 
 export function useGoogleLinkedProviders(filters: GoogleProvidersFilters = {}) {
@@ -57,5 +59,29 @@ export function useRefreshGoogleAggregates() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: googleReviewKeys.all });
     },
+  });
+}
+
+export function useGoogleUsage() {
+  return useQuery({
+    queryKey: googleReviewKeys.usage(),
+    queryFn: () => googleReviewsService.usage(),
+  });
+}
+
+export function useStoredGoogleReviews(providerId: string | null) {
+  return useQuery({
+    queryKey: googleReviewKeys.stored(providerId ?? ''),
+    queryFn: () => googleReviewsService.storedReviews(providerId!),
+    enabled: !!providerId,
+  });
+}
+
+/** Sync one business now. Refreshes the list, usage and that business's stored reviews. */
+export function useSyncGoogleProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId: string) => googleReviewsService.syncOne(providerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: googleReviewKeys.all }),
   });
 }
