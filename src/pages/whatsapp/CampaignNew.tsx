@@ -19,13 +19,14 @@ import { WaPhonePreview } from '../../components/whatsapp/WaPhonePreview';
 import { CostHint } from '../../components/whatsapp/CostHint';
 import { Skel } from '../../components/whatsapp/Skeleton';
 import { useNow } from '../../components/whatsapp/useNow';
+import { API_BASE_URL } from '../../utils/constants';
 import {
   WA_ROUTES, DEFAULT_AUDIENCE, GST_RATE, formatInr, rateFor, getHeader, getBody, getButtons, extractVariableIndexes,
   resolveMappingValues, resolveSourceValue, summarizeFilters, apiErrorMessage, toLocalInputValue, estimateMinutes, humanMinutes,
   VARIABLE_SOURCES, CATEGORY_LABEL, INPUT_CLASS, INPUT_STYLE,
 } from '../../components/whatsapp/wa-utils';
 import type {
-  AudienceFilters, WaAudiencePreview, WaCampaign, WaCampaignPayload, WaTemplate, WaVariableMapping, WaButtonUrlParams, VariableSource,
+  AudienceFilters, WaAudiencePreview, WaCampaign, WaCampaignPayload, WaTemplate, WaVariableMapping, WaButtonUrlParams, VariableSource, WaHeaderMediaSource,
 } from '../../types';
 
 // ── Form state ────────────────────────────────────────────
@@ -35,6 +36,7 @@ interface FormState {
   templateId: string | null;
   variableMapping: WaVariableMapping;
   headerMediaUrl: string;
+  headerMediaSource: WaHeaderMediaSource;
   buttonUrlParams: WaButtonUrlParams;
   schedule: 'now' | 'later';
   scheduledAt: string;
@@ -106,6 +108,8 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
     templateId: existing?.template.id ?? routeState.templateId ?? null,
     variableMapping: existing?.variableMapping ?? {},
     headerMediaUrl: existing?.headerMediaUrl ?? '',
+    // New campaigns greet each business with its own logo.
+    headerMediaSource: existing?.headerMediaSource ?? 'provider_logo',
     buttonUrlParams: existing?.buttonUrlParams ?? {},
     schedule: existing?.scheduledAt ? 'later' : 'now',
     scheduledAt: existing?.scheduledAt ? toLocalInputValue(new Date(existing.scheduledAt)) : defaultSchedule(),
@@ -124,6 +128,11 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
     .filter(({ b }) => b.type === 'URL' && /\{\{\s*1\s*\}\}/.test(b.url));
   const indexes = extractVariableIndexes(getBody(template?.components)?.text ?? '');
   const sample = preview?.sample?.[0] ?? null;
+  // The same card WhatsApp will fetch for the sample business.
+  const headerPreviewUrl =
+    form.headerMediaSource === 'provider_logo'
+      ? `${API_BASE_URL.replace(/\/+$/, '')}/whatsapp/media/logo-card/${sample?.providerId ?? 'tijarah'}.jpg`
+      : form.headerMediaUrl || undefined;
 
   // Full mapping: user choices over template defaults, so the payload always covers every {{n}}.
   const fullMapping: WaVariableMapping = useMemo(() => {
@@ -155,7 +164,7 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
 
   const stepValid = [
     form.name.trim().length > 0 && !!preview && preview.sendable > 0,
-    !!template && mappingComplete && buttonsComplete && (header?.format !== 'IMAGE' || form.headerMediaUrl.trim().length > 0),
+    !!template && mappingComplete && buttonsComplete && (header?.format !== 'IMAGE' || form.headerMediaSource === 'provider_logo' || form.headerMediaUrl.trim().length > 0),
     scheduleValid,
     true,
   ];
@@ -174,6 +183,7 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
     audience: form.audience,
     variableMapping: fullMapping,
     headerMediaUrl: form.headerMediaUrl.trim() || undefined,
+    headerMediaSource: header?.format === 'IMAGE' ? form.headerMediaSource : 'fixed',
     buttonUrlParams: Object.keys(form.buttonUrlParams).length ? form.buttonUrlParams : undefined,
     ratePerMinute: form.ratePerMinute,
   });
@@ -303,8 +313,38 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
 
                     {header?.format === 'IMAGE' && (
                       <div>
-                        <label className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Header image URL <span className="text-red-500">*</span></label>
-                        <input value={form.headerMediaUrl} onChange={(e) => patch({ headerMediaUrl: e.target.value })} placeholder="https://… (public JPG/PNG, under 5 MB)" className={`${INPUT_CLASS} mt-1.5`} style={INPUT_STYLE} />
+                        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Header image</h3>
+                        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>This template opens with an image.</p>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {([
+                            { value: 'provider_logo', title: "Each business's logo", desc: 'Their logo beside the Tijarah mark. Businesses without a logo get the Tijarah card.' },
+                            { value: 'fixed', title: 'Same image for everyone', desc: 'One public JPG or PNG link, under 5 MB.' },
+                          ] as const).map((o) => {
+                            const on = form.headerMediaSource === o.value;
+                            return (
+                              <button
+                                key={o.value}
+                                type="button"
+                                onClick={() => patch({ headerMediaSource: o.value })}
+                                className="text-left p-3 rounded-lg border-2 transition-colors"
+                                style={{ borderColor: on ? 'var(--accent, #4f46e5)' : 'var(--border)', background: on ? 'var(--surface-2)' : 'var(--surface-1)' }}
+                              >
+                                <span className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                  <span className="w-3.5 h-3.5 rounded-full border-2 shrink-0" style={{ borderColor: on ? 'var(--accent, #4f46e5)' : 'var(--text-muted)', background: on ? 'var(--accent, #4f46e5)' : 'transparent', boxShadow: on ? 'inset 0 0 0 2px var(--surface-2)' : undefined }} />
+                                  {o.title}
+                                </span>
+                                <span className="block text-xs mt-1 ml-5.5" style={{ color: 'var(--text-muted)' }}>{o.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {form.headerMediaSource === 'fixed' ? (
+                          <input value={form.headerMediaUrl} onChange={(e) => patch({ headerMediaUrl: e.target.value })} placeholder="https://… (public JPG/PNG, under 5 MB)" className={`${INPUT_CLASS} mt-2.5`} style={INPUT_STYLE} />
+                        ) : (
+                          <p className="text-xs mt-2.5" style={{ color: 'var(--text-muted)' }}>
+                            The preview shows {sample ? <strong>{sample.brandName}</strong> : 'the first matching business'}'s card. Logos are converted to JPEG automatically, so WebP logos work too.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -441,7 +481,7 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
             <WaPhonePreview
               components={previewTemplate?.components}
               values={previewValues}
-              headerImageUrl={form.headerMediaUrl || undefined}
+              headerImageUrl={headerPreviewUrl}
               buttonUrlValues={buttonValues}
               businessName={settings?.phone?.verifiedName || 'Tijarah Connect'}
               emptyHint="Pick a template to preview the message"

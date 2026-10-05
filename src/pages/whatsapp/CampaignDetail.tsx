@@ -21,7 +21,7 @@ import {
   WA_ROUTES, formatInr, fmtDateTime, fmtRelative, resolveMappingValues, summarizeFilters, apiErrorMessage,
   SKIP_REASON_LABEL, CATEGORY_LABEL, MESSAGE_STATUS_LABEL,
 } from '../../components/whatsapp/wa-utils';
-import { ROUTES } from '../../utils/constants';
+import { API_BASE_URL, ROUTES } from '../../utils/constants';
 import type { WaMessageRow, WaMessageStatus } from '../../types';
 
 const LIMIT = 20;
@@ -55,6 +55,12 @@ export default function CampaignDetail() {
 
   const live = c?.status === 'sending';
   const { data: messages, isLoading: msgsLoading } = useWaCampaignMessages(id, { page: msgPage, limit: LIMIT, status: msgStatus || undefined, search: msgSearch || undefined }, live);
+  // Logo campaigns: show the card one listed recipient got (Tijarah's before any are listed).
+  const sampleProviderId = messages?.items.find((m) => m.provider)?.provider?.id;
+  const headerPreviewUrl =
+    c?.headerMediaSource === 'provider_logo'
+      ? `${API_BASE_URL.replace(/\/+$/, '')}/whatsapp/media/logo-card/${sampleProviderId ?? 'tijarah'}.jpg`
+      : c?.headerMediaUrl;
 
   const pause = usePauseWaCampaign();
   const resume = useResumeWaCampaign();
@@ -263,7 +269,7 @@ export default function CampaignDetail() {
         </div>
 
         <aside className="xl:sticky xl:top-4 space-y-4">
-          <WaPhonePreview components={template?.components} values={values} headerImageUrl={c.headerMediaUrl} businessName={settings?.phone?.verifiedName || 'Tijarah Connect'} status={c.status === 'draft' ? 'queued' : 'delivered'} />
+          <WaPhonePreview components={template?.components} values={values} headerImageUrl={headerPreviewUrl} businessName={settings?.phone?.verifiedName || 'Tijarah Connect'} status={c.status === 'draft' ? 'queued' : 'delivered'} />
           <div className="card p-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Audience</p>
             <ul className="flex flex-wrap gap-1">
