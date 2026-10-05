@@ -59,7 +59,7 @@ export function WaPhonePreview({
           {header?.format === 'IMAGE' && (
             <div className="p-[3px] pb-0">
               {headerImageUrl ? (
-                <img src={headerImageUrl} alt="" className="w-full h-36 object-cover rounded-md" />
+                <img src={headerImageUrl} alt="" className="w-full h-auto max-h-64 object-cover rounded-md" />
               ) : (
                 <div
                   className="w-full h-36 rounded-md flex flex-col items-center justify-center gap-1 text-[11px]"
@@ -158,8 +158,11 @@ export function WaPhonePreview({
             </div>
           </div>
 
-          {/* Chat area */}
-          <div className="wa-wallpaper flex-1 overflow-hidden px-3 py-3 flex flex-col gap-2">
+          {/* Chat area — scrolls like a real chat when the message is long */}
+          <div
+            className="wa-wallpaper flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-2 [&>*]:shrink-0"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(134,150,160,0.5) transparent' }}
+          >
             <div className="self-center">
               <span
                 className="inline-block px-2.5 py-1 rounded-lg text-[10.5px] font-medium shadow-sm"
