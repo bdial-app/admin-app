@@ -281,8 +281,8 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
               </FormField>
             )}
             {form.headerType === 'image' && (
-              <FormField label="Sample image URL (for Meta review)" description="A public JPG/PNG that represents what you’ll send. The real image is chosen per campaign.">
-                <input value={form.headerImageSample} readOnly={readOnly} onChange={(e) => patch({ headerImageSample: e.target.value })} placeholder="https://…" className={INPUT_CLASS} style={INPUT_STYLE} />
+              <FormField label="Sample image link (optional, for Meta review)" description="Leave empty to use the Tijarah card, or paste a public image link — we upload it to Meta for you. The real image (one picture, or each business’s logo) is chosen per campaign.">
+                <input value={form.headerImageSample} readOnly={readOnly} onChange={(e) => patch({ headerImageSample: e.target.value })} placeholder="Empty = Tijarah card" className={INPUT_CLASS} style={INPUT_STYLE} />
               </FormField>
             )}
           </div>
