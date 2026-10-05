@@ -64,6 +64,14 @@ const LINK_TABS: { label: string; value: '' | 'linked' | 'unlinked' }[] = [
 
 type Progress = { label: string; running: boolean; lines: string[] };
 
+/** How a listing came to be linked, as an admin reads it. */
+const LINKED_BY: Record<string, string> = {
+  phone: 'Phone match',
+  manual: 'Admin',
+  owner_login: 'Owner · login number',
+  owner_code: 'Owner · SMS code',
+};
+
 export default function GoogleReviews() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
@@ -227,7 +235,7 @@ export default function GoogleReviews() {
       render: (row) =>
         row.googlePlaceId ? (
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-            {row.googleMatchMethod === 'phone' ? 'Phone match' : 'Hand-picked'}
+            {LINKED_BY[row.googleMatchMethod ?? ''] ?? 'Admin'}
           </span>
         ) : (
           <span style={{ color: 'var(--text-muted)' }}>–</span>
