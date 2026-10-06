@@ -7,6 +7,7 @@ import type {
   WaTemplatePayload,
   WaTemplateComponent,
   WaAudiencePreviewPayload,
+  WaRecipientsPayload,
   WaContactFilters,
   WaContactUpdate,
   WaSegmentPayload,
@@ -182,6 +183,26 @@ export function useWaAudiencePreview(payload: WaAudiencePreviewPayload, enabled 
 export function usePreviewWaAudience() {
   return useMutation({
     mutationFn: (payload: WaAudiencePreviewPayload) => whatsappService.previewAudience(payload),
+  });
+}
+
+/** Every recipient, paged — for reviewing and excluding people one by one. */
+export function useWaAudienceRecipients(payload: WaRecipientsPayload, enabled = true) {
+  return useQuery({
+    queryKey: [...whatsappKeys.audience(), 'recipients', payload] as const,
+    queryFn: () => whatsappService.getAudienceRecipients(payload),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 15_000,
+  });
+}
+
+export function useWaCustomerSearch(search: string) {
+  return useQuery({
+    queryKey: [...whatsappKeys.audience(), 'customers', search] as const,
+    queryFn: () => whatsappService.searchCustomers(search),
+    enabled: search.trim().length >= 2,
+    staleTime: 30_000,
   });
 }
 

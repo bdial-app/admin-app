@@ -212,9 +212,67 @@ export interface AudienceFilters {
   notContactedDays?: number;
   consent?: 'any' | 'opted_in' | 'not_opted_out';
   reachableOnly?: boolean;
+  /** Always included (both modes): picked businesses. */
   providerIds?: string[];
+  /** Always included (both modes): pasted numbers. */
   phones?: string[];
+  /** 'filters' = filter results + picks; 'manual' = only the picks. */
   mode?: 'filters' | 'manual';
+  /** Who the filters find. Default businesses. */
+  audienceType?: WaAudienceType;
+  areas?: string[];
+  ownerSignedIn?: WaYesNo;
+  activeWithinDays?: number;
+  minProducts?: number;
+  maxProducts?: number;
+  googleLinked?: WaYesNo;
+  minRating?: number;
+  paidPlan?: WaYesNo;
+  everContacted?: WaYesNo;
+  repliedEver?: WaYesNo;
+  receivedCampaignIds?: string[];
+  notReceivedCampaignIds?: string[];
+  contactTags?: string[];
+  /** Customers: only people who signed in themselves (default true). */
+  customerSignedInOnly?: boolean;
+  /** Always included (both modes): picked customers. */
+  customerIds?: string[];
+  excludeProviderIds?: string[];
+  excludeCustomerIds?: string[];
+  excludePhones?: string[];
+  maxRecipients?: number;
+  order?: 'newest' | 'oldest' | 'random';
+  randomSeed?: string;
+}
+
+export type WaAudienceType = 'businesses' | 'customers' | 'both';
+export type WaYesNo = 'yes' | 'no';
+export type WaRecipientKind = 'business' | 'customer' | 'number';
+
+export interface WaRecipientRow {
+  kind: WaRecipientKind;
+  providerId: string | null;
+  userId: string | null;
+  name: string;
+  ownerName: string | null;
+  city: string | null;
+  phone: string | null;
+  consent: WaConsent;
+  skipReason: string | null;
+}
+
+export interface WaRecipientsPayload extends WaAudiencePreviewPayload {
+  page?: number;
+  limit?: number;
+  search?: string;
+  show?: 'all' | 'sendable' | 'skipped';
+}
+
+export interface WaCustomerHit {
+  id: string;
+  name: string;
+  phone: string | null;
+  city: string | null;
 }
 
 export interface WaSkipBreakdown {
@@ -227,6 +285,10 @@ export interface WaSkipBreakdown {
 }
 
 export interface WaAudienceSample {
+  kind?: WaRecipientKind;
+  userId?: string | null;
+  /** Business name, or the customer's name. */
+  name?: string | null;
   providerId: string;
   brandName: string;
   city: string | null;
@@ -237,6 +299,9 @@ export interface WaAudienceSample {
 export interface WaAudiencePreview {
   total: number;
   sendable: number;
+  /** Sendable before "send to at most N"; null when no limit applied. */
+  limitedFrom?: number | null;
+  byKind?: Record<WaRecipientKind, number>;
   skipped: WaSkipBreakdown;
   estimatedCost: { utility: number; marketing: number };
   sample: WaAudienceSample[];
@@ -307,6 +372,9 @@ export interface WaSegmentPayload {
 export interface WaAudienceOptions {
   cities: string[];
   categories: { id: string; name: string }[];
+  areas: { city: string; area: string }[];
+  campaigns: { id: string; name: string; createdAt: string }[];
+  tags: string[];
 }
 
 // ── Campaigns ────────────────────────────────────────────
@@ -440,6 +508,8 @@ export interface WaMessage {
   kind: WaMessageKind;
   status: WaMessageStatus;
   body: string | null;
+  /** A photo, video, voice note or document the customer sent. */
+  media: WaMessageMedia | null;
   templateName: string | null;
   errorMessage: string | null;
   createdAt: string;
@@ -447,6 +517,16 @@ export interface WaMessage {
   deliveredAt: string | null;
   readAt: string | null;
   campaign: { id: string; name: string } | null;
+}
+
+export interface WaMessageMedia {
+  type: 'image' | 'video' | 'audio' | 'document' | 'sticker';
+  mimeType: string | null;
+  fileName: string | null;
+  caption: string | null;
+  voiceNote: boolean;
+  /** Bytes, once our copy exists. */
+  size: number | null;
 }
 
 export interface WaThread {

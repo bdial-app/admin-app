@@ -280,11 +280,32 @@ export const DEFAULT_AUDIENCE: AudienceFilters = {
 
 export const summarizeFilters = (f: AudienceFilters): string[] => {
   const out: string[] = [];
+  const picks: string[] = [];
+  if (f.providerIds?.length) picks.push(`${f.providerIds.length} picked businesses`);
+  if (f.customerIds?.length) picks.push(`${f.customerIds.length} picked customers`);
+  if (f.phones?.length) picks.push(`${f.phones.length} pasted numbers`);
+  const tail: string[] = [];
+  const excluded = (f.excludeProviderIds?.length ?? 0) + (f.excludeCustomerIds?.length ?? 0) + (f.excludePhones?.length ?? 0);
+  if (excluded) tail.push(`${excluded} excluded`);
+  if (f.maxRecipients) tail.push(`At most ${f.maxRecipients} (${f.order === 'random' ? 'random' : f.order === 'newest' ? 'newest first' : 'oldest first'})`);
   if (f.mode === 'manual') {
-    if (f.providerIds?.length) out.push(`${f.providerIds.length} picked businesses`);
-    if (f.phones?.length) out.push(`${f.phones.length} pasted numbers`);
-    return out.length ? out : ['Manual (empty)'];
+    return picks.length ? [...picks, ...tail] : ['Manual (empty)'];
   }
+  out.push(f.audienceType === 'customers' ? 'App customers' : f.audienceType === 'both' ? 'Businesses + customers' : 'Businesses');
+  if (f.areas?.length) out.push(`Area: ${f.areas.join(', ')}`);
+  if (f.ownerSignedIn) out.push(f.ownerSignedIn === 'yes' ? 'Owner uses the app' : 'Owner never opened the app');
+  if (f.activeWithinDays) out.push(`Active within ${f.activeWithinDays}d`);
+  if (f.minProducts != null) out.push(`≥ ${f.minProducts} products`);
+  if (f.maxProducts != null) out.push(`≤ ${f.maxProducts} products`);
+  if (f.googleLinked) out.push(f.googleLinked === 'yes' ? 'Google linked' : 'Not on Google');
+  if (f.minRating) out.push(`★ ${f.minRating}+`);
+  if (f.paidPlan) out.push(f.paidPlan === 'yes' ? 'Paid plan' : 'Free plan');
+  if (f.everContacted) out.push(f.everContacted === 'yes' ? 'Messaged before' : 'Never messaged');
+  if (f.repliedEver) out.push(f.repliedEver === 'yes' ? 'Has replied' : 'Never replied');
+  if (f.receivedCampaignIds?.length) out.push(`Got ${f.receivedCampaignIds.length} campaign(s)`);
+  if (f.notReceivedCampaignIds?.length) out.push(`Missed ${f.notReceivedCampaignIds.length} campaign(s)`);
+  if (f.contactTags?.length) out.push(`Tags: ${f.contactTags.join(', ')}`);
+  if (f.customerSignedInOnly === false) out.push('Incl. accounts we created');
   if (f.cities?.length) out.push(`City: ${f.cities.join(', ')}`);
   if (f.categoryIds?.length) out.push(`${f.categoryIds.length} categor${f.categoryIds.length === 1 ? 'y' : 'ies'}`);
   if (f.statuses?.length) out.push(`Status: ${f.statuses.join(', ')}`);
@@ -302,7 +323,7 @@ export const summarizeFilters = (f: AudienceFilters): string[] => {
   if (f.notContactedDays) out.push(`Not contacted ${f.notContactedDays}d+`);
   if (f.consent && f.consent !== 'not_opted_out') out.push(`Consent: ${f.consent.replace('_', ' ')}`);
   if (f.reachableOnly === false) out.push('Including unreachable');
-  return out.length ? out : ['All active & unverified businesses'];
+  return [...out, ...picks.map((p) => `+ ${p}`), ...tail];
 };
 
 export const initials = (name: string | null | undefined, fallback = '#') => {
