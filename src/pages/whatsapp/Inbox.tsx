@@ -13,6 +13,7 @@ import { ContactEditor } from '../../components/whatsapp/ContactEditor';
 import { Skel } from '../../components/whatsapp/Skeleton';
 import { useNow } from '../../components/whatsapp/useNow';
 import { renderWaMarkdown } from '../../components/whatsapp/wa-markdown';
+import { WaMediaAttachment } from '../../components/whatsapp/WaMediaAttachment';
 import { WA_ROUTES, fmtRelative, fmtTime, dayLabel, initials, apiErrorMessage } from '../../components/whatsapp/wa-utils';
 import { ROUTES } from '../../utils/constants';
 import type { WaConversation, WaConversationFilter, WaMessage } from '../../types';
@@ -297,7 +298,14 @@ function Bubble({ m }: { m: WaMessage }) {
             <FileText className="w-3 h-3" /> {m.templateName}{m.campaign ? <> · <Link to={WA_ROUTES.campaign(m.campaign.id)} className="hover:underline">{m.campaign.name}</Link></> : null}
           </p>
         )}
-        <p className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words">{m.body ? renderWaMarkdown(m.body) : <em style={{ color: 'var(--wa-time)' }}>[{m.kind}]</em>}</p>
+        {m.media ? (
+          <div className="pt-0.5">
+            <WaMediaAttachment messageId={m.id} media={m.media} />
+            {m.media.caption && <p className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words mt-1">{renderWaMarkdown(m.media.caption)}</p>}
+          </div>
+        ) : (
+          <p className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words">{m.body ? renderWaMarkdown(m.body) : <em style={{ color: 'var(--wa-time)' }}>[{m.kind}]</em>}</p>
+        )}
         <div className="flex items-center justify-end gap-1 mt-0.5">
           {failed && m.errorMessage && <span className="text-[10.5px] mr-auto" style={{ color: 'var(--color-danger)' }}>{m.errorMessage}</span>}
           <span className="text-[10.5px] tabular-nums" style={{ color: 'var(--wa-time)' }}>{fmtTime(m.createdAt)}</span>

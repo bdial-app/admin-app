@@ -14,6 +14,9 @@ import type {
   WaAudiencePreview,
   WaAudiencePreviewPayload,
   WaAudienceOptions,
+  WaRecipientsPayload,
+  WaRecipientRow,
+  WaCustomerHit,
   WaContact,
   WaContactFilters,
   WaContactUpdate,
@@ -125,7 +128,21 @@ export const whatsappService = {
   },
   getAudienceOptions: async (): Promise<WaAudienceOptions> => {
     const { data } = await api.get(U.AUDIENCE_OPTIONS);
-    return { cities: data?.cities ?? [], categories: data?.categories ?? [] };
+    return {
+      cities: data?.cities ?? [],
+      categories: data?.categories ?? [],
+      areas: data?.areas ?? [],
+      campaigns: data?.campaigns ?? [],
+      tags: data?.tags ?? [],
+    };
+  },
+  getAudienceRecipients: async (payload: WaRecipientsPayload): Promise<PaginatedResponse<WaRecipientRow>> => {
+    const { data } = await api.post(U.AUDIENCE_RECIPIENTS, payload);
+    return paginated<WaRecipientRow>(data, payload);
+  },
+  searchCustomers: async (search: string): Promise<WaCustomerHit[]> => {
+    const { data } = await api.get(U.AUDIENCE_CUSTOMERS, { params: { search } });
+    return data ?? [];
   },
   getContacts: async (filters: WaContactFilters = {}): Promise<PaginatedResponse<WaContact>> => {
     const params: Record<string, string | number | boolean> = {};

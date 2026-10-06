@@ -29,6 +29,9 @@ import type {
   AudienceFilters, WaAudiencePreview, WaCampaign, WaCampaignPayload, WaTemplate, WaVariableMapping, WaButtonUrlParams, VariableSource, WaHeaderMediaSource,
 } from '../../types';
 
+/** Variable sources a customer (no business) has no value for. */
+const BUSINESS_ONLY = new Set<string | undefined>(['brand_name', 'category', 'profile_url', 'products_count', 'visits_7d', 'enquiries_7d']);
+
 // ── Form state ────────────────────────────────────────────
 interface FormState {
   name: string;
@@ -160,11 +163,20 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
     const e = form.buttonUrlParams[String(i)];
     return e && (e.source !== 'custom' || (e.value ?? '').trim());
   });
+  // Customers have no business: any field filled from business details would
+  // reach them as the template's sample. The server refuses such a send too.
+  const reachesCustomers = (preview?.byKind?.customer ?? 0) > 0;
+  const businessOnlyFields = [
+    ...indexes.filter((i) => BUSINESS_ONLY.has(fullMapping[String(i)]?.source)).map((i) => `{{${i}}}`),
+    ...urlButtons.filter(({ i }) => BUSINESS_ONLY.has(form.buttonUrlParams[String(i)]?.source ?? 'profile_url')).map(({ b }) => `the “${b.text}” button`),
+  ];
+  const customerConflict = reachesCustomers && businessOnlyFields.length > 0;
+
   const scheduleValid = form.schedule === 'now' || (!!form.scheduledAt && new Date(form.scheduledAt).getTime() > now);
 
   const stepValid = [
     form.name.trim().length > 0 && !!preview && preview.sendable > 0,
-    !!template && mappingComplete && buttonsComplete && (header?.format !== 'IMAGE' || form.headerMediaSource === 'provider_logo' || form.headerMediaUrl.trim().length > 0),
+    !!template && mappingComplete && buttonsComplete && !customerConflict && (header?.format !== 'IMAGE' || form.headerMediaSource === 'provider_logo' || form.headerMediaUrl.trim().length > 0),
     scheduleValid,
     true,
   ];
@@ -309,6 +321,11 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
                       <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Variables</h3>
                       <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Each placeholder is resolved per recipient. Samples use {sample ? <strong>{sample.brandName}</strong> : 'the first matching business'}.</p>
                       <VariableMappingTable template={template} mapping={fullMapping} onChange={(m) => patch({ variableMapping: m })} sample={sample} />
+                      {customerConflict && (
+                        <p className="text-xs mt-3 p-3 rounded-lg" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}>
+                          This audience includes {preview?.byKind?.customer.toLocaleString('en-IN')} app customers, who have no business. {businessOnlyFields.join(', ')} {businessOnlyFields.length > 1 ? 'use' : 'uses'} business details — change {businessOnlyFields.length > 1 ? 'them' : 'it'} to Owner name (the customer's name), City, App download link or your own text, or go back and send to businesses only.
+                        </p>
+                      )}
                     </div>
 
                     {header?.format === 'IMAGE' && (
