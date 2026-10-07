@@ -37,7 +37,9 @@ export interface RowImages {
 
 /** Same ceiling the server enforces per provider. */
 export const MAX_GALLERY_PHOTOS = 10;
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+// Shrunk to a few hundred KB before upload; kept lower than a single pick because
+// a ZIP's photos are held in memory until their providers exist.
+export const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
 const HEIC_EXT = /\.(heic|heif)$/i;

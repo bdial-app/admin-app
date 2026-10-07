@@ -219,7 +219,7 @@ export default function CampaignDetail() {
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {Math.round(((c.sentCount + c.failedCount + c.skippedCount) / total) * 100)}% processed
+            {Math.min(100, Math.round(((c.totalRecipients - c.queuedCount) / total) * 100))}% processed
             {live && <span className="ml-2 text-xs font-medium" style={{ color: 'var(--color-primary)' }}>● live, refreshing every 5s</span>}
           </p>
           <p className="text-sm tabular-nums" style={{ color: 'var(--text-secondary)' }}>

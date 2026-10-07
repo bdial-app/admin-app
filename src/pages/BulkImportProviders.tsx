@@ -1463,7 +1463,7 @@ export default function BulkImportProviders() {
                 <li><span className="vet-mono">9876543210_1.jpg</span>, <span className="vet-mono">_2.jpg</span> … → gallery, up to {MAX_GALLERY_PHOTOS}</li>
                 <li><span className="vet-mono">9876543210/logo.jpg</span> — one folder per business works too</li>
               </ul>
-              <p>JPG, PNG, WebP or GIF, up to 10MB each. iPhone HEIC photos need exporting as JPG first.</p>
+              <p>JPG, PNG, WebP or GIF, up to 100MB each — they're optimised before upload. iPhone HEIC photos need exporting as JPG first.</p>
             </div>
 
             {imageMatch.unmatched.length > 0 && (

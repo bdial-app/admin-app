@@ -14,7 +14,15 @@ export function CampaignProgressBar({ campaign: c, height = 8, showLegend = fals
   const total = Math.max(c.totalRecipients, 1);
   const read = c.readCount;
   const deliveredOnly = Math.max(0, c.deliveredCount - c.readCount);
-  const sentOnly = Math.max(0, c.sentCount - c.deliveredCount);
+  // A message Meta accepts and later fails counts in both sent and failed, so
+  // "sent, not yet delivered" is whatever is left once every other state is out.
+  const sentOnly = Math.max(
+    0,
+    Math.min(
+      c.sentCount - c.deliveredCount,
+      c.totalRecipients - c.queuedCount - c.deliveredCount - c.failedCount - c.skippedCount,
+    ),
+  );
   const pct = (n: number) => `${Math.min(100, (n / total) * 100)}%`;
 
   const segs = [

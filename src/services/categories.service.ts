@@ -1,7 +1,7 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { Category, CategoryFormData } from '../types';
-import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
+import { optimizeImage } from '../utils/compress-image';
 
 export const categoriesService = {
   /**
@@ -44,7 +44,7 @@ export const categoriesService = {
   },
 
   uploadIcon: async (id: string, file: File): Promise<Category> => {
-    const compressed = await compressImageFile(file, COMPRESS_PRESETS.icon);
+    const compressed = await optimizeImage(file, 'icon');
     const form = new FormData();
     form.append('icon', compressed);
     const { data } = await api.post(URLS.CATEGORIES.UPLOAD_ICON(id), form, {
@@ -59,7 +59,7 @@ export const categoriesService = {
   },
 
   uploadImage: async (id: string, file: File): Promise<Category> => {
-    const compressed = await compressImageFile(file, COMPRESS_PRESETS.banner);
+    const compressed = await optimizeImage(file, 'banner');
     const form = new FormData();
     form.append('image', compressed);
     const { data } = await api.post(URLS.CATEGORIES.UPLOAD_IMAGE(id), form, {
