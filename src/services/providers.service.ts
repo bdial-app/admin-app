@@ -3,7 +3,7 @@ import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { Provider, ProviderFilters } from '../types';
 import type { BulkActionPayload } from '../types';
-import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
+import { optimizeImage } from '../utils/compress-image';
 
 export interface ProviderImagesPayload {
   /** Business logo / profile photo */
@@ -184,12 +184,12 @@ export const providersService = {
   updateImages: async (id: string, payload: ProviderImagesPayload): Promise<Provider> => {
     const fd = new FormData();
     if (payload.logo) {
-      fd.append('logo', await compressImageFile(payload.logo, COMPRESS_PRESETS.icon));
+      fd.append('logo', await optimizeImage(payload.logo, 'avatar'));
     } else if (payload.removeLogo) {
       fd.append('removeLogo', 'true');
     }
     if (payload.banner) {
-      fd.append('banner', await compressImageFile(payload.banner, COMPRESS_PRESETS.banner));
+      fd.append('banner', await optimizeImage(payload.banner, 'banner'));
     } else if (payload.removeBanner) {
       fd.append('removeBanner', 'true');
     }
@@ -202,7 +202,7 @@ export const providersService = {
   /** Add gallery photos (the server allows 10 per provider). */
   uploadPhotos: async (id: string, files: File[]): Promise<unknown> => {
     const fd = new FormData();
-    for (const f of files) fd.append('photos', await compressImageFile(f, COMPRESS_PRESETS.banner));
+    for (const f of files) fd.append('photos', await optimizeImage(f, 'gallery'));
     const { data } = await api.post(URLS.PROVIDERS.UPLOAD_PHOTOS(id), fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

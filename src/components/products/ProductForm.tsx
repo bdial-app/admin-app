@@ -215,7 +215,7 @@ export function ProductForm({ value, onChange, images, onImagesChange, maxImages
             )}
           </div>
           <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-            First photo is the one on the card. JPG or PNG, up to 10MB each, {maxImages} max.
+            First photo is the one on the card. JPG or PNG, any size (optimised on upload), {maxImages} max.
           </p>
         </Section>
 

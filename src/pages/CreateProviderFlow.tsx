@@ -22,6 +22,7 @@ import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPic
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Gender, User as UserType } from '../types';
+import { checkPickedFile } from '../utils/compress-image';
 
 // ── Types ────────────────────────────────────────────────
 interface ProductEntry {
@@ -936,8 +937,8 @@ export default function CreateProviderFlow() {
                             onChange={(e) => {
                               const files = Array.from(e.target.files ?? []);
                               if (!files.length) return;
-                              const tooLarge = files.find(f => f.size > 20 * 1024 * 1024);
-                              if (tooLarge) { toast.error(`${tooLarge.name} is over 20MB`); return; }
+                              const tooLarge = files.map(checkPickedFile).find(Boolean);
+                              if (tooLarge) { toast.error(tooLarge); return; }
                               addProductImages(idx, files);
                               e.target.value = '';
                             }}
@@ -949,7 +950,7 @@ export default function CreateProviderFlow() {
                       {product.imageFiles.length === 0 && (
                         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                           <ImageIcon className="w-4 h-4 opacity-40" />
-                          <span>PNG, JPG, WebP — up to 20MB (auto-compressed)</span>
+                          <span>PNG, JPG, WebP — any size (optimised on upload)</span>
                         </div>
                       )}
                     </div>

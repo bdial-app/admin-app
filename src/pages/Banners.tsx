@@ -11,6 +11,7 @@ import { useBanners, useCreateBanner, useUpdateBanner, useDeleteBanner } from '.
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { PromoBanner } from '../types';
+import { checkPickedFile } from '../utils/compress-image';
 
 const LIMIT = 20;
 const STATUS_TABS = [
@@ -94,7 +95,8 @@ export default function Banners() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
-    if (file.size > 15 * 1024 * 1024) { toast.error('Image must be under 15MB'); return; }
+    const tooBig = checkPickedFile(file);
+    if (tooBig) { toast.error(tooBig); return; }
     setImageFile(file);
     // Revoke previous blob URL to prevent memory leak
     if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
@@ -380,7 +382,7 @@ export default function Banners() {
                 >
                   <Upload className="w-6 h-6" />
                   <span className="text-sm">Click to upload image</span>
-                  <span className="text-xs">PNG, JPG, WebP — max 5MB</span>
+                  <span className="text-xs">PNG, JPG, WebP — any size, optimised on upload</span>
                 </button>
               )}
               <input

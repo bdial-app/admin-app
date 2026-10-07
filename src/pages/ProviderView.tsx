@@ -30,6 +30,7 @@ import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
 import type { Product, ProviderOffer } from '../types';
 import { ProviderWhatsAppCard } from '../components/whatsapp/ProviderWhatsAppCard';
+import { checkPickedFile } from '../utils/compress-image';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
 type EditingSection = 'business' | 'contact' | 'location' | 'social' | 'categories' | null;
@@ -59,7 +60,6 @@ const pinBadgeStyle = (precision: string | null | undefined, lat: number | null,
 };
 type BrandAsset = 'logo' | 'banner';
 
-const MAX_ASSET_BYTES = 10 * 1024 * 1024;
 const MAX_PROVIDER_CATEGORIES = 2;
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
@@ -203,7 +203,8 @@ export default function ProviderView() {
     e.target.value = '';
     if (!file || !id) return;
     if (!file.type.startsWith('image/')) { toast.error('Please choose an image file'); return; }
-    if (file.size > MAX_ASSET_BYTES) { toast.error('Image must be under 10MB'); return; }
+    const tooBig = checkPickedFile(file);
+    if (tooBig) { toast.error(tooBig); return; }
     setUploadingAsset(asset);
     try {
       await updateImagesMut.mutateAsync({ id, payload: asset === 'logo' ? { logo: file } : { banner: file } });

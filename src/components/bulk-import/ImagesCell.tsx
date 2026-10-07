@@ -117,7 +117,7 @@ export function ImagesCell({ images, disabled, onChange }: {
   const addFiles = (files: File[], forcedRole?: ImageRole) => {
     const valid = files.filter((f) => SUPPORTED.test(f.name) && f.size <= MAX_IMAGE_BYTES);
     const skipped = files.length - valid.length;
-    if (skipped) toast.warn(`${skipped} file${skipped === 1 ? '' : 's'} skipped — use JPG, PNG, WebP or GIF under 10MB`);
+    if (skipped) toast.warn(`${skipped} file${skipped === 1 ? '' : 's'} skipped — use JPG, PNG, WebP or GIF under 100MB`);
     if (valid.length === 0) return;
 
     const next: RowImages = { ...images, gallery: [...images.gallery] };

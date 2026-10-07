@@ -3,6 +3,7 @@ import { URLS } from '../utils/urls';
 import type { PaginatedResponse } from '../types';
 import type { Product, ProductFilters, ProductFilterOptions, ProductStats } from '../types';
 import type { BulkActionPayload } from '../types';
+import { optimizeImages } from '../utils/compress-image';
 
 export const productsService = {
   list: async (filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> => {
@@ -46,7 +47,7 @@ export const productsService = {
 
   uploadImages: async (id: string, files: File[]): Promise<Product> => {
     const form = new FormData();
-    files.forEach((f) => form.append('images', f));
+    for (const f of await optimizeImages(files, 'product')) form.append('images', f);
     const { data } = await api.post(URLS.PRODUCTS.UPLOAD_IMAGES(id), form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

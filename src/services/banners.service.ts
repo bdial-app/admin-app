@@ -1,7 +1,7 @@
 import api from './api';
 import { URLS } from '../utils/urls';
 import type { PaginatedResponse, PromoBanner } from '../types';
-import { compressImageFile, COMPRESS_PRESETS } from '../utils/compress-image';
+import { optimizeImage } from '../utils/compress-image';
 
 export interface BannerFilters {
   page?: number;
@@ -23,7 +23,7 @@ async function buildBannerFormData(body: Partial<PromoBanner>, imageFile?: File 
     fd.append('imageUrl', 'null');
   }
   if (imageFile) {
-    const compressed = await compressImageFile(imageFile, COMPRESS_PRESETS.banner);
+    const compressed = await optimizeImage(imageFile, 'banner');
     fd.append('image', compressed);
   }
   return fd;
