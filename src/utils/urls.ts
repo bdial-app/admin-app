@@ -150,6 +150,14 @@ export const URLS = {
     REORDER: '/admin/banners/reorder',
   },
 
+  HOME_COLLECTIONS: {
+    LIST: '/admin/home-collections',
+    CREATE: '/admin/home-collections',
+    UPDATE: (id: string) => `/admin/home-collections/${id}`,
+    DELETE: (id: string) => `/admin/home-collections/${id}`,
+    REORDER: '/admin/home-collections/reorder',
+  },
+
   // â”€â”€ Admin Sponsored â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   SPONSORED: {
     LIST: '/admin/sponsorships',
