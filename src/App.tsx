@@ -26,6 +26,7 @@ const BugReports = lazy(() => import('./pages/BugReports'));
 const Warnings = lazy(() => import('./pages/Warnings'));
 const ChatModeration = lazy(() => import('./pages/ChatModeration'));
 const Banners = lazy(() => import('./pages/Banners'));
+const HomeCollections = lazy(() => import('./pages/HomeCollections'));
 const Sponsorships = lazy(() => import('./pages/Sponsorships'));
 const Offers = lazy(() => import('./pages/Offers'));
 const Badges = lazy(() => import('./pages/Badges'));
@@ -116,6 +117,7 @@ function App() {
 
             {/* Marketing */}
             <Route path={ROUTES.BANNERS} element={<Banners />} />
+            <Route path={ROUTES.HOME_COLLECTIONS} element={<HomeCollections />} />
             <Route path={ROUTES.SPONSORSHIPS} element={<Sponsorships />} />
             <Route path={ROUTES.OFFERS} element={<Offers />} />
             <Route path={ROUTES.BADGES} element={<Badges />} />

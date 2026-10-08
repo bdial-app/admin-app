@@ -7,7 +7,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity,
+  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -61,6 +61,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
     label: 'Marketing',
     items: [
       { name: 'Banners', path: ROUTES.BANNERS, icon: Image },
+      { name: 'Home needs', path: ROUTES.HOME_COLLECTIONS, icon: LayoutGrid },
       { name: 'Sponsorships', path: ROUTES.SPONSORSHIPS, icon: Megaphone },
       { name: 'Offers', path: ROUTES.OFFERS, icon: Gift },
       { name: 'Badges', path: ROUTES.BADGES, icon: Award },

@@ -12,6 +12,7 @@ export const ROUTES = {
   REPORTS: '/reports',
   WARNINGS: '/warnings',
   BANNERS: '/banners',
+  HOME_COLLECTIONS: '/home-collections',
   SPONSORSHIPS: '/sponsorships',
   OFFERS: '/offers',
   BADGES: '/badges',
