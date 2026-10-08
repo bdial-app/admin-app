@@ -4,7 +4,7 @@ import {
   Upload, FileSpreadsheet, ArrowRight, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Search, Eye, X,
   Download, DatabaseZap, Loader2, RotateCcw, Ban, Check, Plus, Info, Users, Store, Sparkles,
   Wand2, EyeOff, SlidersHorizontal, ChevronDown, CircleSlash, Undo2, ShieldAlert, BadgeCheck, UserRound,
-  ImagePlus, FolderOpen, FileArchive, Trash2, Image as ImageIcon, MapPin,
+  ImagePlus, FolderOpen, FileArchive, Trash2, Image as ImageIcon, MapPin, RefreshCw,
 } from 'lucide-react';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -23,7 +23,7 @@ import {
   type ImageMatchSummary, type ImageUploadApi, type RowImage, type RowImages,
 } from '../utils/bulk-import-images';
 import {
-  parseSpreadsheet, autoMapColumns, buildRows, validateRows, toPayload, toCsv, downloadTextFile,
+  parseSpreadsheet, autoMapColumns, buildRows, validateRows, toPayload, toCsv, downloadTextFile, recleanRow, forgetSheetIssues, normalizePhone,
   TARGET_FIELDS, getDbStatus, isDbDuplicate, type ParsedSheet, type ColumnMapping, type ImportRow, type RowFieldKey,
   type RowValidation, type BuildDefaults, type TargetField, type DbStatus,
 } from '../utils/bulk-import';
@@ -271,11 +271,30 @@ export default function BulkImportProviders() {
   const updateRow = (rowId: string, patch: (r: ImportRow) => ImportRow) =>
     setRows((prev) => prev.map((r) => (r.rowId === rowId ? patch(r) : r)));
 
+  // An edit replaces what the sheet said: that field's old problems go, the
+  // database check is stale, and a failed import can be tried again.
   const setField = <K extends RowFieldKey>(rowId: string, key: K, value: ImportRow['fields'][K]) =>
-    updateRow(rowId, (r) => ({ ...r, fields: { ...r.fields, [key]: value } as ImportRow['fields'], serverCheck: undefined }));
+    updateRow(rowId, (r) => ({
+      ...forgetSheetIssues(r, key),
+      fields: { ...r.fields, [key]: value } as ImportRow['fields'],
+      serverCheck: undefined,
+      importResult: r.importResult?.ok ? r.importResult : undefined,
+    }));
 
   const setCategories = (rowId: string, ids: string[]) =>
-    updateRow(rowId, (r) => ({ ...r, categoryIds: ids, unmatchedCategories: ids.length ? [] : r.unmatchedCategories, serverCheck: undefined }));
+    updateRow(rowId, (r) => ({
+      ...forgetSheetIssues(r, 'categories'),
+      categoryIds: ids,
+      unmatchedCategories: ids.length ? [] : r.unmatchedCategories,
+      serverCheck: undefined,
+      importResult: r.importResult?.ok ? r.importResult : undefined,
+    }));
+
+  /** Typed "+91 98765 43210" or "098765 43210"? Store the 10 digits when leaving the box. */
+  const tidyPhone = (rowId: string, key: 'mobile' | 'whatsapp', value: string) => {
+    const n = normalizePhone(value);
+    if (n.value && n.value !== value) setField(rowId, key, n.value);
+  };
 
   const toggleInclude = (rowId: string) => updateRow(rowId, (r) => ({ ...r, include: !r.include }));
 
@@ -520,16 +539,67 @@ export default function BulkImportProviders() {
     setRows((prev) => prev.map((r) => (r.importResult ? r : { ...r, fields: { ...r.fields, [key]: value } as ImportRow['fields'] })));
 
   // ── Server dry-run ───────────────────────────────────────────────────
+  /** Rows the database check can look at (required fields in place). */
+  const dbCheckable = (r: ImportRow) => r.include && !r.importResult && /^[6-9]\d{9}$/.test(r.fields.mobile) && !!r.fields.brandName.trim() && !!r.fields.city.trim();
+
+  const checkAgainstDb = async (candidates: ImportRow[]) => {
+    const results: Record<string, ImportRow['serverCheck']> = {};
+    for (let i = 0; i < candidates.length; i += 100) {
+      const chunk = candidates.slice(i, i + 100);
+      const res = await withRateLimitRetry(() => validateMutation.mutateAsync(chunk.map(toPayload)));
+      for (const r of res.results) results[r.rowId] = r;
+    }
+    return results;
+  };
+
+  // ── Re-check: one row, or all of them ────────────────────────────────
+  // Clean the current values with the upload's rules, drop the sheet's stale
+  // problems, check the database again, and say what's left.
+  const [recheckingIds, setRecheckingIds] = useState<Set<string> | 'all' | null>(null);
+  const recheck = async (rowIds?: string[]) => {
+    const target = (r: ImportRow) => (!rowIds || rowIds.includes(r.rowId)) && !r.importResult?.ok;
+    const next = rows.map((r) => (target(r) ? recleanRow(r, cities) : r));
+    const targeted = next.filter(target);
+    if (targeted.length === 0) { toast.info('Nothing to re-check'); return; }
+    setRows(next);
+    setRecheckingIds(rowIds ? new Set(rowIds) : 'all');
+    let results: Record<string, ImportRow['serverCheck']> = {};
+    let dbFailed = false;
+    try {
+      const candidates = targeted.filter(dbCheckable);
+      if (candidates.length) results = await checkAgainstDb(candidates);
+    } catch (err) {
+      dbFailed = true;
+      toast.error(apiError(err, 'Database check failed — the sheet checks still ran'));
+    } finally {
+      setRecheckingIds(null);
+    }
+    setRows((prev) => prev.map((r) => (results[r.rowId] ? { ...r, serverCheck: results[r.rowId] } : r)));
+
+    const merged = next.map((r) => (results[r.rowId] ? { ...r, serverCheck: results[r.rowId] } : r));
+    const v = validateRows(merged, cities);
+    const outcome = targeted.map((r) => ({ row: r, v: v.get(r.rowId)! }));
+    if (rowIds?.length === 1) {
+      const { row, v: rv } = outcome[0];
+      if (rv.status === 'error') toast.error(`Row ${row.sourceIndex} still needs fixing: ${rv.errors[0]?.message ?? 'see the row'}`);
+      else if (rv.status === 'warning') toast.warn(`Row ${row.sourceIndex} can be imported — ${rv.warnings.length} thing${rv.warnings.length === 1 ? '' : 's'} to check`);
+      else if (rv.status === 'excluded') toast.info(`Row ${row.sourceIndex} is skipped — tick it to import`);
+      else toast.success(`Row ${row.sourceIndex} is ready to import${dbFailed ? ' (database not checked)' : ''}`);
+      return;
+    }
+    const ready = outcome.filter((o) => o.v.status === 'ready').length;
+    const warn = outcome.filter((o) => o.v.status === 'warning').length;
+    const bad = outcome.filter((o) => o.v.status === 'error').length;
+    const msg = `Re-checked ${outcome.length} row${outcome.length === 1 ? '' : 's'} — ${ready} ready${warn ? `, ${warn} to look at` : ''}${bad ? `, ${bad} still need fixing` : ''}`;
+    if (bad) { toast.warn(msg); setFilter('error'); } else toast.success(msg);
+  };
+  const isRechecking = (rowId: string) => recheckingIds === 'all' || (recheckingIds instanceof Set && recheckingIds.has(rowId));
+
   const runServerCheck = async () => {
-    const candidates = rows.filter((r) => r.include && !r.importResult && /^[6-9]\d{9}$/.test(r.fields.mobile) && r.fields.brandName.trim() && r.fields.city.trim());
+    const candidates = rows.filter(dbCheckable);
     if (candidates.length === 0) { toast.info('Nothing to check — fix required fields first'); return; }
     try {
-      const results: Record<string, ImportRow['serverCheck']> = {};
-      for (let i = 0; i < candidates.length; i += 100) {
-        const chunk = candidates.slice(i, i + 100);
-        const res = await withRateLimitRetry(() => validateMutation.mutateAsync(chunk.map(toPayload)));
-        for (const r of res.results) results[r.rowId] = r;
-      }
+      const results = await checkAgainstDb(candidates);
       setRows((prev) => prev.map((r) => (results[r.rowId] ? { ...r, serverCheck: results[r.rowId] } : r)));
       const blocked = Object.values(results).filter((r) => r && !r.ok).length;
       toast.success(blocked ? `Checked ${candidates.length} rows — ${blocked} blocked by existing records` : `Checked ${candidates.length} rows — no conflicts with the database`);
@@ -1015,6 +1085,15 @@ export default function BulkImportProviders() {
                     className="hidden"
                     onChange={(e) => { void attachImageFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }}
                   />
+                  <button
+                    onClick={() => { void recheck(); }}
+                    disabled={recheckingIds !== null || validateMutation.isPending}
+                    className="vet-btn"
+                    title="Clean every row again with the upload's rules, re-run all checks and the database check"
+                  >
+                    {recheckingIds === 'all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    Re-check all
+                  </button>
                   <button onClick={runServerCheck} disabled={validateMutation.isPending} className="vet-btn" data-variant="accent">
                     {validateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DatabaseZap className="h-3.5 w-3.5" />}
                     {dbCheckedCount ? 'Re-check database' : 'Check against database'}
@@ -1191,6 +1270,7 @@ export default function BulkImportProviders() {
                             aria-invalid={err ? true : undefined}
                             title={[err, warn].filter(Boolean).join('\n') || undefined}
                             onChange={(e) => setField(row.rowId, k, e.target.value as never)}
+                            onBlur={k === 'mobile' || k === 'whatsapp' ? (e) => tidyPhone(row.rowId, k, e.target.value) : undefined}
                             className={`vet-input${opts.mono ? ' vet-mono' : ''}${note ? ' has-note' : ''}`}
                           />
                           {note && (
@@ -1221,6 +1301,19 @@ export default function BulkImportProviders() {
                           <span className="vet-pill" style={{ background: meta.bg, color: meta.color }}>
                             <StatusIcon className="h-3.5 w-3.5" />{meta.label}
                           </span>
+                          {!row.importResult?.ok && step !== 'done' && (
+                            <button
+                              type="button"
+                              onClick={() => { void recheck([row.rowId]); }}
+                              disabled={recheckingIds !== null}
+                              className="vet-sub inline-flex items-center gap-1 font-medium hover:underline disabled:opacity-50"
+                              style={{ color: 'var(--color-primary)' }}
+                              title="Clean this row again and re-run every check, including the database"
+                            >
+                              {isRechecking(row.rowId) ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              Re-check
+                            </button>
+                          )}
                           {!row.importResult && issues.length > 0 && (
                             <p className="vet-sub tabular-nums">
                               {[
@@ -1359,6 +1452,18 @@ export default function BulkImportProviders() {
           const v = validation.get(detailRow.rowId);
           return (
             <div className="space-y-4">
+              {!detailRow.importResult?.ok && step !== 'done' && (
+                <button
+                  type="button"
+                  onClick={() => { void recheck([detailRow.rowId]); }}
+                  disabled={recheckingIds !== null}
+                  className="vet-btn w-full justify-center"
+                  data-variant="accent"
+                >
+                  {isRechecking(detailRow.rowId) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Re-check this row
+                </button>
+              )}
               {v && (v.errors.length > 0 || v.warnings.length > 0) && (
                 <div className="p-3 rounded-xl space-y-1" style={{ background: 'var(--surface-1)' }}>
                   {v.errors.map((e, i) => <p key={`e${i}`} className="text-sm flex items-start gap-1.5" style={{ color: 'var(--color-danger-dark)' }}><XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{e.message}</p>)}

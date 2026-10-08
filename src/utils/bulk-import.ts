@@ -485,6 +485,64 @@ export function buildRows(sheet: ParsedSheet, mapping: ColumnMapping, ctx: Build
   });
 }
 
+// ── Re-check after editing ────────────────────────────────────────────────
+
+/** Fields whose sheet problems are re-derived by `recleanRow`. */
+const RECLEANED: RowFieldKey[] = ['mobile', 'whatsapp', 'city', 'email', 'instagram', 'pincode', 'openTime', 'closeTime', 'gender'];
+
+/**
+ * Clean a row's *current* values with the same rules the upload used, and
+ * drop problems from the original sheet that no longer apply — so a phone
+ * number fixed by hand stops showing the sheet's old error. Values the rules
+ * can't fix are left as typed (the live checks still flag them). Clears the
+ * database check and a failed import, so the row can be checked and imported
+ * again.
+ */
+export function recleanRow(row: ImportRow, cities: ServiceableCity[]): ImportRow {
+  const f: RowFields = { ...row.fields };
+  const notes: ImportRow['notes'] = { ...row.notes };
+  // Image-link and category notes come from the sheet's columns; keep them.
+  const autoIssues: RowIssue[] = row.autoIssues.filter((a) => !a.field || !RECLEANED.includes(a.field as RowFieldKey));
+  const apply = (k: 'mobile' | 'whatsapp' | 'city' | 'email' | 'instagram' | 'pincode' | 'openTime' | 'closeTime', n: Normalized<string>) => {
+    if (n.issue) autoIssues.push({ field: k, message: n.issue });
+    if (n.value && n.value !== f[k]) {
+      notes[k] = `cleaned from "${f[k]}"`;
+      f[k] = n.value;
+    }
+  };
+
+  f.brandName = f.brandName.replace(/\s+/g, ' ').trim();
+  f.userName = f.userName.replace(/\s+/g, ' ').trim();
+  if (f.mobile.trim()) apply('mobile', normalizePhone(f.mobile));
+  if (f.whatsapp.trim()) apply('whatsapp', normalizePhone(f.whatsapp));
+  if (f.whatsapp && f.whatsapp === f.mobile) f.whatsapp = '';
+  if (f.city.trim()) apply('city', normalizeCity(f.city, cities));
+  if (f.email.trim()) apply('email', normalizeEmail(f.email));
+  if (f.instagram.trim()) apply('instagram', normalizeInstagram(f.instagram));
+  if (f.pincode.trim()) apply('pincode', normalizePincode(f.pincode));
+  if (f.openTime.trim()) apply('openTime', normalizeTime(f.openTime));
+  if (f.closeTime.trim()) apply('closeTime', normalizeTime(f.closeTime));
+
+  return {
+    ...row,
+    fields: f,
+    notes,
+    autoIssues,
+    serverCheck: undefined,
+    importResult: row.importResult?.ok ? row.importResult : undefined,
+    // A row whose import failed is back in play; a row skipped on purpose stays skipped.
+    include: row.importResult && !row.importResult.ok ? true : row.include,
+  };
+}
+
+/** A field was edited by hand: its problems from the original sheet no longer apply. */
+export function forgetSheetIssues(row: ImportRow, key: RowFieldKey | 'categories'): ImportRow {
+  if (!row.autoIssues.some((a) => a.field === key) && !row.notes[key]) return row;
+  const notes = { ...row.notes };
+  delete notes[key];
+  return { ...row, notes, autoIssues: row.autoIssues.filter((a) => a.field !== key) };
+}
+
 // ── Validation (client side, re-run on every edit) ─────────────────────────
 
 export interface RowValidation {
