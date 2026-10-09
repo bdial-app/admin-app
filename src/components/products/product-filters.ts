@@ -5,7 +5,7 @@ import type { ProductFilterOptions } from '../../types';
 export const PRODUCT_FILTER_KEYS = [
   'isActive', 'productType', 'categoryId',
   'hasImages', 'hasPrice', 'isHero', 'priceMin', 'priceMax',
-  'city', 'providerStatus',
+  'city', 'providerStatus', 'createdFrom', 'createdTo',
 ] as const;
 
 export const PRODUCT_FILTER_DEFS: FilterDef[] = [
@@ -17,6 +17,7 @@ export const PRODUCT_FILTER_DEFS: FilterDef[] = [
     { value: 'product', label: 'Products' }, { value: 'service', label: 'Services' },
   ] },
   { key: 'categoryId', label: 'Category', kind: 'select', inline: true, placeholder: 'All categories', className: 'max-w-[14rem]', options: [] },
+  { key: 'created', label: 'Added', kind: 'daterange', inline: true, withTime: true, placeholder: 'Added any time' },
   // Panel — Listing
   { key: 'hasImages', label: 'Photos', kind: 'select', group: 'Listing', options: [
     { value: 'true', label: 'Has photos' }, { value: 'false', label: 'No photos' },
@@ -38,6 +39,8 @@ export const PRODUCT_FILTER_DEFS: FilterDef[] = [
 
 /** `display_order` is the server default, so it is the placeholder rather than an option. */
 export const PRODUCT_SORTS: SortOption[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
   { value: 'name_asc', label: 'Name A–Z' },
   { value: 'name_desc', label: 'Name Z–A' },
   { value: 'price_asc', label: 'Price: low to high' },

@@ -757,3 +757,40 @@ a.vet-img-name { color: var(--color-primary); }
   border-width: 0 0 8px 8px;
   border-color: transparent transparent transparent var(--wa-bubble-out);
 }
+
+/* ── Form fields ─────────────────────────────────────────────────────────
+   The shared text input used by the product, subscription and voucher
+   forms. In the components layer so utilities (w-full, pl-8, mt-3…) on a
+   field still win. */
+@layer components {
+  .input {
+    display: block;
+    border-radius: 0.625rem;
+    border: 1px solid var(--border-default);
+    background: var(--surface-0);
+    color: var(--text-primary);
+    padding: 0.5625rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:hover:not(:disabled) {
+    border-color: var(--border-strong, var(--text-muted));
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  .input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  textarea.input {
+    resize: vertical;
+    min-height: 5rem;
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Search } from 'lucide-react';
 import { DetailPanel } from '../ui/DetailPanel';
+import { istDay } from '../ui/filters/dates';
 import { providersService } from '../../services/providers.service';
 import type { Category } from '../../types';
 import { CHOICE_FILTERS, SORTS, countActive, type FilterKey, type FilterState } from './provider-filters';
@@ -18,7 +19,16 @@ interface Props {
 }
 
 const split = (v?: string) => (v ? v.split(',').filter(Boolean) : []);
-const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+/** Whole India-time days; the server reads a bare date as the whole day. */
+const ADDED_PRESETS: { label: string; range: () => { from: string; to?: string } }[] = [
+  { label: 'Today', range: () => ({ from: istDay() }) },
+  { label: 'Yesterday', range: () => ({ from: istDay(1), to: istDay(1) }) },
+  { label: 'Last 7 days', range: () => ({ from: istDay(6) }) },
+  { label: 'Last 30 days', range: () => ({ from: istDay(29) }) },
+  { label: 'Last 90 days', range: () => ({ from: istDay(89) }) },
+];
+/** A day as a datetime-local value at `time`; minutes pass through. */
+const asMinute = (v: string | undefined, time: string) => (!v ? '' : v.length === 10 ? `${v}T${time}` : v.slice(0, 16));
 
 const sectionTitle = 'text-[11px] font-semibold uppercase tracking-wider mb-2';
 const inputStyle = { borderColor: 'var(--border-default)', background: 'var(--surface-0)', color: 'var(--text-primary)' };
@@ -232,16 +242,21 @@ export function ProviderFiltersPanel({ open, onClose, filters, onChange, onClear
         <section>
           <p className={sectionTitle} style={{ color: 'var(--text-muted)' }}>Added</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {[7, 30, 90].map((d) => (
-              <Pill key={d} active={filters.createdFrom === daysAgo(d) && !filters.createdTo} onClick={() => onChange({ createdFrom: daysAgo(d), createdTo: '' })}>
-                Last {d} days
-              </Pill>
-            ))}
+            {ADDED_PRESETS.map((p) => {
+              const r = p.range();
+              const on = (filters.createdFrom ?? '') === r.from && (filters.createdTo ?? '') === (r.to ?? '');
+              return (
+                <Pill key={p.label} active={on} onClick={() => onChange(on ? { createdFrom: '', createdTo: '' } : { createdFrom: r.from, createdTo: r.to ?? '' })}>
+                  {p.label}
+                </Pill>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            <input type="date" value={filters.createdFrom ?? ''} onChange={(e) => onChange({ createdFrom: e.target.value })} className="flex-1 rounded-lg border px-3 py-2 text-sm" style={inputStyle} />
+          {/* Date and time, India time; a preset's whole day shows as midnight to 23:59. */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <input type="datetime-local" value={asMinute(filters.createdFrom, '00:00')} onChange={(e) => onChange({ createdFrom: e.target.value })} className="min-w-0 rounded-lg border px-2 py-2 text-xs" style={inputStyle} aria-label="Added from" />
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-            <input type="date" value={filters.createdTo ?? ''} onChange={(e) => onChange({ createdTo: e.target.value })} className="flex-1 rounded-lg border px-3 py-2 text-sm" style={inputStyle} />
+            <input type="datetime-local" value={asMinute(filters.createdTo, '23:59')} onChange={(e) => onChange({ createdTo: e.target.value })} className="min-w-0 rounded-lg border px-2 py-2 text-xs" style={inputStyle} aria-label="Added to" />
           </div>
         </section>
       </div>

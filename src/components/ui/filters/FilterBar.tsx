@@ -270,6 +270,9 @@ function Control({ def, values, onChange, compact }: { def: FilterDef; values: F
   );
 }
 
+/** A day ('YYYY-MM-DD') as a datetime-local value at `time`; minutes pass through. */
+const asMinute = (v: string | undefined, time: string) => (!v ? '' : v.length === 10 ? `${v}T${time}` : v.slice(0, 16));
+
 function DateRange({ def, values, onChange, compact }: { def: FilterDef; values: FilterValues; onChange: (p: FilterValues) => void; compact?: boolean }) {
   const presets = def.presets ?? DATE_PRESETS;
   const fromKey = `${def.key}From`, toKey = `${def.key}To`;
@@ -296,10 +299,17 @@ function DateRange({ def, values, onChange, compact }: { def: FilterDef; values:
         active={!!(from || to)}
         className={compact ? def.className ?? '' : 'w-full'}
       />
-      {showCustom && (
+      {showCustom && !def.withTime && (
         <div className="grid grid-cols-2 gap-2">
           <input type="date" value={from ?? ''} max={to || undefined} onChange={(e) => onChange({ [fromKey]: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-xs focus-ring" style={INPUT_STYLE} aria-label={`${def.label} from`} />
           <input type="date" value={to ?? ''} min={from || undefined} max={def.presets ? undefined : istDay()} onChange={(e) => onChange({ [toKey]: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-xs focus-ring" style={INPUT_STYLE} aria-label={`${def.label} to`} />
+        </div>
+      )}
+      {showCustom && def.withTime && (
+        // Date and time, India time. A preset's whole-day value shows as midnight.
+        <div className={compact ? 'flex items-center gap-1.5' : 'grid grid-cols-1 gap-1.5'}>
+          <input type="datetime-local" value={asMinute(from, '00:00')} max={to ? asMinute(to, '23:59') : undefined} onChange={(e) => onChange({ [fromKey]: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-xs focus-ring" style={INPUT_STYLE} aria-label={`${def.label} from`} />
+          <input type="datetime-local" value={asMinute(to, '23:59')} min={from ? asMinute(from, '00:00') : undefined} onChange={(e) => onChange({ [toKey]: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-xs focus-ring" style={INPUT_STYLE} aria-label={`${def.label} to`} />
         </div>
       )}
     </div>

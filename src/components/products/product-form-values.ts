@@ -18,3 +18,11 @@ export const emptyProductForm: ProductFormValues = {
   displayOrder: '0', productType: 'product', isActive: true,
   categoryId: '', subcategoryId: '',
 };
+
+/** A photo in the edit form: one already saved (`url`), or a new `file` waiting to upload. */
+export interface GalleryItem {
+  key: string;
+  /** The saved photo's URL, or a local preview of a new file. */
+  url: string;
+  file?: File;
+}

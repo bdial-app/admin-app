@@ -44,8 +44,11 @@ export function matchPreset(presets: DatePreset[], from?: string, to?: string): 
   return 'custom';
 }
 
+/** "9 Oct", or "9 Oct, 3:30 pm" for a 'YYYY-MM-DDTHH:mm' value (India time). */
 export const shortDate = (d: string) =>
-  new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  d.length > 10
+    ? new Date(`${d.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })
+    : new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
 /** Chip text for a date range filter. */
 export function dateRangeLabel(presets: DatePreset[], values: FilterValues, key: string): string | null {

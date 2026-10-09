@@ -1,11 +1,18 @@
 import api from './api';
 import { URLS } from '../utils/urls';
+import type { ProductAnalytics } from '../types/product';
 import type { PaginatedResponse } from '../types';
 import type { Product, ProductFilters, ProductFilterOptions, ProductStats } from '../types';
 import type { BulkActionPayload } from '../types';
 import { optimizeImages } from '../utils/compress-image';
 
 export const productsService = {
+  /** Catalogue growth and product engagement over the last 7, 30 or 90 days. */
+  analytics: async (days: 7 | 30 | 90): Promise<ProductAnalytics> => {
+    const { data } = await api.get(URLS.PRODUCTS.ANALYTICS, { params: { days } });
+    return data;
+  },
+
   list: async (filters: ProductFilters = {}): Promise<PaginatedResponse<Product>> => {
     // Only non-empty values travel; the backend DTO rejects unknown keys but
     // treats an absent one as "don't filter".
