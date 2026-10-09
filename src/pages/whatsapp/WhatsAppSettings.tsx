@@ -6,7 +6,7 @@ import { FormField } from '../../components/ui/FormField';
 import { useHasPermission } from '../../hooks/usePermissions';
 import { useWaSettings, useUpdateWaSettings, useRefreshWaPhoneMeta, useWaSettingsTestSend, useWaTemplates } from '../../hooks/useWhatsApp';
 import { Skel } from '../../components/whatsapp/Skeleton';
-import { fmtDateTime, fmtRelative, apiErrorMessage, QUALITY_COLOR, TIER_LABEL, formatInr, INPUT_CLASS, INPUT_STYLE } from '../../components/whatsapp/wa-utils';
+import { fmtDateTime, fmtRelative, apiErrorMessage, QUALITY_COLOR, TIER_LABEL, NAME_STATUS_LABEL, formatInr, INPUT_CLASS, INPUT_STYLE } from '../../components/whatsapp/wa-utils';
 import type { WaRates, WaSettings } from '../../types';
 
 export default function WhatsAppSettings() {
@@ -77,7 +77,7 @@ function SettingsView({ settings }: { settings: WaSettings }) {
             <Item label="Verified name" value={settings.phone?.verifiedName ?? '—'} />
             <Item label="Quality rating" value={<span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: QUALITY_COLOR(settings.phone?.qualityRating) }} />{settings.phone?.qualityRating ?? 'Unknown'}</span>} />
             <Item label="Messaging tier" value={TIER_LABEL(settings.phone?.messagingLimitTier)} />
-            <Item label="Name status" value={settings.phone?.nameStatus ?? '—'} />
+            <Item label="Name status" value={NAME_STATUS_LABEL(settings.phone?.nameStatus)} />
             <Item label="Fetched" value={fmtRelative(settings.phone?.fetchedAt)} />
             <Item label="Sent (24h)" value={<span className="tabular-nums">{settings.sentLast24h.toLocaleString('en-IN')}</span>} />
             <Item label="Unique recipients (24h)" value={<span className="tabular-nums">{settings.uniqueRecipientsLast24h.toLocaleString('en-IN')} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>of {settings.dailyCap.toLocaleString('en-IN')} cap</span></span>} />

@@ -86,6 +86,24 @@ const STEPS: { key: Step; label: string; icon: React.ElementType }[] = [
 
 const CHUNK = 25;
 
+/**
+ * Retry a request that failed for a passing reason — no answer (network drop,
+ * gateway timeout) or a 5xx — a few times with growing pauses. Anything the
+ * server deliberately rejected (4xx) fails straight away.
+ */
+async function withTransientRetry<T>(fn: () => Promise<T>, pauses = [2000, 5000, 12000]): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const passing = status === undefined || status === 408 || status >= 500;
+      if (!passing || attempt >= pauses.length) throw err;
+      await new Promise((r) => setTimeout(r, pauses[attempt]));
+    }
+  }
+}
+
 /** Rows whose images upload in parallel once their providers exist. */
 const IMAGE_CONCURRENCY = 3;
 /** Auto image lookup does real work per provider (Instagram, website, downloads), so small batches. */
@@ -617,20 +635,34 @@ export default function BulkImportProviders() {
     try {
       for (let i = 0; i < targets.length; i += CHUNK) {
         const chunk = targets.slice(i, i + CHUNK);
-        const res = await withRateLimitRetry(() => importMutation.mutateAsync({ rows: chunk.map(toPayload), sourceLabel: fileName }));
+        // A slow or dropped batch is retried: the server treats a row it already
+        // created (same phone, same name) as done, so resending is safe.
+        const res = await withTransientRetry(() =>
+          withRateLimitRetry(() => importMutation.mutateAsync({ rows: chunk.map(toPayload), sourceLabel: fileName })),
+        );
         for (const r of res.results) outcomes[r.rowId] = r;
         setProgress({ done: Math.min(i + CHUNK, targets.length), total: targets.length });
         setRows((prev) => prev.map((r) => (outcomes[r.rowId] ? { ...r, importResult: outcomes[r.rowId] } : r)));
       }
     } catch (err) {
-      toast.error(apiError(err, 'Import stopped — rows already created are kept'));
+      const created = Object.values(outcomes).filter((r) => r.ok).length;
+      const waiting = targets.length - Object.keys(outcomes).length;
+      const reason = (err as { response?: unknown })?.response
+        ? apiError(err, 'The server rejected a batch')
+        : 'The server stopped responding (is the backend running?)';
+      toast.error(
+        `${reason}. ${created} business${created === 1 ? '' : 'es'} created and kept; ${waiting} row${waiting === 1 ? '' : 's'} not sent yet — press Import again to continue from where it stopped.`,
+        { autoClose: false },
+      );
     } finally {
       setProgress(null);
     }
 
     // Images go up only for businesses that now exist; a failed image never undoes a row.
     const imageJobs = targets
-      .filter((r) => outcomes[r.rowId]?.ok && outcomes[r.rowId].providerId && countImages(r.images) > 0)
+      // A row imported earlier that already has its pictures: don't add them twice.
+      .filter((r) => outcomes[r.rowId]?.ok && !(outcomes[r.rowId].alreadyImported && outcomes[r.rowId].hasImages))
+      .filter((r) => outcomes[r.rowId].providerId && countImages(r.images) > 0)
       .map((r) => ({ rowId: r.rowId, providerId: outcomes[r.rowId].providerId as string, images: r.images }));
     if (imageJobs.length) {
       const failed = await uploadImagesFor(imageJobs, false);

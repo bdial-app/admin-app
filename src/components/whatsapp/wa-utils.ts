@@ -252,12 +252,29 @@ export const QUALITY_COLOR = (q: string | null | undefined) => {
 
 export const TIER_LABEL = (tier: string | null | undefined) => {
   switch ((tier ?? '').toUpperCase()) {
-    case 'TIER_250': return '250 / day (unverified)';
+    case 'TIER_250': return '250 / day (starting tier)';
     case 'TIER_1K': return '1,000 / day';
     case 'TIER_10K': return '10,000 / day';
     case 'TIER_100K': return '100,000 / day';
     case 'TIER_UNLIMITED': return 'Unlimited';
     default: return tier || 'Unknown';
+  }
+};
+
+/**
+ * The sender's display name review, as Meta reports it. Only an approved name
+ * is shown to recipients in place of the phone number.
+ */
+export const NAME_STATUS_LABEL = (status: string | null | undefined) => {
+  switch ((status ?? '').toUpperCase()) {
+    case 'APPROVED': return 'Approved — recipients see the name';
+    case 'AVAILABLE_WITHOUT_REVIEW': return 'Usable — not yet reviewed';
+    case 'PENDING_REVIEW': return 'In review — number shown until approved';
+    case 'DECLINED': return 'Declined — number shown';
+    case 'EXPIRED': return 'Expired — number shown';
+    case 'NON_EXISTS':
+    case 'NONE': return 'Not reviewed — recipients see the number';
+    default: return status || '—';
   }
 };
 
