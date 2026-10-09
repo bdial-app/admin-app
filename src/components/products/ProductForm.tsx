@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
-  Package, Wrench, X, ImagePlus, Eye, EyeOff, IndianRupee, Check,
+  Package, Wrench, X, ImagePlus, Eye, EyeOff, IndianRupee, Check, Star,
 } from 'lucide-react';
 import { SearchableCategoryPicker } from '../ui/SearchableCategoryPicker';
 import { ProviderPicker } from '../ui/ProviderPicker';
-import type { ProductFormValues } from './product-form-values';
+import type { GalleryItem, ProductFormValues } from './product-form-values';
 
 
 interface Props {
@@ -14,6 +14,14 @@ interface Props {
   onImagesChange: (files: File[]) => void;
   maxImages: number;
   lockProvider?: boolean;
+  /**
+   * Editing: the product's photos — saved ones and new files together, in
+   * order (the first is the card photo). Replaces `images` when given.
+   */
+  gallery?: GalleryItem[];
+  onGalleryChange?: (items: GalleryItem[]) => void;
+  /** Extra controls at the end of the left column (e.g. the hero toggle). */
+  extra?: ReactNode;
 }
 
 const SECTION = 'text-[11px] font-bold uppercase tracking-wider';
@@ -23,11 +31,12 @@ const SECTION = 'text-[11px] font-bold uppercase tracking-wider';
  * actually thinks about it: whose shop, what it is, what it costs, what it
  * looks like — with a live preview of the card the customer will see.
  */
-export function ProductForm({ value, onChange, images, onImagesChange, maxImages, lockProvider }: Props) {
+export function ProductForm({ value, onChange, images, onImagesChange, maxImages, lockProvider, gallery, onGalleryChange, extra }: Props) {
   const set = <K extends keyof ProductFormValues>(key: K, v: ProductFormValues[K]) =>
     onChange({ ...value, [key]: v });
 
   const previews = useMemo(() => images.map((f) => URL.createObjectURL(f)), [images]);
+  const cover = gallery ? gallery[0]?.url : previews[0];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 p-5">
@@ -169,9 +178,13 @@ export function ProductForm({ value, onChange, images, onImagesChange, maxImages
             </span>
           </button>
         </Section>
+        {extra}
       </div>
 
       <div className="space-y-5">
+        {gallery && onGalleryChange ? (
+          <GalleryEditor items={gallery} onChange={onGalleryChange} max={maxImages} />
+        ) : (
         <Section title="Photos">
           <div className="grid grid-cols-3 gap-2">
             {previews.map((src, idx) => (
@@ -218,12 +231,13 @@ export function ProductForm({ value, onChange, images, onImagesChange, maxImages
             First photo is the one on the card. JPG or PNG, any size (optimised on upload), {maxImages} max.
           </p>
         </Section>
+        )}
 
         <Section title="How it will look">
           <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-default)', background: 'var(--surface-0)' }}>
             <div className="aspect-[4/3] flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-              {previews[0]
-                ? <img src={previews[0]} alt="" className="w-full h-full object-cover" />
+              {cover
+                ? <img src={cover} alt="" className="w-full h-full object-cover" />
                 : <Package className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />}
             </div>
             <div className="p-2.5">
@@ -257,3 +271,82 @@ function Section({ title, required, done, children }: { title: string; required?
   );
 }
 
+
+/**
+ * The photos of a product being edited: saved ones and newly picked files in
+ * one grid. Remove any, add up to the limit, and star one to make it the card
+ * photo. Nothing is uploaded or deleted until the form is saved.
+ */
+function GalleryEditor({ items, onChange, max }: { items: GalleryItem[]; onChange: (items: GalleryItem[]) => void; max: number }) {
+  const add = (files: FileList | null) => {
+    // A file picker set to image/* still lets other types through.
+    const picked = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
+    const room = max - items.length;
+    const added = picked.slice(0, room).map((file) => ({ key: `new-${file.name}-${file.size}-${Math.random()}`, url: URL.createObjectURL(file), file }));
+    onChange([...items, ...added]);
+  };
+  const remove = (key: string) => {
+    const gone = items.find((i) => i.key === key);
+    if (gone?.file) URL.revokeObjectURL(gone.url);
+    onChange(items.filter((i) => i.key !== key));
+  };
+  const makeMain = (key: string) => {
+    const it = items.find((i) => i.key === key);
+    if (it) onChange([it, ...items.filter((i) => i.key !== key)]);
+  };
+  const pending = items.filter((i) => i.file).length;
+
+  return (
+    <Section title={`Photos · ${items.length}/${max}`}>
+      <div className="grid grid-cols-3 gap-2">
+        {items.map((it, idx) => (
+          <div key={it.key} className="group relative aspect-square rounded-lg overflow-hidden" style={{ border: idx === 0 ? '2px solid var(--color-primary)' : '1px solid var(--border-default)' }}>
+            <img src={it.url} alt="" className="w-full h-full object-cover" />
+            {idx === 0 ? (
+              <span className="absolute bottom-0 inset-x-0 text-[9px] font-semibold text-white text-center py-0.5" style={{ background: 'var(--color-primary)' }}>
+                Main photo
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => makeMain(it.key)}
+                className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                title="Use as the card photo"
+              >
+                <Star className="w-2.5 h-2.5" /> Make main
+              </button>
+            )}
+            {it.file && (
+              <span className="absolute top-1 left-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white" style={{ background: 'var(--color-success)' }}>
+                New
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => remove(it.key)}
+              className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center bg-black/60 text-white"
+              aria-label="Remove photo"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        {items.length < max && (
+          <label
+            className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer gap-1 transition-colors hover:opacity-80"
+            style={{ border: '1px dashed var(--color-primary)', color: 'var(--color-primary)', background: 'var(--surface-1)' }}
+          >
+            <ImagePlus className="w-5 h-5" />
+            <span className="text-[10px] font-semibold">Add photos</span>
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
+          </label>
+        )}
+      </div>
+      <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
+        {pending
+          ? `${pending} new photo${pending === 1 ? '' : 's'} will upload when you save.`
+          : 'Hover a photo to make it the main one. Any size — optimised on upload.'}
+      </p>
+    </Section>
+  );
+}

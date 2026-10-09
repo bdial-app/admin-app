@@ -83,6 +83,7 @@ export const URLS = {
   PRODUCTS: {
     LIST: '/admin/products',
     FILTER_OPTIONS: '/admin/products/filter-options',
+    ANALYTICS: '/admin/products/analytics',
     CREATE: '/admin/products',
     DETAIL: (id: string) => `/admin/products/${id}`,
     UPDATE: (id: string) => `/admin/products/${id}`,

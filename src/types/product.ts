@@ -26,7 +26,7 @@ export interface Photo {
   uploadedAt: string;
 }
 
-export type ProductSort = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'display_order';
+export type ProductSort = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'display_order' | 'newest' | 'oldest';
 
 /**
  * Query params for GET /admin/products. Booleans travel as 'true' | 'false'
@@ -48,6 +48,9 @@ export interface ProductFilters {
   city?: string;
   providerStatus?: 'unverified' | 'active' | 'suspended' | 'disabled' | '';
   sort?: ProductSort | '';
+  /** Added from / to: 'YYYY-MM-DD' (whole day) or 'YYYY-MM-DDTHH:mm', India time. */
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export interface ProductFilterOptions {
@@ -75,4 +78,26 @@ export interface ProductStats {
   avgPrice: number;
   typeBreakdown: { type: string; count: number }[];
   topProviders: { brandName: string; providerId: string; count: number }[];
+}
+
+/** GET /admin/products/analytics */
+export interface ProductAnalytics {
+  days: number;
+  catalogue: { total: number; active: number; services: number; withPhotos: number; withPrice: number; added: number; addedPrev: number };
+  engagement: {
+    views: number; viewsPrev: number; viewers: number; productsViewed: number; avgSeconds: number;
+    saves: number; savesPrev: number;
+    /** Visits that viewed a product, and how many of them then called or chatted with that business. */
+    visits: number; contacted: number;
+  };
+  series: { day: string; views: number; added: number }[];
+  sources: { source: string; count: number }[];
+  topProducts: {
+    id: string; name: string; productType: string; price: number | null; isActive: boolean; photo: string | null;
+    providerId: string; brandName: string; views: number; viewers: number; visits: number; contacted: number;
+    avgSeconds: number | null; saves: number;
+  }[];
+  /** Active products (listed 3+ days) nobody viewed in the period. */
+  unseenActive: number;
+  categories: { name: string; total: number; withPhotos: number; withPrice: number }[];
 }

@@ -44,6 +44,8 @@ export interface FilterDef {
   /** numberrange prefix, e.g. '₹'. */
   unit?: string;
   presets?: DatePreset[];
+  /** daterange: custom ranges pick a date and time (India time) instead of whole days. */
+  withTime?: boolean;
   /** Returns a reason when the filter can't apply given the other values. */
   disabledWhen?: (values: FilterValues) => string | false;
 }

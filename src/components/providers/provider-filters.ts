@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ProviderFilters } from '../../types';
+import { istDay } from '../ui/filters/dates';
 
 /**
  * The provider list's filters live in the URL (same names as the API), so a
@@ -57,7 +58,6 @@ export const SORTS: Choice[] = [
   { value: 'updated', label: 'Recently updated' },
 ];
 
-const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
 
 /** One-click views for the jobs admins do most. */
 export const QUICK_VIEWS: { label: string; hint: string; filters: () => FilterState }[] = [
@@ -67,7 +67,7 @@ export const QUICK_VIEWS: { label: string; hint: string; filters: () => FilterSt
   { label: 'No products', hint: 'Nothing listed for customers to see', filters: () => ({ products: 'none' }) },
   { label: 'Women-led to review', hint: 'Women-led claims awaiting approval', filters: () => ({ isWomenLed: 'pending' }) },
   { label: 'Top rated', hint: '4★ and up, best first', filters: () => ({ minRating: '4', sort: 'rating' }) },
-  { label: 'Added this week', hint: 'Joined in the last 7 days', filters: () => ({ createdFrom: daysAgo(7) }) },
+  { label: 'Added this week', hint: 'Joined in the last 7 days', filters: () => ({ createdFrom: istDay(6) }) },
   { label: 'Showing "Closed"', hint: 'Marked closed for business', filters: () => ({ available: 'false' }) },
 ];
 

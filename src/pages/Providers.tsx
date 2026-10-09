@@ -6,6 +6,7 @@ import { providerKeys } from '../hooks/useProviders';
 import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2, Download, SlidersHorizontal, X } from 'lucide-react';
 import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
 import { ProviderFiltersPanel } from '../components/providers/ProviderFiltersPanel';
+import { shortDate } from '../components/ui/filters/dates';
 import {
   CHOICE_FILTERS, QUICK_VIEWS, SORTS, countActive, sameFilters, useProviderFilterState,
   type FilterKey, type FilterState,
@@ -81,8 +82,8 @@ function activeChips(filters: FilterState, categories: { id: string; name: strin
     const names = filters.categoryIds.split(',').map((id) => categories.find((c) => c.id === id)?.name ?? 'Unknown');
     chips.push({ key: 'categoryIds', label: `Category: ${names.join(', ')}` });
   }
-  if (filters.createdFrom) chips.push({ key: 'createdFrom', label: `Added from ${filters.createdFrom}` });
-  if (filters.createdTo) chips.push({ key: 'createdTo', label: `Added until ${filters.createdTo}` });
+  if (filters.createdFrom) chips.push({ key: 'createdFrom', label: `Added from ${shortDate(filters.createdFrom)}` });
+  if (filters.createdTo) chips.push({ key: 'createdTo', label: `Added until ${shortDate(filters.createdTo)}` });
   return chips;
 }
 

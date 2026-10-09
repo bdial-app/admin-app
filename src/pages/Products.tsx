@@ -1,21 +1,21 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
-  X, Package, Image, ImageOff, Eye,
+  Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
   CheckCircle2, XCircle, ShoppingBag, Wrench,
-  ChevronLeft, ChevronRight, Star, Plus,
+  ChevronLeft, ChevronRight, Star, Plus, BarChart3,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { ProductForm } from '../components/products/ProductForm';
-import { emptyProductForm, type ProductFormValues } from '../components/products/product-form-values';
+import { ProductAnalytics } from '../components/products/ProductAnalytics';
+import { emptyProductForm, type GalleryItem, type ProductFormValues } from '../components/products/product-form-values';
 import { StatCard } from '../components/ui/StatCard';
-import { FormField } from '../components/ui/FormField';
 import { FilterBar, useUrlFilters } from '../components/ui/filters';
 import { PRODUCT_FILTER_DEFS, PRODUCT_FILTER_KEYS, PRODUCT_SORTS, productSegments, withProductOptions } from '../components/products/product-filters';
-import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct, useUploadProductImages, useDeleteProductImage } from '../hooks/useProducts';
+import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct } from '../hooks/useProducts';
 import { productsService } from '../services/products.service';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -31,6 +31,7 @@ export default function Products() {
   const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(PRODUCT_FILTER_KEYS);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [view, setView] = useState<'catalogue' | 'analytics'>('catalogue');
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
   const [imageViewIdx, setImageViewIdx] = useState(0);
 
@@ -46,9 +47,6 @@ export default function Products() {
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
   const createMutation = useCreateProduct();
-  const uploadImagesMutation = useUploadProductImages();
-  const deleteImageMutation = useDeleteProductImage();
-  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const typeFilter = filters.productType ?? '';
   const totalCount = filterOptions?.counts.total ?? stats?.total;
@@ -78,36 +76,95 @@ export default function Products() {
   };
 
   // ─── Edit form state ──────────────────
-  const [editForm, setEditForm] = useState({ name: '', description: '', price: '', displayOrder: '', productType: 'product' as 'product' | 'service' });
+  const [editForm, setEditForm] = useState<ProductFormValues>(emptyProductForm);
+  const [editGallery, setEditGallery] = useState<GalleryItem[]>([]);
+  const [savingEdit, setSavingEdit] = useState<string | null>(null);
 
   const openEdit = (p: Product) => {
     setEditForm({
+      providerId: p.providerId,
+      providerName: p.provider?.brandName ?? '',
       name: p.name || '',
       description: p.description || '',
       price: p.price?.toString() || '',
       displayOrder: p.displayOrder?.toString() || '0',
       productType: (p.productType as 'product' | 'service') || 'product',
+      isActive: p.isActive,
+      categoryId: p.categoryId ?? '',
+      subcategoryId: p.subcategoryId ?? '',
     });
+    setEditGallery((p.photoUrls ?? []).map((url) => ({ key: url, url })));
     setEditProduct(p);
   };
 
+  const closeEdit = () => {
+    // Free the previews of photos picked but never saved.
+    editGallery.forEach((g) => g.file && URL.revokeObjectURL(g.url));
+    setEditProduct(null);
+  };
+
+  /**
+   * Save in order: drop removed photos, upload new ones, then the details and
+   * the final photo order (the first is the card photo) in one update.
+   */
+  /** Photos that saving will delete (saved ones no longer in the gallery). */
+  const photosToRemove = editProduct
+    ? (editProduct.photoUrls ?? []).filter((u) => !editGallery.some((g) => !g.file && g.url === u))
+    : [];
+  const [confirmPhotoRemoval, setConfirmPhotoRemoval] = useState(false);
+
+  /** Deleting photos can't be undone: ask first. */
+  const requestSaveEdit = () => {
+    if (!editForm.name.trim()) { toast.error('Give it a name'); return; }
+    if (photosToRemove.length) setConfirmPhotoRemoval(true);
+    else void handleSaveEdit();
+  };
+
   const handleSaveEdit = async () => {
+    setConfirmPhotoRemoval(false);
     if (!editProduct) return;
+    if (!editForm.name.trim()) { toast.error('Give it a name'); return; }
+    const id = editProduct.id;
     try {
+      const removed = (editProduct.photoUrls ?? []).filter((u) => !editGallery.some((g) => !g.file && g.url === u));
+      if (removed.length) setSavingEdit('Removing photos…');
+      let current = editProduct.photoUrls ?? [];
+      for (const url of removed) current = (await productsService.deleteImage(id, url)).photoUrls ?? [];
+
+      const files = editGallery.filter((g) => g.file).map((g) => g.file as File);
+      let uploaded: string[] = [];
+      if (files.length) {
+        setSavingEdit(`Uploading ${files.length} photo${files.length === 1 ? '' : 's'}…`);
+        const before = new Set(current);
+        uploaded = ((await productsService.uploadImages(id, files)).photoUrls ?? []).filter((u) => !before.has(u));
+      }
+      let next = 0;
+      const photoUrls = editGallery.map((g) => (g.file ? uploaded[next++] : g.url)).filter((u): u is string => !!u);
+
+      setSavingEdit('Saving…');
       await updateMutation.mutateAsync({
-        id: editProduct.id,
+        id,
         body: {
-          name: editForm.name,
-          description: editForm.description || null,
+          name: editForm.name.trim(),
+          description: editForm.description.trim() || null,
           price: editForm.price ? Number(editForm.price) : null,
           displayOrder: Number(editForm.displayOrder) || 0,
-          productType: editForm.productType || 'product',
+          productType: editForm.productType,
+          isActive: editForm.isActive,
+          categoryId: editForm.categoryId || null,
+          subcategoryId: editForm.subcategoryId || null,
+          photoUrls,
         },
       });
-      toast.success('Product updated');
-      setEditProduct(null);
+      toast.success(`${editForm.productType === 'service' ? 'Service' : 'Product'} saved`);
+      closeEdit();
       setSelectedProduct(null);
-    } catch { toast.error('Failed to update'); }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to save — nothing you saw as saved was lost; try again');
+    } finally {
+      setSavingEdit(null);
+    }
   };
 
   // ─── Create form state ────────────────
@@ -158,37 +215,6 @@ export default function Products() {
   };
 
   // ─── Table Columns ────────────────────
-  // ── Gallery editing on an existing product ──
-  const handleGalleryUpload = async (files: FileList | null) => {
-    if (!selectedProduct || !files?.length) return;
-    const images = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    if (!images.length) { toast.error('Select image files only'); return; }
-    const room = 5 - (selectedProduct.photoUrls?.length ?? 0);
-    if (room <= 0) { toast.error('This product already has the maximum of 5 images'); return; }
-    try {
-      const updated = await uploadImagesMutation.mutateAsync({ id: selectedProduct.id, files: images.slice(0, room) });
-      setSelectedProduct(updated);
-      setImageViewIdx(0);
-      toast.success(images.length > room ? `Added ${room} image(s) — limit is 5` : 'Images added');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Failed to upload images');
-    }
-  };
-
-  const handleRemoveImage = async (url: string) => {
-    if (!selectedProduct) return;
-    try {
-      const updated = await deleteImageMutation.mutateAsync({ id: selectedProduct.id, url });
-      setSelectedProduct(updated);
-      setImageViewIdx(0);
-      toast.success('Image removed');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Failed to remove image');
-    }
-  };
-
   const columns: Column<Product>[] = [
     {
       key: 'product',
@@ -388,6 +414,31 @@ export default function Products() {
         }
       />
 
+      {/* Catalogue (the list) or Analytics (how products perform) */}
+      <div className="mb-4 flex gap-1 rounded-lg p-1 w-fit" style={{ background: 'var(--surface-1)' }}>
+        {([
+          { key: 'catalogue', label: 'Catalogue', icon: Package },
+          { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setView(t.key)}
+            className="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors"
+            style={{
+              background: view === t.key ? 'var(--surface-0)' : 'transparent',
+              color: view === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: view === t.key ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'analytics' && <ProductAnalytics />}
+      {view === 'catalogue' && (
+      <>
+
       {/* ═══ Stats ═══ */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
@@ -492,6 +543,8 @@ export default function Products() {
         emptyTitle={hasNarrowing ? 'No products match these filters' : 'No products yet'}
         emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Products will appear here as providers add them'}
       />
+      </>
+      )}
 
       {/* ═══════════════════════════════════════════════════ */}
       {/* PRODUCT DETAIL PANEL                               */}
@@ -556,14 +609,6 @@ export default function Products() {
                       </span>
                     </>
                   )}
-                  <button
-                    onClick={() => handleRemoveImage(selectedProduct.photoUrls[imageViewIdx] || selectedProduct.photoUrls[0])}
-                    disabled={deleteImageMutation.isPending}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center bg-black/50 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
-                    title="Remove this image"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
                 {/* Thumbnails */}
                 {selectedProduct.photoUrls.length > 1 && (
@@ -583,42 +628,27 @@ export default function Products() {
                     ))}
                   </div>
                 )}
+                {/* Viewing only — photos are added, removed and reordered in Edit. */}
                 <button
-                  onClick={() => galleryInputRef.current?.click()}
-                  disabled={uploadImagesMutation.isPending || (selectedProduct.photoUrls?.length ?? 0) >= 5}
-                  className="mt-2 w-full py-2 text-xs font-medium rounded-lg border border-dashed disabled:opacity-40"
+                  onClick={() => openEdit(selectedProduct)}
+                  className="mt-2 w-full py-2 text-xs font-medium rounded-lg border border-dashed flex items-center justify-center gap-1.5"
                   style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
                 >
-                  {uploadImagesMutation.isPending
-                    ? 'Uploading…'
-                    : (selectedProduct.photoUrls?.length ?? 0) >= 5
-                      ? 'Maximum of 5 images reached'
-                      : `+ Add photos (${5 - (selectedProduct.photoUrls?.length ?? 0)} left)`}
+                  <Edit3 className="w-3.5 h-3.5" /> Edit photos
                 </button>
               </div>
             ) : (
               <button
-                onClick={() => galleryInputRef.current?.click()}
-                disabled={uploadImagesMutation.isPending}
-                className="w-full h-32 rounded-xl flex items-center justify-center border border-dashed disabled:opacity-50"
+                onClick={() => openEdit(selectedProduct)}
+                className="w-full h-32 rounded-xl flex items-center justify-center border border-dashed"
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border-default)' }}
               >
                 <div className="text-center">
                   <ImageOff className="w-8 h-8 mx-auto mb-1" style={{ color: 'var(--text-muted)' }} />
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {uploadImagesMutation.isPending ? 'Uploading…' : 'No images — click to add photos'}
-                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No photos yet — add them in Edit</p>
                 </div>
               </button>
             )}
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              className="hidden"
-              onChange={(e) => { handleGalleryUpload(e.target.files); e.target.value = ''; }}
-            />
 
             {/* Name + Status Banner */}
             <div className="flex items-start justify-between">
@@ -703,80 +733,51 @@ export default function Products() {
       {/* ═══════════════════════════════════════════════════ */}
       <DetailPanel
         open={!!editProduct}
-        onClose={() => setEditProduct(null)}
-        title="Edit Product"
-        subtitle={editProduct?.name}
-        width="lg"
+        onClose={closeEdit}
+        title={`Edit ${editForm.productType === 'service' ? 'service' : 'product'}`}
+        subtitle={editForm.providerName ? `${editProduct?.name} · ${editForm.providerName}` : editProduct?.name}
+        width="900px"
         actions={
           <div className="flex gap-2">
-            <button onClick={() => setEditProduct(null)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
+            <button onClick={closeEdit} disabled={!!savingEdit} className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
               Cancel
             </button>
-            <button onClick={handleSaveEdit} disabled={updateMutation.isPending} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-              {updateMutation.isPending ? 'Saving\u2026' : 'Save Changes'}
+            <button onClick={requestSaveEdit} disabled={!!savingEdit || !editForm.name.trim()} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+              {savingEdit ?? 'Save changes'}
             </button>
           </div>
         }
       >
         {editProduct && (
-          <div className="p-5 space-y-5">
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>Type</label>
-              <div className="flex gap-2">
-                {(['product', 'service'] as const).map((t) => (
-                  <button key={t} type="button" onClick={() => setEditForm({ ...editForm, productType: t })}
-                    className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border-2 transition-all ${
-                      editForm.productType === t
-                        ? t === 'service' ? 'bg-teal-50 border-teal-400 text-teal-700' : 'bg-amber-50 border-amber-400 text-amber-700'
-                        : 'border-gray-200 text-gray-500'
-                    }`}>
-                    {t === 'product' ? '📦 Product' : '🛠️ Service'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <FormField label="Product Name" required>
-              <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input w-full" />
-            </FormField>
-            <FormField label="Description">
-              <textarea
-                value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                className="input w-full"
-                rows={3}
-              />
-            </FormField>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Price (\u20B9)">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-muted)' }}>\u20B9</span>
-                  <input type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} className="input w-full pl-7" min={0} />
+          <ProductForm
+            value={editForm}
+            onChange={setEditForm}
+            images={[]}
+            onImagesChange={() => undefined}
+            maxImages={MAX_IMAGES}
+            lockProvider
+            gallery={editGallery}
+            onGalleryChange={setEditGallery}
+            extra={
+              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
+                <div className="flex items-center gap-2.5">
+                  <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Hero product</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Featured in "Best Products This Week" on the home feed</p>
+                  </div>
                 </div>
-              </FormField>
-              <FormField label="Display Order">
-                <input type="number" value={editForm.displayOrder} onChange={(e) => setEditForm({ ...editForm, displayOrder: e.target.value })} className="input w-full" min={0} />
-              </FormField>
-            </div>
-            {/* Hero Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Hero Product</p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Featured in "Best Products This Week" on home feed</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={async () => { await handleToggleHero(editProduct); setEditProduct({ ...editProduct, isHero: !editProduct.isHero }); }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
+                  style={{ background: editProduct.isHero ? '#7c3aed' : 'var(--surface-2)', color: editProduct.isHero ? 'white' : 'var(--text-secondary)' }}
+                >
+                  {editProduct.isHero ? 'Remove' : 'Make hero'}
+                </button>
               </div>
-              <button
-                onClick={() => handleToggleHero(editProduct)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-                style={{
-                  background: editProduct.isHero ? '#7c3aed' : 'var(--surface-2)',
-                  color: editProduct.isHero ? 'white' : 'var(--text-secondary)',
-                }}
-              >
-                {editProduct.isHero ? 'Remove' : 'Make Hero'}
-              </button>
-            </div>          </div>
+            }
+          />
         )}
       </DetailPanel>
 
@@ -812,6 +813,24 @@ export default function Products() {
           maxImages={MAX_IMAGES}
         />
       </DetailPanel>
+
+      {/* ═══ Confirm photo deletion on save ═══ */}
+      <ConfirmDialog
+        open={confirmPhotoRemoval}
+        onClose={() => setConfirmPhotoRemoval(false)}
+        onConfirm={() => void handleSaveEdit()}
+        title={`Delete ${photosToRemove.length} photo${photosToRemove.length === 1 ? '' : 's'}?`}
+        description={`${photosToRemove.length === 1 ? 'This photo' : 'These photos'} will be removed from "${editForm.name.trim()}" and deleted permanently when you save. Your other changes are saved too.`}
+        confirmLabel={`Delete & save`}
+        variant="danger"
+        isLoading={!!savingEdit}
+      >
+        <div className="mt-3 flex flex-wrap gap-2">
+          {photosToRemove.map((url) => (
+            <img key={url} src={url} alt="" className="h-14 w-14 rounded-lg object-cover" style={{ border: '1px solid var(--border-default)' }} />
+          ))}
+        </div>
+      </ConfirmDialog>
 
       {/* ═══ Delete Confirmation ═══ */}
       <ConfirmDialog
