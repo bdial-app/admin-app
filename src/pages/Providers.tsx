@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { providersService } from '../services/providers.service';
 import { providerKeys } from '../hooks/useProviders';
-import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2, Download } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, Star, MapPin, PlusCircle, FileSpreadsheet, Trash2, Sparkles, Loader2, Download, SlidersHorizontal, X } from 'lucide-react';
 import { EnrichProvidersPanel } from '../components/providers/EnrichProvidersPanel';
-import { CategoryFilter } from '../components/providers/CategoryFilter';
+import { ProviderFiltersPanel } from '../components/providers/ProviderFiltersPanel';
+import {
+  CHOICE_FILTERS, QUICK_VIEWS, SORTS, countActive, sameFilters, useProviderFilterState,
+  type FilterKey, type FilterState,
+} from '../components/providers/provider-filters';
 import { LocationHealthCard } from '../components/providers/LocationHealthCard';
+import { MissingLogosCard } from '../components/providers/MissingLogosCard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -62,14 +67,33 @@ const pinRequestLink = (p: Provider) => {
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
+/** A removable chip for each active filter, worded as the panel words it. */
+function activeChips(filters: FilterState, categories: { id: string; name: string }[]) {
+  const chips: { key: FilterKey; label: string }[] = [];
+  for (const f of CHOICE_FILTERS) {
+    const v = filters[f.key];
+    if (!v) continue;
+    chips.push({ key: f.key, label: `${f.label}: ${f.options.find((o) => o.value === v)?.label ?? v}` });
+  }
+  if (filters.cities) chips.push({ key: 'cities', label: `City: ${filters.cities.split(',').join(', ')}` });
+  if (filters.area) chips.push({ key: 'area', label: `Area: ${filters.area}` });
+  if (filters.categoryIds) {
+    const names = filters.categoryIds.split(',').map((id) => categories.find((c) => c.id === id)?.name ?? 'Unknown');
+    chips.push({ key: 'categoryIds', label: `Category: ${names.join(', ')}` });
+  }
+  if (filters.createdFrom) chips.push({ key: 'createdFrom', label: `Added from ${filters.createdFrom}` });
+  if (filters.createdTo) chips.push({ key: 'createdTo', label: `Added until ${filters.createdTo}` });
+  return chips;
+}
+
 export default function Providers() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<ProviderStatus | ''>('');
+  const { filters, apiFilters, page, update, replace, setPage } = useProviderFilterState();
+  const search = filters.search ?? '';
+  const status = (filters.status ?? '') as ProviderStatus | '';
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'suspend' | 'unsuspend'; provider: Provider } | null>(null);
-  const [categoryId, setCategoryId] = useState('');
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -82,22 +106,13 @@ export default function Providers() {
 
   const { data: categories = [] } = useFlatCategories();
 
-  const { data, isLoading } = useProviders({
-    page,
-    limit: pageSize,
-    categoryId: categoryId || undefined,
-    search: search || undefined,
-    status: status || undefined,
-  });
+  const { data, isLoading } = useProviders({ ...apiFilters, page, limit: pageSize });
 
   const { exportProviders, isExporting } = useExportProviders();
   // What the export will contain: the filters, never the page on screen.
-  const exportFilters = {
-    categoryId: categoryId || undefined,
-    search: search || undefined,
-    status: status || undefined,
-  };
-  const isFiltered = Boolean(search || status || categoryId);
+  const exportFilters = apiFilters;
+  const activeCount = countActive(filters);
+  const isFiltered = Boolean(search || status || activeCount);
   const matching = data?.meta?.total;
 
   const approveMutation = useApproveProvider();
@@ -327,6 +342,7 @@ export default function Providers() {
       />
 
       {canUpdate && <LocationHealthCard />}
+      {canUpdate && <MissingLogosCard />}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         {/* Status Tabs */}
@@ -334,7 +350,7 @@ export default function Providers() {
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => { setStatus(tab.value); setPage(1); resetSelection(); }}
+              onClick={() => { update({ status: tab.value }); resetSelection(); }}
               className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
               style={{
                 background: status === tab.value ? 'var(--surface-0)' : 'transparent',
@@ -347,13 +363,33 @@ export default function Providers() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
-          Category
-          <CategoryFilter
-            categories={categories}
-            value={categoryId}
-            onChange={(id) => { setCategoryId(id); setPage(1); resetSelection(); }}
-          />
+        <div className="flex items-center gap-2 ml-auto">
+          <select
+            value={filters.sort ?? 'newest'}
+            onChange={(e) => { update({ sort: e.target.value === 'newest' ? '' : e.target.value }); resetSelection(); }}
+            className="px-2 py-1.5 text-sm rounded-lg border"
+            style={{ borderColor: 'var(--border-default)', background: 'var(--surface-0)', color: 'var(--text-primary)' }}
+            aria-label="Sort"
+          >
+            {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border"
+            style={{
+              borderColor: activeCount ? 'var(--color-primary)' : 'var(--border-default)',
+              background: 'var(--surface-0)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
+            {activeCount > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[11px] leading-[18px] text-white text-center" style={{ background: 'var(--color-primary)' }}>
+                {activeCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -371,14 +407,74 @@ export default function Providers() {
         </label>
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-xs" style={{ color: 'var(--text-muted)' }}>Quick views</span>
+        {QUICK_VIEWS.map((v) => {
+          const on = activeCount > 0 && sameFilters(filters, v.filters());
+          return (
+            <button
+              key={v.label}
+              title={v.hint}
+              onClick={() => { replace(on ? {} : v.filters()); resetSelection(); }}
+              className="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
+              style={{
+                borderColor: on ? 'var(--color-primary)' : 'var(--border-default)',
+                background: on ? 'var(--color-primary)' : 'var(--surface-0)',
+                color: on ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              {v.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeCount > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {activeChips(filters, categories).map((chip) => (
+            <span
+              key={chip.key}
+              className="flex items-center gap-1 rounded-full py-1 pl-2.5 pr-1 text-xs font-medium"
+              style={{ background: 'var(--color-primary-light, var(--surface-2))', color: 'var(--color-primary)' }}
+            >
+              {chip.label}
+              <button
+                onClick={() => { update({ [chip.key]: '' }); resetSelection(); }}
+                className="rounded-full p-0.5 hover:opacity-70"
+                aria-label={`Remove ${chip.label}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <button
+            onClick={() => { replace({}); resetSelection(); }}
+            className="px-2 py-1 text-xs font-medium underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
+      <ProviderFiltersPanel
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        filters={filters}
+        onChange={(patch) => { update(patch); resetSelection(); }}
+        onClearAll={() => { replace({}); resetSelection(); }}
+        categories={categories}
+        matching={matching}
+      />
+
       <DataTable<Provider>
         columns={columns}
         data={data?.items ?? []}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearch={(q) => { setSearch(q); setPage(1); resetSelection(); }}
-        searchPlaceholder="Search by business name, owner, or mobile…"
+        onSearch={(q) => { update({ search: q }); resetSelection(); }}
+        searchPlaceholder="Search name, owner, phone, area, pincode, Instagram…"
         searchValue={search}
         rowKey={(row) => row.id}
         onRowClick={(row) => navigate(`/providers/${row.id}`)}

@@ -58,8 +58,28 @@ export interface ProviderFilters {
   search?: string;
   status?: ProviderStatus | '';
   city?: string;
-  isFeatured?: boolean;
-  isWomenLed?: boolean;
+  isFeatured?: boolean | 'true' | 'false';
+  isWomenLed?: boolean | 'true' | 'false' | 'pending' | 'approved';
   /** Only providers listed in this category */
   categoryId?: string;
+  // Advanced filters (all optional, combined with AND). Lists are
+  // comma-separated and match any of their values.
+  cities?: string;
+  area?: string;
+  categoryIds?: string;
+  verified?: 'true' | 'false';
+  available?: 'true' | 'false';
+  logo?: 'real' | 'generated' | 'none' | 'missing';
+  banner?: 'has' | 'none';
+  products?: 'has' | 'none';
+  photos?: 'has' | 'none';
+  online?: 'website' | 'instagram' | 'whatsapp' | 'none';
+  location?: 'precise' | 'neighbourhood' | 'approximate' | 'missing';
+  claimed?: 'true' | 'false';
+  activeWithinDays?: string;
+  minRating?: string;
+  reviews?: 'has' | 'none';
+  createdFrom?: string;
+  createdTo?: string;
+  sort?: 'newest' | 'oldest' | 'name' | 'rating' | 'reviews' | 'updated';
 }

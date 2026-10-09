@@ -84,6 +84,16 @@ export interface AutoImageResult {
   notes: string[];
 }
 
+/** Every filter that has a value, as query params (page/limit left to the caller). */
+function filterParams(filters: ProviderFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (key === 'page' || key === 'limit' || value === undefined || value === null || value === '') continue;
+    params.set(key, String(value));
+  }
+  return params;
+}
+
 export const providersService = {
   /**
    * CSV of every provider the given filters match — the whole result set, not
@@ -92,13 +102,7 @@ export const providersService = {
   exportCsv: async (
     filters: ProviderFilters = {},
   ): Promise<{ blob: Blob; filename: string; count: number; truncated: boolean }> => {
-    const params = new URLSearchParams();
-    if (filters.search) params.set('search', filters.search);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.city) params.set('city', filters.city);
-    if (filters.isFeatured !== undefined) params.set('isFeatured', String(filters.isFeatured));
-    if (filters.isWomenLed !== undefined) params.set('isWomenLed', String(filters.isWomenLed));
-    if (filters.categoryId) params.set('categoryId', filters.categoryId);
+    const params = filterParams(filters);
     const res = await api.get(`${URLS.PROVIDERS.EXPORT}?${params.toString()}`, { responseType: 'blob' });
     const disposition = String(res.headers['content-disposition'] ?? '');
     const named = /filename="?([^"]+)"?/.exec(disposition)?.[1];
@@ -111,15 +115,9 @@ export const providersService = {
   },
 
   list: async (filters: ProviderFilters = {}): Promise<PaginatedResponse<Provider>> => {
-    const params = new URLSearchParams();
+    const params = filterParams(filters);
     if (filters.page) params.set('page', String(filters.page));
     if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.search) params.set('search', filters.search);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.city) params.set('city', filters.city);
-    if (filters.isFeatured !== undefined) params.set('isFeatured', String(filters.isFeatured));
-    if (filters.isWomenLed !== undefined) params.set('isWomenLed', String(filters.isWomenLed));
-    if (filters.categoryId) params.set('categoryId', filters.categoryId);
     const { data } = await api.get(`${URLS.PROVIDERS.LIST}?${params.toString()}`);
     return {
       items: data?.items ?? data?.data ?? [],
@@ -217,6 +215,36 @@ export const providersService = {
     // Match the server's 300s request timeout: giving up earlier would mark links failed
     // while the server is still saving them, and a retry would then duplicate photos.
     const { data } = await api.post(URLS.PROVIDERS.IMPORT_IMAGE_URLS(id), body, { timeout: 300_000 });
+    return data;
+  },
+
+  /** Generate (or restyle) a business's logo from its name and category. Never replaces a real logo. */
+  generateBrandMark: async (id: string, variant = 0): Promise<{ status: 'generated'; profilePhotoUrl: string }> => {
+    const { data } = await api.post(URLS.PROVIDERS.BRAND_MARK(id), { variant });
+    return data;
+  },
+
+  /** AI artwork in the same frame (Cloudflare Workers AI; a few seconds). Never replaces a real logo. */
+  generateAiLogo: async (id: string): Promise<{ status: 'generated'; profilePhotoUrl: string }> => {
+    const { data } = await api.post(URLS.PROVIDERS.AI_LOGO(id), undefined, { timeout: 90_000 });
+    return data;
+  },
+
+  /** Values for the filter panel: every city with its business count. */
+  facets: async (): Promise<{ cities: { city: string; count: number }[] }> => {
+    const { data } = await api.get(URLS.PROVIDERS.FACETS);
+    return data;
+  },
+
+  /** How many businesses have no logo, and whether AI logos are set up. */
+  brandMarkSummary: async (): Promise<{ missing: number; aiEnabled: boolean }> => {
+    const { data } = await api.get(URLS.PROVIDERS.BRAND_MARK_SUMMARY);
+    return data;
+  },
+
+  /** Generated logos for up to `limit` businesses without one. */
+  backfillBrandMarks: async (limit = 100): Promise<{ generated: number; failed: number; remaining: number }> => {
+    const { data } = await api.post(URLS.PROVIDERS.BRAND_MARK_BACKFILL, { limit }, { timeout: 180_000 });
     return data;
   },
 
