@@ -29,6 +29,10 @@ export interface BulkImportRowResult {
   userId?: string;
   brandName?: string;
   error?: string;
+  /** Created by an earlier attempt of the same row (a retry, or a resumed import). */
+  alreadyImported?: boolean;
+  /** That business already has a logo, banner or photos. */
+  hasImages?: boolean;
 }
 
 export interface BulkImportResult {
