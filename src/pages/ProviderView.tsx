@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
-  MessageSquare, Camera, Shield, AlertTriangle,
+  MessageSquare, Camera, Shield, AlertTriangle, Wand2, Sparkles,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
   Pencil, X, Globe, Store, Save, Loader2, ShieldAlert, ImagePlus,
   Tags, Search, ChevronRight, CheckCircle,
@@ -20,6 +20,9 @@ import {
   useUnsuspendProvider, useProviderWarnings, useUpdateProvider,
   useUpdateContactNumber, useUpdateProviderImages, useUpdateProviderCategories,
 } from '../hooks/useProviders';
+import { providerKeys } from '../hooks/useProviders';
+import { providersService } from '../services/providers.service';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCategoryTree } from '../hooks/useCategories';
 import IconByName from '../components/IconByName';
 import { GRADIENT_PALETTE } from '../components/ColorPicker';
@@ -114,6 +117,7 @@ export default function ProviderView() {
   const [uploadingAsset, setUploadingAsset] = useState<BrandAsset | null>(null);
   const [confirmRemoveAsset, setConfirmRemoveAsset] = useState<BrandAsset | null>(null);
   const updateImagesMut = useUpdateProviderImages();
+  const qc = useQueryClient();
 
   const updateContactMut = useUpdateContactNumber();
 
@@ -211,6 +215,35 @@ export default function ProviderView() {
       toast.success(asset === 'logo' ? 'Logo updated' : 'Banner updated');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setUploadingAsset(null);
+    }
+  };
+
+  /** Generated logos live in this folder; anything else is a real logo. */
+  const isGeneratedLogo = !!provider?.profilePhotoUrl?.includes('/providers/brand-marks/');
+  const [logoVariant, setLogoVariant] = useState(0);
+  const { data: logoSetup } = useQuery({
+    queryKey: ['providers', 'brand-mark-summary'],
+    queryFn: () => providersService.brandMarkSummary(),
+    staleTime: 60_000,
+  });
+  const generateLogo = async (ai = false) => {
+    if (!id) return;
+    // A fresh logo uses the business's own look; after that, each tap tries another.
+    const variant = isGeneratedLogo ? logoVariant + 1 : 0;
+    setUploadingAsset('logo');
+    try {
+      if (ai) await providersService.generateAiLogo(id);
+      else {
+        await providersService.generateBrandMark(id, variant);
+        setLogoVariant(variant);
+      }
+      await qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success(ai ? 'AI logo made' : isGeneratedLogo ? 'New logo style' : 'Logo made');
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Could not make a logo');
     } finally {
       setUploadingAsset(null);
     }
@@ -514,7 +547,9 @@ export default function ProviderView() {
 
         <div className="px-6 pb-6 flex items-start gap-5 flex-wrap">
           {/* Logo */}
-          <div className="relative flex-shrink-0 -mt-12">
+          <div className="flex-shrink-0 -mt-12">
+            {/* The logo and its own buttons; the generate buttons sit below, outside it. */}
+            <div className="relative w-24">
             {provider.profilePhotoUrl ? (
               <img
                 src={provider.profilePhotoUrl}
@@ -556,6 +591,37 @@ export default function ProviderView() {
                 style={{ background: 'var(--color-danger)', border: '2px solid var(--surface-0)' }}
               >
                 <X className="w-3 h-3" />
+              </button>
+            )}
+            </div>
+            {(!provider.profilePhotoUrl || isGeneratedLogo) && (
+              <button
+                type="button"
+                onClick={() => void generateLogo()}
+                disabled={uploadingAsset === 'logo'}
+                title={isGeneratedLogo ? 'Generated from the name and category. Try another style, or upload their real logo.' : 'Make a logo from the name and category'}
+                className="mt-2 flex w-24 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium disabled:opacity-60"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+              >
+                <Wand2 className="h-3 w-3" />
+                {isGeneratedLogo ? 'Try another' : 'Make logo'}
+              </button>
+            )}
+            {(!provider.profilePhotoUrl || isGeneratedLogo) && (
+              <button
+                type="button"
+                onClick={() => void generateLogo(true)}
+                disabled={uploadingAsset === 'logo' || logoSetup?.aiEnabled === false}
+                title={
+                  logoSetup?.aiEnabled === false
+                    ? 'AI logos are not set up: add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN to the server env'
+                    : 'AI artwork from the category and description, in the same frame. Takes a few seconds; tap again for another.'
+                }
+                className="mt-1.5 flex w-24 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}
+              >
+                <Sparkles className="h-3 w-3" />
+                AI logo
               </button>
             )}
           </div>
