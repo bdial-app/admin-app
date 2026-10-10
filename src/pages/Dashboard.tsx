@@ -243,7 +243,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Activity</h2>
-            <button onClick={() => navigate(ROUTES.AUDIT_LOG)} className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
+            <button onClick={() => navigate(`${ROUTES.LOGS}?sources=admin&range=7d`)} className="text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
               View all
             </button>
           </div>

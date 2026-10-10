@@ -102,7 +102,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Admin Users', path: ROUTES.ADMIN_USERS, icon: UserCog, minRole: 'moderator' },
       { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft, minRole: 'super_admin' },
       { name: 'App Versions', path: ROUTES.APP_VERSIONS, icon: Smartphone, minRole: 'super_admin' },
-      { name: 'Audit Log', path: ROUTES.AUDIT_LOG, icon: FileText, minRole: 'admin' },
+      { name: 'Logs', path: ROUTES.LOGS, icon: FileText, minRole: 'admin' },
       { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings, minRole: 'super_admin' },
     ],
   },

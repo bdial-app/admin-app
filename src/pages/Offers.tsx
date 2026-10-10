@@ -6,26 +6,21 @@ import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import StatusBadge from '../components/ui/StatusBadge';
 import { StatCard } from '../components/ui/StatCard';
-import { FormField } from '../components/ui/FormField';
-import { FilterBar, Select, useUrlFilters } from '../components/ui/filters';
+import { FilterBar, useUrlFilters } from '../components/ui/filters';
 import {
   OFFER_FILTER_DEFS, OFFER_FILTER_KEYS, OFFER_OP_STATUS, OFFER_SORTS, offerSegments, withOfferOptions, type OfferOpStatus,
 } from '../components/offers/offer-filters';
-import { useOffers, useOfferFilterOptions, useOfferStats, useUpdateOffer, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
+import { useOffers, useOfferFilterOptions, useOfferStats, useDeleteOffer, usePendingOffers, useApproveOffer, useRejectOffer } from '../hooks/useOffers';
 import { useFlatCategories } from '../hooks/useCategories';
 import { CreateDealPanel } from '../components/offers/CreateDealPanel';
+import { OfferEditPanel } from '../components/offers/OfferEditPanel';
 import { PermissionGate } from '../components/auth/PermissionGate';
 import type { OfferFilters } from '../services/offers.service';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { DiscountType, ProviderOffer } from '../types';
+import type { ProviderOffer } from '../types';
 
 const LIMIT = 10;
-
-const DISCOUNT_TYPE_OPTIONS = [
-  { value: 'percentage', label: 'Percentage' },
-  { value: 'flat', label: 'Flat' },
-];
 
 const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border';
 const inputStyle = { background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } as const;
@@ -55,8 +50,7 @@ function OpStatusBadge({ offer }: { offer: ProviderOffer }) {
 export default function Offers() {
   const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(OFFER_FILTER_KEYS);
   const [selected, setSelected] = useState<ProviderOffer | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<ProviderOffer>>({});
+  const [editing, setEditing] = useState<ProviderOffer | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ProviderOffer | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
   const [rejectNotes, setRejectNotes] = useState('');
@@ -73,7 +67,6 @@ export default function Offers() {
   const { data: categories } = useFlatCategories();
   const { data: stats } = useOfferStats();
   const { data: pendingList } = usePendingOffers();
-  const updateMutation = useUpdateOffer();
   const deleteMutation = useDeleteOffer();
   const approveMutation = useApproveOffer();
   const rejectMutation = useRejectOffer();
@@ -85,30 +78,8 @@ export default function Offers() {
     : 'Manage discount offers across all providers';
 
   const openEdit = (offer: ProviderOffer) => {
-    setEditForm({
-      isActive: offer.isActive,
-      title: offer.title,
-      description: offer.description,
-      discountType: offer.discountType,
-      discountValue: offer.discountValue,
-      minOrderAmount: offer.minOrderAmount,
-      maxDiscount: offer.maxDiscount,
-      usageLimit: offer.usageLimit,
-    });
-    setEditMode(true);
-    setSelected(offer);
-  };
-
-  const handleUpdate = async () => {
-    if (!selected) return;
-    try {
-      await updateMutation.mutateAsync({ id: selected.id, body: editForm });
-      toast.success('Offer updated');
-      setEditMode(false);
-      setSelected(null);
-    } catch {
-      toast.error('Failed to update');
-    }
+    setSelected(null);
+    setEditing(offer);
   };
 
   const handleDelete = async () => {
@@ -211,7 +182,7 @@ export default function Offers() {
             </>
           )}
           <button
-            onClick={(e) => { e.stopPropagation(); setSelected(row); setEditMode(false); }}
+            onClick={(e) => { e.stopPropagation(); setSelected(row); }}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: 'var(--text-muted)' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
@@ -295,7 +266,7 @@ export default function Offers() {
         isLoading={isLoading}
         onPageChange={setPage}
         rowKey={(r) => r.id}
-        onRowClick={(r) => { setSelected(r); setEditMode(false); }}
+        onRowClick={setSelected}
         emptyIcon={<Gift className="w-10 h-10" />}
         emptyTitle={hasNarrowing ? 'No offers match these filters' : 'No offers yet'}
         emptyDescription={hasNarrowing ? 'Remove a filter or pick a different segment above.' : 'Offers appear here as providers create them — or add one yourself with Create Deal.'}
@@ -303,23 +274,17 @@ export default function Offers() {
 
       <DetailPanel
         open={!!selected}
-        onClose={() => { setSelected(null); setEditMode(false); }}
-        title={editMode ? 'Edit Offer' : 'Offer Details'}
+        onClose={() => setSelected(null)}
+        title="Offer Details"
         subtitle={selected?.title}
         actions={
-          editMode ? (
-            <button onClick={handleUpdate} disabled={updateMutation.isPending} className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-              {updateMutation.isPending ? 'Saving…' : 'Save'}
-            </button>
-          ) : (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
               <button onClick={() => selected && openEdit(selected)} className="px-3 py-1.5 text-sm font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}>Edit</button>
               <button onClick={() => selected && setConfirmDelete(selected)} className="px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: 'var(--color-danger)' }}>Deactivate</button>
             </div>
-          )
         }
       >
-        {selected && !editMode && (
+        {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -363,47 +328,9 @@ export default function Offers() {
             )}
           </div>
         )}
-        {selected && editMode && (
-          <div className="space-y-4">
-            <FormField label="Title">
-              <input type="text" value={editForm.title ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))} className={inputCls} style={inputStyle} />
-            </FormField>
-            <FormField label="Description">
-              <textarea value={editForm.description ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className={`${inputCls} resize-none`} style={inputStyle} />
-            </FormField>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Discount Type">
-                <Select
-                  value={editForm.discountType ?? 'percentage'}
-                  onChange={(v) => setEditForm(prev => ({ ...prev, discountType: v as DiscountType }))}
-                  options={DISCOUNT_TYPE_OPTIONS}
-                  className="w-full"
-                />
-              </FormField>
-              <FormField label="Discount Value">
-                <input type="number" value={editForm.discountValue ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, discountValue: Number(e.target.value) }))} className={inputCls} style={inputStyle} />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField label="Min Order Amount">
-                <input type="number" value={editForm.minOrderAmount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, minOrderAmount: e.target.value ? Number(e.target.value) : null }))} className={inputCls} style={inputStyle} />
-              </FormField>
-              <FormField label="Max Discount">
-                <input type="number" value={editForm.maxDiscount ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, maxDiscount: e.target.value ? Number(e.target.value) : null }))} className={inputCls} style={inputStyle} />
-              </FormField>
-            </div>
-            <FormField label="Usage Limit">
-              <input type="number" value={editForm.usageLimit ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, usageLimit: e.target.value ? Number(e.target.value) : null }))} placeholder="Leave empty for unlimited" className={inputCls} style={inputStyle} />
-            </FormField>
-            <FormField label="Active">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={editForm.isActive ?? true} onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))} className="rounded" />
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Offer is active</span>
-              </label>
-            </FormField>
-          </div>
-        )}
       </DetailPanel>
+
+      {editing && <OfferEditPanel key={editing.id} offer={editing} onClose={() => setEditing(null)} />}
 
       <ConfirmDialog
         open={!!confirmDelete}

@@ -33,6 +33,7 @@ const Badges = lazy(() => import('./pages/Badges'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const Logs = lazy(() => import('./pages/Logs'));
 const SystemSettings = lazy(() => import('./pages/Settings'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const CreateUser = lazy(() => import('./pages/CreateUser'));
@@ -158,6 +159,7 @@ function App() {
             {/* System */}
             <Route path={ROUTES.ADMIN_USERS} element={<RoleRoute minRole="moderator"><AdminUsers /></RoleRoute>} />
             <Route path={ROUTES.AUDIT_LOG} element={<RoleRoute minRole="admin"><AuditLog /></RoleRoute>} />
+            <Route path={ROUTES.LOGS} element={<RoleRoute minRole="admin"><Logs /></RoleRoute>} />
             <Route path={ROUTES.SETTINGS} element={<RoleRoute minRole="super_admin"><SystemSettings /></RoleRoute>} />
             <Route path={ROUTES.FEATURE_FLAGS} element={<RoleRoute minRole="super_admin"><FeatureFlags /></RoleRoute>} />
             <Route path={ROUTES.APP_VERSIONS} element={<RoleRoute minRole="super_admin"><AppVersions /></RoleRoute>} />
