@@ -12,6 +12,8 @@ export interface Product {
   displayOrder: number;
   productType: 'product' | 'service';
   categoryId?: string | null;
+  /** When it was added (from the products.created_at migration). */
+  createdAt?: string;
   subcategoryId?: string | null;
   keywords?: string[] | null;
   provider?: import('./provider').Provider;

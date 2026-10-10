@@ -1,22 +1,22 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Package, Image, ImageOff, Eye,
   Trash2, ToggleLeft, ToggleRight, Copy, Edit3, IndianRupee,
   CheckCircle2, XCircle, ShoppingBag, Wrench,
-  ChevronLeft, ChevronRight, Star, Plus, BarChart3,
+  ChevronLeft, ChevronRight, Star, Plus, BarChart3, Store, ArrowUpRight,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { ProductForm } from '../components/products/ProductForm';
+import { ProductEditPanel } from '../components/products/ProductEditPanel';
+import { ProductCreatePanel } from '../components/products/ProductCreatePanel';
 import { ProductAnalytics } from '../components/products/ProductAnalytics';
-import { emptyProductForm, type GalleryItem, type ProductFormValues } from '../components/products/product-form-values';
 import { StatCard } from '../components/ui/StatCard';
 import { FilterBar, useUrlFilters } from '../components/ui/filters';
 import { PRODUCT_FILTER_DEFS, PRODUCT_FILTER_KEYS, PRODUCT_SORTS, productSegments, withProductOptions } from '../components/products/product-filters';
-import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct, useCreateProduct } from '../hooks/useProducts';
-import { productsService } from '../services/products.service';
+import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
 import { toast } from 'react-toastify';
@@ -43,10 +43,13 @@ export default function Products() {
     search: search || undefined,
   });
   const { data: filterOptions } = useProductFilterOptions();
+  const navigate = useNavigate();
+  // Category names from the filter options already loaded for the filter bar.
+  const categoryNames = new Map((filterOptions?.categories ?? []).map((c) => [c.id, c.name]));
+  const categoryName = (id?: string | null) => (id ? (categoryNames.get(id) ?? null) : null);
   const { data: stats } = useProductStats();
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
-  const createMutation = useCreateProduct();
 
   const typeFilter = filters.productType ?? '';
   const totalCount = filterOptions?.counts.total ?? stats?.total;
@@ -75,144 +78,9 @@ export default function Products() {
     } catch { toast.error('Failed to delete'); }
   };
 
-  // ─── Edit form state ──────────────────
-  const [editForm, setEditForm] = useState<ProductFormValues>(emptyProductForm);
-  const [editGallery, setEditGallery] = useState<GalleryItem[]>([]);
-  const [savingEdit, setSavingEdit] = useState<string | null>(null);
-
-  const openEdit = (p: Product) => {
-    setEditForm({
-      providerId: p.providerId,
-      providerName: p.provider?.brandName ?? '',
-      name: p.name || '',
-      description: p.description || '',
-      price: p.price?.toString() || '',
-      displayOrder: p.displayOrder?.toString() || '0',
-      productType: (p.productType as 'product' | 'service') || 'product',
-      isActive: p.isActive,
-      categoryId: p.categoryId ?? '',
-      subcategoryId: p.subcategoryId ?? '',
-    });
-    setEditGallery((p.photoUrls ?? []).map((url) => ({ key: url, url })));
-    setEditProduct(p);
-  };
-
-  const closeEdit = () => {
-    // Free the previews of photos picked but never saved.
-    editGallery.forEach((g) => g.file && URL.revokeObjectURL(g.url));
-    setEditProduct(null);
-  };
-
-  /**
-   * Save in order: drop removed photos, upload new ones, then the details and
-   * the final photo order (the first is the card photo) in one update.
-   */
-  /** Photos that saving will delete (saved ones no longer in the gallery). */
-  const photosToRemove = editProduct
-    ? (editProduct.photoUrls ?? []).filter((u) => !editGallery.some((g) => !g.file && g.url === u))
-    : [];
-  const [confirmPhotoRemoval, setConfirmPhotoRemoval] = useState(false);
-
-  /** Deleting photos can't be undone: ask first. */
-  const requestSaveEdit = () => {
-    if (!editForm.name.trim()) { toast.error('Give it a name'); return; }
-    if (photosToRemove.length) setConfirmPhotoRemoval(true);
-    else void handleSaveEdit();
-  };
-
-  const handleSaveEdit = async () => {
-    setConfirmPhotoRemoval(false);
-    if (!editProduct) return;
-    if (!editForm.name.trim()) { toast.error('Give it a name'); return; }
-    const id = editProduct.id;
-    try {
-      const removed = (editProduct.photoUrls ?? []).filter((u) => !editGallery.some((g) => !g.file && g.url === u));
-      if (removed.length) setSavingEdit('Removing photos…');
-      let current = editProduct.photoUrls ?? [];
-      for (const url of removed) current = (await productsService.deleteImage(id, url)).photoUrls ?? [];
-
-      const files = editGallery.filter((g) => g.file).map((g) => g.file as File);
-      let uploaded: string[] = [];
-      if (files.length) {
-        setSavingEdit(`Uploading ${files.length} photo${files.length === 1 ? '' : 's'}…`);
-        const before = new Set(current);
-        uploaded = ((await productsService.uploadImages(id, files)).photoUrls ?? []).filter((u) => !before.has(u));
-      }
-      let next = 0;
-      const photoUrls = editGallery.map((g) => (g.file ? uploaded[next++] : g.url)).filter((u): u is string => !!u);
-
-      setSavingEdit('Saving…');
-      await updateMutation.mutateAsync({
-        id,
-        body: {
-          name: editForm.name.trim(),
-          description: editForm.description.trim() || null,
-          price: editForm.price ? Number(editForm.price) : null,
-          displayOrder: Number(editForm.displayOrder) || 0,
-          productType: editForm.productType,
-          isActive: editForm.isActive,
-          categoryId: editForm.categoryId || null,
-          subcategoryId: editForm.subcategoryId || null,
-          photoUrls,
-        },
-      });
-      toast.success(`${editForm.productType === 'service' ? 'Service' : 'Product'} saved`);
-      closeEdit();
-      setSelectedProduct(null);
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Failed to save — nothing you saw as saved was lost; try again');
-    } finally {
-      setSavingEdit(null);
-    }
-  };
-
-  // ─── Create form state ────────────────
+  const openEdit = (p: Product) => setEditProduct(p);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<ProductFormValues>(emptyProductForm);
-  const [createImages, setCreateImages] = useState<File[]>([]);
-  const [creating, setCreating] = useState(false);
-  const MAX_IMAGES = 5;
-
-  const openCreate = () => {
-    setCreateForm(emptyProductForm);
-    setCreateImages([]);
-    setCreateOpen(true);
-  };
-
-  const handleCreate = async () => {
-    if (!createForm.providerId) { toast.error('Select a provider'); return; }
-    if (!createForm.name.trim()) { toast.error('Enter a product name'); return; }
-    setCreating(true);
-    try {
-      const created = await createMutation.mutateAsync({
-        providerId: createForm.providerId,
-        name: createForm.name.trim(),
-        description: createForm.description.trim() || null,
-        price: createForm.price ? Number(createForm.price) : null,
-        displayOrder: Number(createForm.displayOrder) || 0,
-        productType: createForm.productType,
-        isActive: createForm.isActive,
-        categoryId: createForm.categoryId || null,
-        subcategoryId: createForm.subcategoryId || null,
-      });
-      // Upload any selected images to the newly created product (one or many).
-      if (createImages.length && created?.id) {
-        try {
-          await productsService.uploadImages(created.id, createImages);
-        } catch {
-          toast.warn('Product created, but image upload failed. You can add photos from the edit panel.');
-        }
-      }
-      toast.success(`${createForm.productType === 'service' ? 'Service' : 'Product'} created for ${createForm.providerName}`);
-      setCreateOpen(false);
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || 'Failed to create product');
-    } finally {
-      setCreating(false);
-    }
-  };
+  const openCreate = () => setCreateOpen(true);
 
   // ─── Table Columns ────────────────────
   const columns: Column<Product>[] = [
@@ -243,8 +111,8 @@ export default function Products() {
                 {row.name || 'Untitled'}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] truncate max-w-[120px]" style={{ color: 'var(--text-muted)' }}>
-                  {row.provider?.brandName || 'Unknown provider'}
+                <span className="text-[10px] truncate max-w-[140px]" style={{ color: 'var(--text-muted)' }}>
+                  {categoryName(row.categoryId) ?? 'No category'}
                 </span>
                 {row.photoUrls?.length > 0 && (
                   <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: 'var(--color-info-light)', color: 'var(--color-info)' }}>
@@ -254,6 +122,37 @@ export default function Products() {
               </div>
             </div>
           </div>
+        );
+      },
+    },
+    {
+      key: 'business',
+      header: 'Business',
+      render: (row) => {
+        const p = row.provider;
+        if (!p) return <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>;
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigate(`/providers/${row.providerId}`); }}
+            className="group flex max-w-[220px] items-center gap-2.5 text-left"
+            title="Open this business"
+          >
+            {p.profilePhotoUrl ? (
+              <img src={p.profilePhotoUrl} alt="" className="h-8 w-8 flex-shrink-0 rounded-full object-cover" style={{ border: '1px solid var(--border-default)' }} />
+            ) : (
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full" style={{ background: 'var(--surface-2)' }}>
+                <Store className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
+              </span>
+            )}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium group-hover:underline" style={{ color: 'var(--color-primary)' }}>{p.brandName}</span>
+              <span className="block truncate text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {[p.area, p.city].filter(Boolean).join(', ') || '—'}
+                {p.status && p.status !== 'active' ? ` · ${p.status}` : ''}
+              </span>
+            </span>
+          </button>
         );
       },
     },
@@ -650,187 +549,129 @@ export default function Products() {
               </button>
             )}
 
-            {/* Name + Status Banner */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{selectedProduct.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md capitalize"
-                    style={{
-                      background: selectedProduct.productType === 'service' ? '#6366f115' : 'var(--color-success-light)',
-                      color: selectedProduct.productType === 'service' ? '#6366f1' : 'var(--color-success)',
-                    }}
-                  >
-                    {selectedProduct.productType === 'service' ? <Wrench className="w-3 h-3" /> : <ShoppingBag className="w-3 h-3" />}
-                    {selectedProduct.productType || 'product'}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded"
-                    style={{
-                      background: selectedProduct.isActive ? 'var(--color-success-light)' : 'var(--surface-2)',
-                      color: selectedProduct.isActive ? 'var(--color-success)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {selectedProduct.isActive ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                    {selectedProduct.isActive ? 'Active' : 'Disabled'}
-                  </span>
-                  {selectedProduct.isHero && (
-                    <span
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded"
-                      style={{ background: '#7c3aed15', color: '#7c3aed' }}
-                    >
-                      <Star className="w-3 h-3" style={{ fill: '#7c3aed' }} />
-                      Hero
-                    </span>
-                  )}
-                </div>
+            {/* Title, badges, price */}
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>{selectedProduct.name}</h3>
+                <p className="whitespace-nowrap text-xl font-black" style={{ color: 'var(--text-primary)' }}>{formatPrice(selectedProduct.price)}</p>
               </div>
-              <p className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>
-                {formatPrice(selectedProduct.price)}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize"
+                  style={{
+                    background: selectedProduct.productType === 'service' ? '#6366f115' : 'var(--color-success-light)',
+                    color: selectedProduct.productType === 'service' ? '#6366f1' : 'var(--color-success)',
+                  }}
+                >
+                  {selectedProduct.productType === 'service' ? <Wrench className="h-3 w-3" /> : <ShoppingBag className="h-3 w-3" />}
+                  {selectedProduct.productType || 'product'}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                  style={{
+                    background: selectedProduct.isActive ? 'var(--color-success-light)' : 'var(--surface-2)',
+                    color: selectedProduct.isActive ? 'var(--color-success)' : 'var(--text-muted)',
+                  }}
+                >
+                  {selectedProduct.isActive ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                  {selectedProduct.isActive ? 'Live for customers' : 'Hidden'}
+                </span>
+                {selectedProduct.isHero && (
+                  <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: '#7c3aed15', color: '#7c3aed' }}>
+                    <Star className="h-3 w-3" style={{ fill: '#7c3aed' }} /> Hero
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Description */}
-            {selectedProduct.description && (
-              <div className="p-4 rounded-xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Description</p>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{selectedProduct.description}</p>
+            {/* Sold by — the business, one click away */}
+            {selectedProduct.provider && (
+              <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border-default)', background: 'var(--surface-1)' }}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Sold by</p>
+                <div className="flex items-center gap-3">
+                  {selectedProduct.provider.profilePhotoUrl ? (
+                    <img src={selectedProduct.provider.profilePhotoUrl} alt="" className="h-11 w-11 flex-shrink-0 rounded-full object-cover" style={{ border: '1px solid var(--border-default)' }} />
+                  ) : (
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full" style={{ background: 'var(--surface-2)' }}>
+                      <Store className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedProduct.provider.brandName}</p>
+                    <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {[selectedProduct.provider.area, selectedProduct.provider.city].filter(Boolean).join(', ') || 'Location not set'}
+                      {selectedProduct.provider.status ? ` · ${selectedProduct.provider.status === 'active' ? 'verified' : selectedProduct.provider.status}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/providers/${selectedProduct.providerId}`)}
+                    className="flex flex-shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-white"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
+                    View business <ArrowUpRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => { setSearch(selectedProduct.provider?.brandName ?? ''); setSelectedProduct(null); }}
+                  className="mt-2.5 text-xs font-medium underline-offset-2 hover:underline"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  Show all their products
+                </button>
               </div>
             )}
 
-            {/* Details Grid */}
+            {/* Description */}
+            {selectedProduct.description && (
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Description</p>
+                <p className="whitespace-pre-line text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{selectedProduct.description}</p>
+              </div>
+            )}
+
+            {/* Facts */}
             <div className="grid grid-cols-2 gap-3">
-              <DetailCell label="Display Order" value={`#${selectedProduct.displayOrder ?? 0}`} />
-              <DetailCell label="Currency" value={selectedProduct.currency || 'INR'} />
-              <DetailCell label="Images" value={`${selectedProduct.photoUrls?.length || 0} uploaded`} />
-              <div className="p-3 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Provider</p>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedProduct.provider?.brandName || 'Unknown'}</p>
-              </div>
+              <DetailCell label="Category" value={categoryName(selectedProduct.categoryId) ?? 'Not set'} />
+              <DetailCell label="Position" value={`#${selectedProduct.displayOrder ?? 0} · lower shows first`} />
+              <DetailCell label="Photos" value={`${selectedProduct.photoUrls?.length || 0} of 5`} />
+              <DetailCell
+                label="Added"
+                value={selectedProduct.createdAt ? new Date(selectedProduct.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '—'}
+              />
             </div>
 
-            {/* IDs */}
-            <div className="space-y-2">
-              <IdRow label="Product ID" value={selectedProduct.id} />
-              <IdRow label="Provider ID" value={selectedProduct.providerId} />
+            {/* Less-used actions, out of the way */}
+            <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: 'var(--border-default)' }}>
+              <button
+                onClick={() => { void navigator.clipboard.writeText(selectedProduct.id); toast.success('Product ID copied'); }}
+                className="flex items-center gap-1 text-xs"
+                style={{ color: 'var(--text-muted)' }}
+                title="For support and bug reports"
+              >
+                <Copy className="h-3 w-3" /> Copy product ID
+              </button>
+              <button
+                onClick={() => setConfirmDelete(selectedProduct)}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                style={{ color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete product
+              </button>
             </div>
-
-            {/* Delete */}
-            <button
-              onClick={() => setConfirmDelete(selectedProduct)}
-              className="w-full p-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-              style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)20' }}
-            >
-              <Trash2 className="w-4 h-4" /> Delete Product
-            </button>
           </div>
         )}
       </DetailPanel>
 
-      {/* ═══════════════════════════════════════════════════ */}
-      {/* EDIT PANEL                                         */}
-      {/* ═══════════════════════════════════════════════════ */}
-      <DetailPanel
-        open={!!editProduct}
-        onClose={closeEdit}
-        title={`Edit ${editForm.productType === 'service' ? 'service' : 'product'}`}
-        subtitle={editForm.providerName ? `${editProduct?.name} · ${editForm.providerName}` : editProduct?.name}
-        width="900px"
-        actions={
-          <div className="flex gap-2">
-            <button onClick={closeEdit} disabled={!!savingEdit} className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
-              Cancel
-            </button>
-            <button onClick={requestSaveEdit} disabled={!!savingEdit || !editForm.name.trim()} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-              {savingEdit ?? 'Save changes'}
-            </button>
-          </div>
-        }
-      >
-        {editProduct && (
-          <ProductForm
-            value={editForm}
-            onChange={setEditForm}
-            images={[]}
-            onImagesChange={() => undefined}
-            maxImages={MAX_IMAGES}
-            lockProvider
-            gallery={editGallery}
-            onGalleryChange={setEditGallery}
-            extra={
-              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: editProduct.isHero ? '#7c3aed10' : 'var(--surface-1)', border: `1px solid ${editProduct.isHero ? '#7c3aed40' : 'var(--border-default)'}` }}>
-                <div className="flex items-center gap-2.5">
-                  <Star className="w-4 h-4" style={{ color: '#7c3aed', fill: editProduct.isHero ? '#7c3aed' : 'none' }} />
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Hero product</p>
-                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Featured in "Best Products This Week" on the home feed</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => { await handleToggleHero(editProduct); setEditProduct({ ...editProduct, isHero: !editProduct.isHero }); }}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors"
-                  style={{ background: editProduct.isHero ? '#7c3aed' : 'var(--surface-2)', color: editProduct.isHero ? 'white' : 'var(--text-secondary)' }}
-                >
-                  {editProduct.isHero ? 'Remove' : 'Make hero'}
-                </button>
-              </div>
-            }
-          />
-        )}
-      </DetailPanel>
-
-      {/* ═══ Create Product ═══ */}
-      <DetailPanel
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Add a product or service"
-        subtitle="It will be listed on the business you choose"
-        width="900px"
-        actions={
-          <div className="flex gap-2">
-            <button onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)', background: 'var(--surface-2)' }}>
-              Cancel
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={creating || !createForm.providerId || !createForm.name.trim()}
-              title={!createForm.providerId ? 'Choose the business first' : !createForm.name.trim() ? 'Give it a name' : undefined}
-              className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              {creating ? (createImages.length ? 'Saving & uploading…' : 'Saving…') : 'Add to catalogue'}
-            </button>
-          </div>
-        }
-      >
-        <ProductForm
-          value={createForm}
-          onChange={setCreateForm}
-          images={createImages}
-          onImagesChange={setCreateImages}
-          maxImages={MAX_IMAGES}
+      {editProduct && (
+        <ProductEditPanel
+          key={editProduct.id}
+          product={editProduct}
+          onClose={() => setEditProduct(null)}
+          onSaved={() => setSelectedProduct(null)}
         />
-      </DetailPanel>
+      )}
 
-      {/* ═══ Confirm photo deletion on save ═══ */}
-      <ConfirmDialog
-        open={confirmPhotoRemoval}
-        onClose={() => setConfirmPhotoRemoval(false)}
-        onConfirm={() => void handleSaveEdit()}
-        title={`Delete ${photosToRemove.length} photo${photosToRemove.length === 1 ? '' : 's'}?`}
-        description={`${photosToRemove.length === 1 ? 'This photo' : 'These photos'} will be removed from "${editForm.name.trim()}" and deleted permanently when you save. Your other changes are saved too.`}
-        confirmLabel={`Delete & save`}
-        variant="danger"
-        isLoading={!!savingEdit}
-      >
-        <div className="mt-3 flex flex-wrap gap-2">
-          {photosToRemove.map((url) => (
-            <img key={url} src={url} alt="" className="h-14 w-14 rounded-lg object-cover" style={{ border: '1px solid var(--border-default)' }} />
-          ))}
-        </div>
-      </ConfirmDialog>
+      {createOpen && <ProductCreatePanel onClose={() => setCreateOpen(false)} />}
 
       {/* ═══ Delete Confirmation ═══ */}
       <ConfirmDialog
@@ -858,14 +699,3 @@ function DetailCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function IdRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2 p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="text-[10px] font-mono flex-1 truncate" style={{ color: 'var(--text-muted)' }}>{value}</p>
-      <button onClick={() => { navigator.clipboard.writeText(value); toast.success('Copied!'); }} className="p-1 rounded hover:bg-[var(--surface-2)]">
-        <Copy className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-      </button>
-    </div>
-  );
-}

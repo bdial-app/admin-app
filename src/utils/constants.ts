@@ -20,6 +20,7 @@ export const ROUTES = {
   ANALYTICS: '/analytics',
   ADMIN_USERS: '/admin-users',
   AUDIT_LOG: '/audit-log',
+  LOGS: '/logs',
   SETTINGS: '/settings',
   NOTIFICATIONS: '/notifications',
   BUG_REPORTS: '/bug-reports-admin',

@@ -7,7 +7,11 @@ import { store } from './store/store'
 import { queryClient } from './lib/query-client'
 import './index.css'
 import App from './App'
+import { installErrorReporting } from './utils/error-reporter'
 import 'react-toastify/dist/ReactToastify.css'
+
+// Console errors to the admin Logs.
+installErrorReporting()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -5,7 +5,7 @@ import {
   MessageSquare, Camera, Shield, AlertTriangle, Wand2, Sparkles,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
   Pencil, X, Globe, Store, Save, Loader2, ShieldAlert, ImagePlus,
-  Tags, Search, ChevronRight, CheckCircle,
+  Tags, Search, ChevronRight, CheckCircle, Plus, ArrowUpRight, RotateCcw, EyeOff,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -27,11 +27,16 @@ import { useCategoryTree } from '../hooks/useCategories';
 import IconByName from '../components/IconByName';
 import { GRADIENT_PALETTE } from '../components/ColorPicker';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
-import { useReviews } from '../hooks/useReviews';
+import { useReviews, useUpdateReviewStatus, useRemoveReview } from '../hooks/useReviews';
 import { useOffers } from '../hooks/useOffers';
 import { ROUTES } from '../utils/constants';
 import { toast } from 'react-toastify';
-import type { Product, ProviderOffer } from '../types';
+import type { Photo, Product, ProviderOffer, Review } from '../types';
+import { ProductEditPanel } from '../components/products/ProductEditPanel';
+import { ProductCreatePanel } from '../components/products/ProductCreatePanel';
+import { OfferEditPanel } from '../components/offers/OfferEditPanel';
+import { CreateDealPanel } from '../components/offers/CreateDealPanel';
+import { photoModerationService } from '../services/photo-moderation.service';
 import { ProviderWhatsAppCard } from '../components/whatsapp/ProviderWhatsAppCard';
 import { checkPickedFile } from '../utils/compress-image';
 
@@ -64,6 +69,8 @@ const pinBadgeStyle = (precision: string | null | undefined, lat: number | null,
 type BrandAsset = 'logo' | 'banner';
 
 const MAX_PROVIDER_CATEGORIES = 2;
+/** The server's gallery limit per business. */
+const MAX_GALLERY_PHOTOS = 10;
 
 const TABS: { key: Tab; label: string; icon: typeof Package }[] = [
   { key: 'overview', label: 'Overview', icon: Eye },
@@ -94,6 +101,15 @@ export default function ProviderView() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'suspend' | 'unsuspend' | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
+  // Editing what the business lists, without leaving its page
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [editOffer, setEditOffer] = useState<ProviderOffer | null>(null);
+  const [addingDeal, setAddingDeal] = useState(false);
+  const [confirmRemoveReview, setConfirmRemoveReview] = useState<Review | null>(null);
+  const [confirmRemovePhoto, setConfirmRemovePhoto] = useState<Photo | null>(null);
+  const [photoBusy, setPhotoBusy] = useState<'upload' | 'remove' | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [productCategoryId, setProductCategoryId] = useState('');
   const [productSubcategoryId, setProductSubcategoryId] = useState('');
   const [categoryDirty, setCategoryDirty] = useState(false);
@@ -178,6 +194,76 @@ export default function ProviderView() {
       setConfirmDeleteProduct(null);
       setSelectedProduct(null);
     } catch { toast.error('Failed to delete product'); }
+  };
+
+  const openProductEdit = (product: Product) => {
+    setSelectedProduct(null);
+    setEditProduct(product);
+  };
+
+  // ── Reviews ──
+  const updateReviewStatusMut = useUpdateReviewStatus();
+  const removeReviewMut = useRemoveReview();
+
+  const handleRestoreReview = async (review: Review) => {
+    try {
+      await updateReviewStatusMut.mutateAsync({ id: review.id, status: 'active' });
+      void qc.invalidateQueries({ queryKey: providerKeys.all }); // rating and count
+      toast.success('Review restored');
+    } catch { toast.error('Failed to restore review'); }
+  };
+
+  const handleRemoveReview = async () => {
+    if (!confirmRemoveReview) return;
+    try {
+      await removeReviewMut.mutateAsync(confirmRemoveReview.id);
+      void qc.invalidateQueries({ queryKey: providerKeys.all }); // rating and count
+      toast.success('Review removed');
+      setConfirmRemoveReview(null);
+    } catch { toast.error('Failed to remove review'); }
+  };
+
+  // ── Gallery photos ──
+  const handlePhotosSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!picked.length || !id) return;
+    const room = MAX_GALLERY_PHOTOS - (provider?.photos?.length ?? 0);
+    if (room <= 0) { toast.error(`A business can have up to ${MAX_GALLERY_PHOTOS} photos. Remove one first.`); return; }
+    const files = picked.filter((f) => f.type.startsWith('image/'));
+    if (files.length < picked.length) toast.warn('Only images were added');
+    for (const f of files) {
+      const tooBig = checkPickedFile(f);
+      if (tooBig) { toast.error(tooBig); return; }
+    }
+    const batch = files.slice(0, room);
+    if (files.length > room) toast.warn(`Only ${room} more photo${room === 1 ? '' : 's'} fit — added the first ${room}.`);
+    if (!batch.length) return;
+    setPhotoBusy('upload');
+    try {
+      await providersService.uploadPhotos(id, batch);
+      await qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success(`${batch.length} photo${batch.length === 1 ? '' : 's'} added`);
+    } catch (err) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to upload photos');
+    } finally {
+      setPhotoBusy(null);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!confirmRemovePhoto) return;
+    setPhotoBusy('remove');
+    try {
+      await photoModerationService.remove(confirmRemovePhoto.id, 'provider');
+      await qc.invalidateQueries({ queryKey: providerKeys.all });
+      toast.success('Photo deleted');
+      setConfirmRemovePhoto(null);
+    } catch (err) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to delete photo');
+    } finally {
+      setPhotoBusy(null);
+    }
   };
 
   // Products & Reviews for this provider
@@ -1218,7 +1304,7 @@ export default function ProviderView() {
             <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <div className="flex items-center gap-3">
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {products.length} {products.length === 1 ? 'Item' : 'Items'}
+                  {productsData?.meta?.total ?? products.length} {(productsData?.meta?.total ?? products.length) === 1 ? 'Item' : 'Items'}
                 </p>
                 {products.length > 0 && (
                   <div className="flex items-center gap-1.5">
@@ -1235,7 +1321,31 @@ export default function ProviderView() {
                   </div>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                {products.length > 0 && (
+                  <button
+                    onClick={() => navigate(`${ROUTES.PRODUCTS}?q=${encodeURIComponent(provider.brandName)}`)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                    title="See them in the Products table, with filters and analytics"
+                  >
+                    Open in Products <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setAddingProduct(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add product
+                </button>
+              </div>
             </div>
+            {(productsData?.meta?.total ?? 0) > products.length && (
+              <p className="px-5 pt-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Showing the first {products.length} of {productsData?.meta?.total}. Open in Products to see them all.
+              </p>
+            )}
 
             {products.length === 0 ? (
               <div className="text-center py-16">
@@ -1244,6 +1354,13 @@ export default function ProviderView() {
                 </div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No products or services yet</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Items added by this provider will appear here</p>
+                <button
+                  onClick={() => setAddingProduct(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add the first one
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 p-5">
@@ -1322,13 +1439,22 @@ export default function ProviderView() {
                           <h4 className="text-[13px] font-semibold leading-snug line-clamp-2" style={{ color: 'var(--text-primary)' }}>
                             {p.name}
                           </h4>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleProductHero(p); }}
-                            className="shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
-                            title={p.isHero ? 'Remove hero' : 'Make hero'}
-                          >
-                            <Star className="w-3.5 h-3.5" style={{ color: p.isHero ? '#7c3aed' : 'var(--text-muted)', fill: p.isHero ? '#7c3aed' : 'none' }} />
-                          </button>
+                          <div className="flex items-center shrink-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openProductEdit(p); }}
+                              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+                              title="Edit details and photos"
+                            >
+                              <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleProductHero(p); }}
+                              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+                              title={p.isHero ? 'Remove hero' : 'Make hero'}
+                            >
+                              <Star className="w-3.5 h-3.5" style={{ color: p.isHero ? '#7c3aed' : 'var(--text-muted)', fill: p.isHero ? '#7c3aed' : 'none' }} />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Description */}
@@ -1376,7 +1502,14 @@ export default function ProviderView() {
         {tab === 'reviews' && (
           <div className="rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
             <div className="p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{reviews.length} Reviews</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {reviews.length} Reviews
+                {reviews.some((r) => r.status === 'removed') && (
+                  <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                    {reviews.filter((r) => r.status === 'removed').length} removed — hidden from customers
+                  </span>
+                )}
+              </p>
             </div>
             {reviews.length === 0 ? (
               <div className="text-center py-12">
@@ -1389,8 +1522,9 @@ export default function ProviderView() {
                   const rating = (r as any).starRating ?? (r as any).rating ?? 0;
                   const text = (r as any).reviewText ?? (r as any).comment ?? null;
                   const date = (r as any).postedAt ?? (r as any).createdAt ?? null;
+                  const removed = r.status === 'removed';
                   return (
-                    <div key={r.id} className="p-4">
+                    <div key={r.id} className="p-4 group" style={{ opacity: removed ? 0.6 : 1 }}>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <div
@@ -1408,8 +1542,35 @@ export default function ProviderView() {
                             ))}
                           </div>
                           <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>{rating}/5</span>
+                          {removed && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}>
+                              <EyeOff className="w-3 h-3" /> Removed
+                            </span>
+                          )}
                         </div>
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(date ? String(date) : null)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(date ? String(date) : null)}</span>
+                          {removed ? (
+                            <button
+                              onClick={() => void handleRestoreReview(r)}
+                              disabled={updateReviewStatusMut.isPending}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg disabled:opacity-50"
+                              style={{ background: 'var(--color-success-light)', color: 'var(--color-success-dark)' }}
+                              title="Show it to customers again"
+                            >
+                              <RotateCcw className="w-3 h-3" /> Restore
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmRemoveReview(r)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                              style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}
+                              title="Hide it from customers"
+                            >
+                              <Trash2 className="w-3 h-3" /> Remove
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {text && <p className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{text}</p>}
                       {r.replyText && (
@@ -1428,8 +1589,24 @@ export default function ProviderView() {
         {/* ══ PHOTOS ══ */}
         {tab === 'photos' && (
           <div className="rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-            <div className="p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{photos.length} Photos</p>
+            <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{photos.length} Photos</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  The gallery on the business's page · up to {MAX_GALLERY_PHOTOS}
+                </p>
+              </div>
+              <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void handlePhotosSelected(e)} />
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={!!photoBusy || photos.length >= MAX_GALLERY_PHOTOS}
+                title={photos.length >= MAX_GALLERY_PHOTOS ? `The gallery is full (${MAX_GALLERY_PHOTOS}). Delete one to add another.` : undefined}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white disabled:opacity-50"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {photoBusy === 'upload' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                {photoBusy === 'upload' ? 'Uploading…' : 'Add photos'}
+              </button>
             </div>
             {photos.length === 0 ? (
               <div className="text-center py-12">
@@ -1439,8 +1616,19 @@ export default function ProviderView() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
                 {photos.map((photo) => (
-                  <div key={photo.id} className="rounded-lg overflow-hidden aspect-square" style={{ border: '1px solid var(--border-default)' }}>
-                    <img src={photo.imageUrl} alt="Provider photo" className="w-full h-full object-cover" />
+                  <div key={photo.id} className="group relative rounded-lg overflow-hidden aspect-square" style={{ border: '1px solid var(--border-default)' }}>
+                    <a href={photo.imageUrl} target="_blank" rel="noopener noreferrer" title="Open full size">
+                      <img src={photo.imageUrl} alt="Provider photo" className="w-full h-full object-cover" />
+                    </a>
+                    <button
+                      onClick={() => setConfirmRemovePhoto(photo)}
+                      disabled={!!photoBusy}
+                      className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold rounded-lg text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+                      style={{ background: 'rgba(220,38,38,0.9)' }}
+                      title="Delete this photo"
+                    >
+                      <Trash2 className="w-3 h-3" /> Delete
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1529,7 +1717,16 @@ export default function ProviderView() {
         {tab === 'deals' && (
           <div className="rounded-xl" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
             <div className="p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{offers.length} Deals & Offers</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{offers.length} Deals & Offers</p>
+                <button
+                  onClick={() => setAddingDeal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create deal
+                </button>
+              </div>
             </div>
             {offers.length === 0 ? (
               <div className="text-center py-12">
@@ -1559,9 +1756,18 @@ export default function ProviderView() {
                           <span>Used: {offer.usageCount}{offer.usageLimit ? `/${offer.usageLimit}` : ''}</span>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Valid</p>
-                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{fmtDate(offer.startsAt)} – {fmtDate(offer.endsAt)}</p>
+                      <div className="flex items-start gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Valid</p>
+                          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{fmtDate(offer.startsAt)} – {fmtDate(offer.endsAt)}</p>
+                        </div>
+                        <button
+                          onClick={() => setEditOffer(offer)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+                        >
+                          <Pencil className="w-3 h-3" /> Edit
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1675,6 +1881,13 @@ export default function ProviderView() {
           selectedProduct && (
             <div className="flex gap-2">
               <button
+                onClick={() => openProductEdit(selectedProduct)}
+                className="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-1.5 text-white"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+              <button
                 onClick={() => handleToggleProductHero(selectedProduct)}
                 className="px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-1.5"
                 style={{
@@ -1763,6 +1976,43 @@ export default function ProviderView() {
           </div>
         )}
       </DetailPanel>
+
+      {editProduct && (
+        <ProductEditPanel key={editProduct.id} product={editProduct} businessName={provider.brandName} onClose={() => setEditProduct(null)} />
+      )}
+      {addingProduct && (
+        <ProductCreatePanel business={{ id: provider.id, name: provider.brandName }} onClose={() => setAddingProduct(false)} />
+      )}
+      {editOffer && <OfferEditPanel key={editOffer.id} offer={editOffer} onClose={() => setEditOffer(null)} />}
+      {addingDeal && (
+        <CreateDealPanel open onClose={() => setAddingDeal(false)} presetProvider={{ id: provider.id, name: provider.brandName, city: provider.city }} />
+      )}
+
+      <ConfirmDialog
+        open={!!confirmRemoveReview}
+        onClose={() => setConfirmRemoveReview(null)}
+        onConfirm={handleRemoveReview}
+        title="Remove review"
+        description={`Remove this review by ${confirmRemoveReview?.reviewer?.name || 'this user'}? Customers won't see it. You can restore it later.`}
+        confirmLabel="Remove review"
+        variant="danger"
+        isLoading={removeReviewMut.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!confirmRemovePhoto}
+        onClose={() => setConfirmRemovePhoto(null)}
+        onConfirm={handleRemovePhoto}
+        title="Delete photo?"
+        description={`It will be taken off ${provider.brandName}'s gallery. This can't be undone — you'd have to upload it again.`}
+        confirmLabel="Delete photo"
+        variant="danger"
+        isLoading={photoBusy === 'remove'}
+      >
+        {confirmRemovePhoto && (
+          <img src={confirmRemovePhoto.imageUrl} alt="" className="mt-3 h-24 w-24 rounded-lg object-cover" style={{ border: '1px solid var(--border-default)' }} />
+        )}
+      </ConfirmDialog>
 
       {/* ─── Product Delete Confirmation ─── */}
       <ConfirmDialog
