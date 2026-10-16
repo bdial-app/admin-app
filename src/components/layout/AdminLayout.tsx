@@ -1,18 +1,17 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { AttentionBell } from './AttentionBell';
 import { useState } from 'react';
-import { Menu, Moon, Sun, Bell } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store/store';
 import { useTheme } from '../../hooks/useTheme';
-import { ROUTES } from '../../utils/constants';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
   const { theme, toggle } = useTheme();
-  const navigate = useNavigate();
 
   return (
     <div
@@ -87,21 +86,8 @@ const AdminLayout = () => {
               )}
             </button>
 
-            {/* Notifications */}
-            <button
-              onClick={() => navigate(ROUTES.NOTIFICATIONS)}
-              className="relative p-2 rounded-lg transition-colors focus-ring"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
-            </button>
+            {/* Inbox: waiting work and what's new */}
+            <AttentionBell />
 
             {/* Divider */}
             <div

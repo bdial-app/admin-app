@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Store,
@@ -7,7 +8,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
+  ClipboardList, Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -17,6 +18,10 @@ import type { AppDispatch } from '../../store/store';
 import { usePermissionChecker } from '../../hooks/usePermissions';
 import type { AdminRole } from '../../types/roles';
 import { useWaUnreadCount } from '../../hooks/useWhatsApp';
+import { useAttention, useMarkSeen, useRecountAfterChanges } from '../../hooks/useAttention';
+import type { FreshKey } from '../../services/attention.service';
+import { ATTENTION_ITEMS, attentionCount, attentionForPath } from './attention-items';
+import { CountBadge } from './CountBadge';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -24,7 +29,7 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const sections: { label: string; minRole?: AdminRole; items: { name: string; path: string; icon: any; badge?: boolean; minRole?: AdminRole; countBadge?: 'whatsapp'; nested?: boolean }[] }[] = [
+const sections: { label: string; minRole?: AdminRole; items: { name: string; path: string; icon: any; minRole?: AdminRole; nested?: boolean }[] }[] = [
   {
     label: 'Overview',
     items: [
@@ -36,7 +41,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
     items: [
       { name: 'Users', path: ROUTES.USERS, icon: Users },
       { name: 'Create User', path: ROUTES.CREATE_USER, icon: UserPlus, minRole: 'admin' },
-      { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store, badge: true },
+      { name: 'Providers', path: ROUTES.PROVIDERS, icon: Store },
       { name: 'Create Provider', path: ROUTES.CREATE_PROVIDER, icon: PlusCircle, minRole: 'admin' },
       { name: 'Bulk Import', path: ROUTES.BULK_IMPORT_PROVIDERS, icon: FileSpreadsheet, minRole: 'admin' },
       { name: 'Categories', path: ROUTES.CATEGORIES, icon: FolderTree },
@@ -46,11 +51,11 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
   {
     label: 'Moderation',
     items: [
-      { name: 'Queue', path: ROUTES.MODERATION_QUEUE, icon: ClipboardList, badge: true },
-      { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck, badge: true },
+      { name: 'Queue', path: ROUTES.MODERATION_QUEUE, icon: ClipboardList },
+      { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck },
       { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
       { name: 'Google Reviews', path: ROUTES.GOOGLE_REVIEWS, icon: ShieldCheck },
-      { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle, badge: true },
+      { name: 'Reports', path: ROUTES.REPORTS, icon: AlertTriangle },
       { name: 'Warnings', path: ROUTES.WARNINGS, icon: ShieldAlert },
       { name: 'Chat', path: ROUTES.CHAT_MODERATION, icon: MessageSquare, minRole: 'moderator' },
       { name: 'Photos', path: ROUTES.PHOTO_MODERATION, icon: Camera, minRole: 'moderator' },
@@ -66,7 +71,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Offers', path: ROUTES.OFFERS, icon: Gift },
       { name: 'Badges', path: ROUTES.BADGES, icon: Award },
       { name: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: Bell },
-      { name: 'WhatsApp', path: ROUTES.WHATSAPP, icon: MessageCircle, countBadge: 'whatsapp', nested: true },
+      { name: 'WhatsApp', path: ROUTES.WHATSAPP, icon: MessageCircle, nested: true },
     ],
   },
   {
@@ -114,7 +119,36 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
   const navigate = useNavigate();
   const { minRole } = usePermissionChecker();
   const { data: waUnread } = useWaUnreadCount();
-  const counts: Record<'whatsapp', number> = { whatsapp: waUnread ?? 0 };
+  const { data: attention } = useAttention();
+  const markSeen = useMarkSeen();
+  useRecountAfterChanges();
+
+  // Only what this admin can open.
+  const visibleAttention = useMemo(
+    () => ATTENTION_ITEMS.filter((i) => !i.minRole || minRole(i.minRole)),
+    [minRole],
+  );
+  const freshItems = visibleAttention.filter((i) => i.source.kind === 'fresh');
+  const freshTotal = freshItems.reduce((n, i) => n + attentionCount(i, attention, waUnread), 0);
+  const waitingTotal =
+    (attention?.waiting.queue ?? 0) + (attention?.waiting.womenLed ?? 0) + (waUnread ?? 0);
+
+  // Opening a page clears its "new" count — and leaving it does again, so
+  // whatever arrived while you were on it doesn't show as new.
+  const activeFresh = attentionForPath(location.pathname);
+  const activeFreshKey = activeFresh?.source.kind === 'fresh' ? activeFresh.source.key : null;
+  const { mutate: markSeenNow } = markSeen;
+  useEffect(() => {
+    if (!activeFreshKey) return;
+    markSeenNow([activeFreshKey]);
+    return () => markSeenNow([activeFreshKey]);
+  }, [activeFreshKey, markSeenNow]);
+
+  // Waiting work in the browser tab title, e.g. "(4) Tijarah — Admin".
+  useEffect(() => {
+    const base = 'Tijarah — Admin';
+    document.title = waitingTotal > 0 ? `(${waitingTotal > 99 ? '99+' : waitingTotal}) ${base}` : base;
+  }, [waitingTotal]);
 
   return (
     <div
@@ -173,6 +207,25 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-3 px-2.5">
+        {!collapsed && freshTotal > 0 && (
+          <div
+            className="mx-1 mb-3 flex items-center gap-2 rounded-xl px-3 py-2 animate-fade-in"
+            style={{ background: 'color-mix(in srgb, var(--color-primary) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 18%, transparent)' }}
+          >
+            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
+            <p className="flex-1 min-w-0 text-[11.5px] leading-tight" style={{ color: 'var(--text-secondary)' }}>
+              <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>{freshTotal > 999 ? '999+' : freshTotal} new</span> since you last looked
+            </p>
+            <button
+              onClick={() => markSeen.mutate(freshItems.map((i) => (i.source as { key: FreshKey }).key))}
+              className="text-[11px] font-semibold flex-shrink-0 hover:underline"
+              style={{ color: 'var(--color-primary)' }}
+              title="Clear every “new” count"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         {sections.map((section) => {
           // Filter section by role
           if (section.minRole && !minRole(section.minRole)) return null;
@@ -194,7 +247,11 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
               {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path || (!!item.nested && location.pathname.startsWith(item.path + '/'));
-                const count = item.countBadge ? counts[item.countBadge] : 0;
+                const att = attentionForPath(item.path);
+                const rawCount = att ? attentionCount(att, attention, waUnread) : 0;
+                // You're looking at it: nothing on this page is "new" any more.
+                const count = att && isActive && (att.tone === 'fresh' || att.tone === 'alert') ? 0 : rawCount;
+                const hint = att && count > 0 ? `${item.name} — ${att.describe(count)}` : collapsed ? item.name : undefined;
 
                 return (
                   <Link
@@ -216,7 +273,7 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
                       if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
                       if (collapsed) (e.currentTarget as HTMLElement).style.transform = 'scale(1) translateX(0)';
                     }}
-                    title={collapsed ? item.name : undefined}
+                    title={hint}
                   >
                     {/* Active indicator bar */}
                     {isActive && (
@@ -235,23 +292,13 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
                         transform: isActive ? 'scale(1.15)' : 'scale(1)',
                       }}
                     />
-                    {collapsed && count > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: '#25D366' }} />
+                    {collapsed && att && (
+                      <CountBadge count={count} tone={att.tone} dot className="absolute top-2 right-2" />
                     )}
                     {!collapsed && (
                       <>
                         <span className="truncate font-medium text-[13.5px]">{item.name}</span>
-                        {item.badge && (
-                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 pulse-dot" />
-                        )}
-                        {count > 0 && (
-                          <span
-                            className="ml-auto min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums flex-shrink-0"
-                            style={{ background: '#25D366' }}
-                          >
-                            {count > 99 ? '99+' : count}
-                          </span>
-                        )}
+                        {att && <CountBadge count={count} tone={att.tone} className="ml-auto" />}
                       </>
                     )}
                   </Link>
