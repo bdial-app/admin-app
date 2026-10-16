@@ -110,7 +110,6 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Create Provider', icon: Plus, color: 'var(--color-success)', route: ROUTES.CREATE_PROVIDER },
     { label: 'Send Notification', icon: Send, color: 'var(--color-primary)', route: ROUTES.NOTIFICATIONS },
-    { label: 'Review Queue', icon: ShieldCheck, color: 'var(--color-info)', route: ROUTES.MODERATION_QUEUE },
     { label: 'Manage Categories', icon: Package, color: '#8B5CF6', route: ROUTES.CATEGORIES },
     { label: 'View Reports', icon: AlertTriangle, color: 'var(--color-danger)', route: ROUTES.REPORTS },
     { label: 'Create User', icon: UserPlus, color: '#06B6D4', route: ROUTES.CREATE_USER },

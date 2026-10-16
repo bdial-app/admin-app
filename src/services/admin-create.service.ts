@@ -50,7 +50,19 @@ export interface AdminCreateProviderWithUserPayload {
   syncLocation?: boolean;
   skipUserOtp?: boolean;
   skipBusinessOtp?: boolean;
+  /** Set only when the owner agreed to WhatsApp alerts, and how. */
+  whatsappConsentMethod?: WhatsAppConsentMethod;
 }
+
+/** How the owner agreed to WhatsApp alerts when an admin onboarded them. */
+export type WhatsAppConsentMethod = 'in_person' | 'phone_call' | 'paper_form' | 'whatsapp_chat' | 'import_file';
+
+export const WHATSAPP_CONSENT_METHOD_LABELS: Record<Exclude<WhatsAppConsentMethod, 'import_file'>, string> = {
+  in_person: 'In person',
+  phone_call: 'On a phone call',
+  paper_form: 'On a paper form',
+  whatsapp_chat: 'On WhatsApp',
+};
 
 export interface AdminCreateProviderResult {
   user: User;

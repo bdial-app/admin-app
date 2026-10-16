@@ -325,6 +325,13 @@ export interface WaContact {
   phone: string;
   displayName: string | null;
   consent: WaConsent;
+  /** app_onboarding · app_prompt · app_settings · admin_recorded · bulk_import · admin · keyword */
+  consentSource?: string | null;
+  /** How an admin got consent: in_person · phone_call · paper_form · whatsapp_chat · import_file */
+  consentMethod?: string | null;
+  consentChangedAt?: string | null;
+  /** When the business owner confirmed it themselves in the app. */
+  ownerConfirmedAt?: string | null;
   reachable: boolean;
   lastInboundAt: string | null;
   lastOutboundAt: string | null;

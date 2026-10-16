@@ -17,7 +17,7 @@ export type TargetField =
   | 'brandName' | 'userName' | 'mobile' | 'whatsapp' | 'email' | 'gender'
   | 'city' | 'area' | 'address' | 'pincode'
   | 'instagram' | 'website' | 'categories' | 'description'
-  | 'isWomenLed' | 'openTime' | 'closeTime'
+  | 'isWomenLed' | 'openTime' | 'closeTime' | 'whatsappConsent'
   | 'logoUrl' | 'bannerUrl' | 'galleryUrls';
 
 export interface TargetFieldDef {
@@ -44,6 +44,7 @@ export const TARGET_FIELDS: TargetFieldDef[] = [
   { key: 'website', label: 'Website', hint: '', synonyms: ['website', 'web', 'url', 'site', 'website url', 'web link'] },
   { key: 'description', label: 'Description', hint: 'About the business', synonyms: ['description', 'about', 'bio', 'details', 'about business', 'about the business', 'tagline'] },
   { key: 'isWomenLed', label: 'Women-led', hint: 'yes / no', synonyms: ['women led', 'woman led', 'women-led', 'female owned', 'women owned', 'is women led'] },
+  { key: 'whatsappConsent', label: 'Agreed to WhatsApp alerts', hint: 'yes / no — only if the owner said yes', synonyms: ['whatsapp consent', 'whatsapp alerts', 'whatsapp opt in', 'whatsapp optin', 'agreed to whatsapp', 'consent', 'opt in', 'whatsapp updates'] },
   { key: 'openTime', label: 'Opens at', hint: 'HH:MM', synonyms: ['opening time', 'open time', 'opens', 'opens at', 'open'] },
   { key: 'closeTime', label: 'Closes at', hint: 'HH:MM', synonyms: ['closing time', 'close time', 'closes', 'closes at', 'close'] },
   // Image links — Google Form file-upload questions put Google Drive links in these columns.
@@ -334,6 +335,8 @@ export interface RowFields {
   website: string;
   description: string;
   isWomenLed: boolean;
+  /** The owner agreed to WhatsApp alerts from Tijarah (the sheet says so). */
+  whatsappConsent: boolean;
   providerStatus: 'active' | 'unverified';
   openTime: string;
   closeTime: string;
@@ -469,6 +472,7 @@ export function buildRows(sheet: ParsedSheet, mapping: ColumnMapping, ctx: Build
         website: website && !/^https?:\/\//i.test(website) && website.includes('.') ? `https://${website}` : website,
         description,
         isWomenLed,
+        whatsappConsent: normalizeBoolean(get(row, 'whatsappConsent')) ?? false,
         providerStatus: ctx.defaults.providerStatus,
         openTime: openTime.value,
         closeTime: closeTime.value,
@@ -657,6 +661,8 @@ export function toPayload(row: ImportRow): BulkProviderRowPayload {
     openTime: opt(f.openTime),
     closeTime: opt(f.closeTime),
     isWomenLed: f.isWomenLed,
+    // Recorded as consent from the import file; the owner confirms in the app.
+    whatsappConsentMethod: f.whatsappConsent ? 'import_file' : undefined,
     categoryIds: row.categoryIds.length ? row.categoryIds : undefined,
     providerStatus: f.providerStatus,
     syncLocation: true,

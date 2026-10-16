@@ -10,6 +10,7 @@ import { MessageStatusIcon } from './MessageStatusIcon';
 import { SendTemplateDialog } from './SendTemplateDialog';
 import { Skel } from './Skeleton';
 import { WA_ROUTES, fmtRelative, apiErrorMessage } from './wa-utils';
+import type { WaContact } from '../../types/whatsapp';
 
 interface Props {
   providerId: string;
@@ -18,6 +19,33 @@ interface Props {
 }
 
 const SOURCE_LABEL = { whatsapp_number: 'WhatsApp number', contact_number: 'Contact number', mobile_number: 'Owner mobile' } as const;
+
+const CONSENT_METHOD_LABEL: Record<string, string> = {
+  in_person: 'in person', phone_call: 'on a phone call', paper_form: 'on a paper form', whatsapp_chat: 'on WhatsApp', import_file: 'in the import sheet',
+};
+
+/** Where this contact's WhatsApp consent came from, in a sentence. */
+function consentOrigin(c: WaContact): string | null {
+  const day = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  const when = day(c.consentChangedAt);
+  switch (c.consentSource) {
+    case 'app_onboarding':
+    case 'app_prompt':
+    case 'app_settings':
+      return c.consent === 'opted_in' ? `The owner turned on WhatsApp alerts in the app on ${when}.` : `The owner turned off WhatsApp alerts in the app on ${when}.`;
+    case 'admin_recorded':
+    case 'bulk_import': {
+      const how = CONSENT_METHOD_LABEL[c.consentMethod ?? ''] ?? '';
+      return `Recorded by an admin${how ? ` (agreed ${how})` : ''} on ${when}. ${c.ownerConfirmedAt ? 'The owner confirmed in the app.' : 'The owner will be asked to confirm when they sign in.'}`;
+    }
+    case 'keyword':
+      return c.consent === 'opted_out' ? `Replied STOP on WhatsApp on ${when}.` : `Replied START on WhatsApp on ${when}.`;
+    case 'admin':
+      return `Changed by an admin on ${when}.`;
+    default:
+      return null;
+  }
+}
 
 /** "WhatsApp" card for ProviderView: contact state, phone candidates, last messages, send + open-in-inbox. */
 export function ProviderWhatsAppCard({ providerId, brandName, city }: Props) {
@@ -102,6 +130,9 @@ export function ProviderWhatsAppCard({ providerId, brandName, city }: Props) {
                         {contact.messagesSent} sent · last reply {fmtRelative(contact.lastInboundAt)}
                       </span>
                     </div>
+                    {consentOrigin(contact) && (
+                      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{consentOrigin(contact)}</p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Never messaged on WhatsApp. The first send creates the contact.</p>
