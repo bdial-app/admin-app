@@ -40,8 +40,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 /** Which sidebar page shows which count. */
 export const ATTENTION_ITEMS: AttentionItem[] = [
-  { path: ROUTES.MODERATION_QUEUE, label: 'Moderation queue', source: { kind: 'waiting', key: 'queue' }, tone: 'waiting',
-    describe: (n) => `${plural(n, 'item')} waiting for review` },
   { path: ROUTES.REGISTRATIONS, label: 'Verifications', source: { kind: 'waiting', key: 'verifications' }, tone: 'waiting',
     describe: (n) => `${plural(n, 'Aadhaar check')} waiting` },
   { path: ROUTES.REPORTS, label: 'Reports', source: { kind: 'waiting', key: 'reports' }, tone: 'waiting',
@@ -86,18 +84,4 @@ export function attentionCount(item: AttentionItem, data: Attention | undefined,
   if (s.kind === 'whatsapp') return waUnread ?? 0;
   if (!data) return 0;
   return s.kind === 'waiting' ? data.waiting[s.key] ?? 0 : data.fresh[s.key] ?? 0;
-}
-
-/** What makes up the moderation queue, in words. */
-export function queueBreakdown(w: Attention['waiting']): string {
-  const parts: [number, string, string][] = [
-    [w.providersInReview, 'business', 'businesses'],
-    [w.verifications, 'verification', 'verifications'],
-    [w.reports, 'report', 'reports'],
-    [w.flaggedReviews, 'flagged review', 'flagged reviews'],
-    [w.offers, 'deal', 'deals'],
-    [w.sponsorships, 'sponsorship', 'sponsorships'],
-    [w.bugReports, 'bug', 'bugs'],
-  ];
-  return parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`).join(' · ');
 }

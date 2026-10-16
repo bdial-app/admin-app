@@ -8,7 +8,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  ClipboardList, Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
+  Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -51,7 +51,6 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
   {
     label: 'Moderation',
     items: [
-      { name: 'Queue', path: ROUTES.MODERATION_QUEUE, icon: ClipboardList },
       { name: 'Verifications', path: ROUTES.REGISTRATIONS, icon: FileCheck },
       { name: 'Reviews', path: ROUTES.REVIEWS, icon: Star },
       { name: 'Google Reviews', path: ROUTES.GOOGLE_REVIEWS, icon: ShieldCheck },
@@ -130,8 +129,9 @@ const Sidebar = ({ collapsed, onToggle, onClose }: SidebarProps) => {
   );
   const freshItems = visibleAttention.filter((i) => i.source.kind === 'fresh');
   const freshTotal = freshItems.reduce((n, i) => n + attentionCount(i, attention, waUnread), 0);
-  const waitingTotal =
-    (attention?.waiting.queue ?? 0) + (attention?.waiting.womenLed ?? 0) + (waUnread ?? 0);
+  const waitingTotal = visibleAttention
+    .filter((i) => i.source.kind !== 'fresh')
+    .reduce((n, i) => n + attentionCount(i, attention, waUnread), 0);
 
   // Opening a page clears its "new" count — and leaving it does again, so
   // whatever arrived while you were on it doesn't show as new.

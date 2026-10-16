@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Phone, User, Store, Package, MapPin,
   CheckCircle, AlertCircle, Loader2, Plus, Trash2, Check,
-  Search, ChevronRight, Users, Upload, X, Image as ImageIcon, ShieldCheck,
+  Search, ChevronRight, Users, Upload, X, Image as ImageIcon, ShieldCheck, MessageCircle,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import LocationPicker, { type LocationData } from '../components/ui/LocationPicker';
@@ -13,7 +13,7 @@ import {
   useAdminSendOtp,
   useAdminVerifyOtp,
 } from '../hooks/useAdminCreate';
-import { adminCreateService } from '../services/admin-create.service';
+import { adminCreateService, WHATSAPP_CONSENT_METHOD_LABELS, type WhatsAppConsentMethod } from '../services/admin-create.service';
 import { useUsers } from '../hooks/useUsers';
 import { useCategoryTree } from '../hooks/useCategories';
 import IconByName from '../components/IconByName';
@@ -94,6 +94,9 @@ export default function CreateProviderFlow() {
   const [closeTime, setCloseTime] = useState('');
   const [isWomenLed, setIsWomenLed] = useState(false);
   const [communityVerified, setCommunityVerified] = useState(false);
+  // The owner agreed to WhatsApp alerts (told us in person, on a call…).
+  const [waConsent, setWaConsent] = useState(false);
+  const [waConsentMethod, setWaConsentMethod] = useState<WhatsAppConsentMethod | ''>('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
   const [expandedCategoryGroups, setExpandedCategoryGroups] = useState<Set<string>>(new Set());
@@ -280,7 +283,7 @@ export default function CreateProviderFlow() {
   const isUserStepValid = userMode === 'picker'
     ? !!selectedExistingUser && userName.trim().length > 0
     : mobileValid && userName.trim().length > 0 && !hasProvider && (skipUserOtp || userOtpVerified);
-  const isProviderStepValid = brandName.trim() && contactNumber.trim() && (skipBusinessOtp || bizOtpVerified);
+  const isProviderStepValid = brandName.trim() && contactNumber.trim() && (skipBusinessOtp || bizOtpVerified) && (!waConsent || waConsentMethod);
   const isLocationStepValid = city.trim();
 
   const stepIndex = STEPS.findIndex((s) => s.key === currentStep);
@@ -342,6 +345,7 @@ export default function CreateProviderFlow() {
         syncLocation,
         skipUserOtp,
         skipBusinessOtp,
+        whatsappConsentMethod: waConsent && waConsentMethod ? waConsentMethod : undefined,
       });
 
       // Upload product images — match by index (same order as submitted)
@@ -689,6 +693,40 @@ export default function CreateProviderFlow() {
                 </span>
               </span>
             </label>
+            <div className="rounded-lg p-3 mt-1" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+              <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={waConsent}
+                  onChange={(e) => { setWaConsent(e.target.checked); if (!e.target.checked) setWaConsentMethod(''); }}
+                  className="rounded mt-0.5"
+                />
+                <span>
+                  <span className="inline-flex items-center gap-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <MessageCircle className="w-3.5 h-3.5" style={{ color: '#25D366' }} /> The owner agreed to WhatsApp alerts from Tijarah
+                  </span>
+                  <span className="block mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    Customer enquiries, leads and their monthly report, on their business WhatsApp number. Tick only if they said yes. They'll be asked to confirm when they first sign in to the app.
+                  </span>
+                </span>
+              </label>
+              {waConsent && (
+                <div className="mt-2 pl-6">
+                  <label htmlFor="wa-consent-method" className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>How did they agree?</label>
+                  <select
+                    id="wa-consent-method"
+                    value={waConsentMethod}
+                    onChange={(e) => setWaConsentMethod(e.target.value as WhatsAppConsentMethod | '')}
+                    className="w-full max-w-xs px-3 py-2 text-sm rounded-lg focus-ring"
+                    style={{ ...inputStyle, borderColor: waConsentMethod ? undefined : 'var(--color-warning)' }}
+                  >
+                    <option value="">Choose…</option>
+                    {Object.entries(WHATSAPP_CONSENT_METHOD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  {!waConsentMethod && <p className="text-[11px] mt-1" style={{ color: 'var(--color-warning-dark)' }}>Choose how they agreed to continue.</p>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1024,6 +1062,7 @@ export default function CreateProviderFlow() {
               <div><span style={{ color: 'var(--text-muted)' }}>Status:</span> <span style={{ color: 'var(--text-primary)' }} className="capitalize">{providerStatus}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Verified:</span> <span style={{ color: communityVerified ? 'var(--color-success)' : 'var(--text-primary)' }}>{communityVerified ? 'Community verified' : 'Not verified'}</span></div>
               <div><span style={{ color: 'var(--text-muted)' }}>Women-led:</span> <span style={{ color: 'var(--text-primary)' }}>{isWomenLed ? 'Yes' : 'No'}</span></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>WhatsApp alerts:</span> <span style={{ color: waConsent ? 'var(--color-success)' : 'var(--text-primary)' }}>{waConsent && waConsentMethod ? `Agreed (${WHATSAPP_CONSENT_METHOD_LABELS[waConsentMethod as keyof typeof WHATSAPP_CONSENT_METHOD_LABELS].toLowerCase()})` : 'Not recorded'}</span></div>
               {openTime && <div><span style={{ color: 'var(--text-muted)' }}>Hours:</span> <span style={{ color: 'var(--text-primary)' }}>{openTime} – {closeTime}</span></div>}
               <div><span style={{ color: 'var(--text-muted)' }}>Biz OTP:</span> <span style={{ color: skipBusinessOtp ? 'var(--color-warning)' : 'var(--color-success)' }}>{skipBusinessOtp ? 'Skipped' : 'Verified'}</span></div>
               {catNames.length > 0 && (

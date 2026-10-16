@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, FileText, Users, Inbox, Settings, AlertTriangle, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, Megaphone, FileText, Users, Inbox, Settings, AlertTriangle, FlaskConical, Bot } from 'lucide-react';
+import { usePermissionChecker } from '../../hooks/usePermissions';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useWaSettings, useWaUnreadCount } from '../../hooks/useWhatsApp';
 import { ROUTES } from '../../utils/constants';
@@ -8,6 +9,7 @@ import { WA_ROUTES } from '../../components/whatsapp/wa-utils';
 const TABS = [
   { label: 'Overview', to: WA_ROUTES.root, end: true, icon: LayoutDashboard },
   { label: 'Campaigns', to: WA_ROUTES.campaigns, end: false, icon: Megaphone },
+  { label: 'Automations', to: WA_ROUTES.automations, end: false, icon: Bot, minRole: 'admin' as const },
   { label: 'Templates', to: WA_ROUTES.templates, end: false, icon: FileText },
   { label: 'Audience', to: WA_ROUTES.audience, end: false, icon: Users },
   { label: 'Inbox', to: WA_ROUTES.inbox, end: false, icon: Inbox },
@@ -17,6 +19,7 @@ const TABS = [
 export default function WhatsAppLayout() {
   const { data: unread } = useWaUnreadCount();
   const { data: settings } = useWaSettings();
+  const { minRole } = usePermissionChecker();
 
   const badge = settings && !settings.configured ? (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }}>
@@ -42,7 +45,7 @@ export default function WhatsAppLayout() {
         style={{ background: 'var(--surface-1)', scrollbarWidth: 'none' }}
         aria-label="WhatsApp sections"
       >
-        {TABS.map((t) => (
+        {TABS.filter((t) => !('minRole' in t) || !t.minRole || minRole(t.minRole)).map((t) => (
           <NavLink
             key={t.to}
             to={t.to}

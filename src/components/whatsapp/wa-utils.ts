@@ -20,6 +20,7 @@ import { ROUTES } from '../../utils/constants';
 export const WA_ROUTES = {
   root: ROUTES.WHATSAPP,
   campaigns: `${ROUTES.WHATSAPP}/campaigns`,
+  automations: `${ROUTES.WHATSAPP}/automations`,
   campaignNew: `${ROUTES.WHATSAPP}/campaigns/new`,
   campaign: (id: string) => `${ROUTES.WHATSAPP}/campaigns/${id}`,
   campaignEdit: (id: string) => `${ROUTES.WHATSAPP}/campaigns/${id}/edit`,

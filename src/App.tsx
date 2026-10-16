@@ -55,6 +55,7 @@ const ServiceableCitiesPage = lazy(() => import('./pages/ServiceableCities'));
 const WhatsAppLayout = lazy(() => import('./pages/whatsapp/WhatsAppLayout'));
 const WhatsAppOverview = lazy(() => import('./pages/whatsapp/WhatsAppOverview'));
 const WhatsAppCampaigns = lazy(() => import('./pages/whatsapp/Campaigns'));
+const WhatsAppAutomations = lazy(() => import('./pages/whatsapp/Automations'));
 const WhatsAppCampaignNew = lazy(() => import('./pages/whatsapp/CampaignNew'));
 const WhatsAppCampaignDetail = lazy(() => import('./pages/whatsapp/CampaignDetail'));
 const WhatsAppTemplates = lazy(() => import('./pages/whatsapp/Templates'));
@@ -129,6 +130,7 @@ function App() {
               <Route path="campaigns/new" element={<WhatsAppCampaignNew />} />
               <Route path="campaigns/:id/edit" element={<WhatsAppCampaignNew />} />
               <Route path="campaigns/:id" element={<WhatsAppCampaignDetail />} />
+              <Route path="automations" element={<RoleRoute minRole="admin"><WhatsAppAutomations /></RoleRoute>} />
               <Route path="templates" element={<WhatsAppTemplates />} />
               <Route path="templates/new" element={<WhatsAppTemplateEditor />} />
               <Route path="templates/:id" element={<WhatsAppTemplateEditor />} />
