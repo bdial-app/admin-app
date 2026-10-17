@@ -320,11 +320,16 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
                     </div>
                     {b.type === 'URL' && (
                       <div className="flex items-center gap-2 flex-wrap">
-                        <input value={b.url} readOnly={readOnly} onChange={(e) => setButton(i, { url: e.target.value })} placeholder="https://tijarah.app/provider-details?id=" className="flex-1 min-w-[200px] px-2.5 py-1.5 text-sm rounded-md font-mono focus-ring" style={INPUT_STYLE} />
+                        <input value={b.url} readOnly={readOnly} onChange={(e) => setButton(i, { url: e.target.value })} placeholder="https://uat.tijarahapp.in/b/" className="flex-1 min-w-[200px] px-2.5 py-1.5 text-sm rounded-md font-mono focus-ring" style={INPUT_STYLE} />
                         <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                           <input type="checkbox" checked={b.dynamic} disabled={readOnly} onChange={(e) => setButton(i, { dynamic: e.target.checked })} />
                           Dynamic suffix <code className="font-mono">{'{{1}}'}</code>
                         </label>
+                        {/provider-details|product-details|\/\/(www\.)?tijarahapp\.in\//.test(b.url) && (
+                          <p className="w-full text-[11px] leading-snug" style={{ color: 'var(--color-warning-dark)' }}>
+                            This opens the web app{/\/\/(www\.)?tijarahapp\.in\//.test(b.url) ? ' on tijarahapp.in, which isn\'t live yet' : ''}. To open the Tijarah app (or the App Store / Play Store when it isn&apos;t installed), use <code className="font-mono">https://uat.tijarahapp.in/b/</code> with the dynamic suffix (the business id).
+                          </p>
+                        )}
                       </div>
                     )}
                     {b.type === 'PHONE_NUMBER' && (

@@ -39,7 +39,11 @@ export default function Templates() {
   const onSeed = async () => {
     try {
       const r = await seed.mutateAsync();
-      toast.success(r.created ? `Added ${r.created} starter templates as drafts` : 'Starter templates already exist');
+      const parts = [
+        r.created ? `Added ${r.created} starter templates as drafts` : 'Starter templates already exist',
+        r.linksFixed ? `fixed the button links in ${r.linksFixed} drafts so they open the app` : '',
+      ].filter(Boolean);
+      toast.success(parts.join('; '));
     } catch (e) { toast.error(apiErrorMessage(e, 'Could not add starter templates')); }
   };
 

@@ -106,7 +106,7 @@ export const VARIABLE_SOURCES: VariableSourceOption[] = [
   { value: 'owner_name', label: 'Owner name', sample: 'Taaha', hint: 'users.name' },
   { value: 'city', label: 'City', sample: 'Hyderabad', hint: 'providers.city' },
   { value: 'category', label: 'Category', sample: 'Bakery', hint: 'first category name' },
-  { value: 'profile_url', label: 'Profile link', sample: 'https://tijarah.app/provider-details?id=…', hint: 'public listing URL' },
+  { value: 'profile_url', label: 'Profile link', sample: 'https://uat.tijarahapp.in/b/…', hint: 'opens the business in the app, or the app store' },
   { value: 'products_count', label: 'Products count', sample: '12', hint: 'number of products' },
   { value: 'visits_7d', label: 'Profile visits (7d)', sample: '48', hint: 'profile views, last 7 days' },
   { value: 'enquiries_7d', label: 'Enquiries (7d)', sample: '5', hint: 'enquiries received, last 7 days' },
