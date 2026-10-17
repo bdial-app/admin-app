@@ -110,7 +110,7 @@ export const whatsappService = {
     const { data } = await api.post(U.TEMPLATES_SYNC);
     return data;
   },
-  seedTemplates: async (): Promise<{ created: number }> => {
+  seedTemplates: async (): Promise<{ created: number; linksFixed?: number }> => {
     const { data } = await api.post(U.TEMPLATES_SEED);
     return data;
   },
