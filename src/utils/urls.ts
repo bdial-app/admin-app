@@ -288,6 +288,13 @@ export const URLS = {
     UPDATE: '/admin/feature-flags',
   },
 
+  LEGAL: {
+    LIST: '/admin/legal',
+    DOC: (slug: string) => `/admin/legal/${encodeURIComponent(slug)}`,
+    DRAFT: (slug: string) => `/admin/legal/${encodeURIComponent(slug)}/draft`,
+    PUBLISH: (slug: string) => `/admin/legal/${encodeURIComponent(slug)}/publish`,
+    USER: (userId: string) => `/admin/legal/users/${encodeURIComponent(userId)}`,
+  },
   APP_VERSION: {
     GET: '/admin/app-version',
     UPDATE: '/admin/app-version',
