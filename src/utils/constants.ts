@@ -30,6 +30,7 @@ export const ROUTES = {
   PHOTO_MODERATION: '/photo-moderation',
   FEATURE_FLAGS: '/feature-flags',
   APP_VERSIONS: '/app-versions',
+  LEGAL: '/legal',
   AUDIENCE: '/audience',
   MODERATION_QUEUE: '/moderation-queue',
   VOUCHERS: '/vouchers',

@@ -1530,6 +1530,7 @@ export default function BulkImportProviders() {
                     ['Gender', detailRow.fields.gender, undefined],
                     ['Women-led', detailRow.fields.isWomenLed ? 'Yes' : 'No', undefined],
                     ['WhatsApp alerts', detailRow.fields.whatsappConsent ? 'Agreed (from the sheet). They confirm when they sign in.' : 'Not recorded', undefined],
+                    ['Terms', 'The owner accepts the Terms and Business Listing Terms when they first sign in.', undefined],
                     ['Provider status', detailRow.fields.providerStatus, undefined],
                     ['Description', detailRow.fields.description, detailRow.notes.description],
                     ['Website', detailRow.fields.website, undefined],

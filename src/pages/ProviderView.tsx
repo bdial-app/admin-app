@@ -38,6 +38,7 @@ import { OfferEditPanel } from '../components/offers/OfferEditPanel';
 import { CreateDealPanel } from '../components/offers/CreateDealPanel';
 import { photoModerationService } from '../services/photo-moderation.service';
 import { ProviderWhatsAppCard } from '../components/whatsapp/ProviderWhatsAppCard';
+import { OwnerTermsStatus } from '../components/legal/OwnerTermsStatus';
 import { checkPickedFile } from '../utils/compress-image';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
@@ -889,6 +890,10 @@ export default function ProviderView() {
                     <div>
                       <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Owner Mobile</p>
                       <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-primary)' }}>{provider.user?.mobileNumber || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Terms</p>
+                      <OwnerTermsStatus userId={provider.userId} />
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Business Contact</p>
