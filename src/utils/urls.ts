@@ -288,6 +288,10 @@ export const URLS = {
     UPDATE: '/admin/feature-flags',
   },
 
+  STORAGE_BACKUP: {
+    STATUS: '/admin/storage-backup',
+    RUN: '/admin/storage-backup/run',
+  },
   LEGAL: {
     LIST: '/admin/legal',
     DOC: (slug: string) => `/admin/legal/${encodeURIComponent(slug)}`,

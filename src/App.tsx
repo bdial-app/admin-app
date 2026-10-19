@@ -43,6 +43,7 @@ const PhotoModeration = lazy(() => import('./pages/PhotoModeration'));
 const FeatureFlags = lazy(() => import('./pages/FeatureFlags'));
 const AppVersions = lazy(() => import('./pages/AppVersions'));
 const Legal = lazy(() => import('./pages/Legal'));
+const StorageBackup = lazy(() => import('./pages/StorageBackup'));
 const Audience = lazy(() => import('./pages/Audience'));
 const ModerationQueuePage = lazy(() => import('./pages/ModerationQueue'));
 const Vouchers = lazy(() => import('./pages/Vouchers'));
@@ -167,6 +168,7 @@ function App() {
             <Route path={ROUTES.FEATURE_FLAGS} element={<RoleRoute minRole="super_admin"><FeatureFlags /></RoleRoute>} />
             <Route path={ROUTES.APP_VERSIONS} element={<RoleRoute minRole="super_admin"><AppVersions /></RoleRoute>} />
             <Route path={ROUTES.LEGAL} element={<RoleRoute minRole="super_admin"><Legal /></RoleRoute>} />
+            <Route path={ROUTES.STORAGE_BACKUP} element={<RoleRoute minRole="super_admin"><StorageBackup /></RoleRoute>} />
 
             {/* Unauthorized */}
             <Route path="/unauthorized" element={<UnauthorizedPage />} />

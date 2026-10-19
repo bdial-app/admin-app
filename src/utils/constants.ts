@@ -31,6 +31,7 @@ export const ROUTES = {
   FEATURE_FLAGS: '/feature-flags',
   APP_VERSIONS: '/app-versions',
   LEGAL: '/legal',
+  STORAGE_BACKUP: '/storage-backup',
   AUDIENCE: '/audience',
   MODERATION_QUEUE: '/moderation-queue',
   VOUCHERS: '/vouchers',
