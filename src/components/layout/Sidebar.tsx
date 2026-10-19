@@ -6,7 +6,7 @@ import {
   ChevronLeft, AlertTriangle,
   Package, Image, Megaphone, Gift, Award,
   MessageSquare, BarChart3, ShieldAlert,
-  UserCog, FileText, Settings, Bell, Bug, Scale,
+  UserCog, FileText, Settings, Bell, Bug, Scale, DatabaseBackup,
   UserPlus, PlusCircle, Camera, ToggleLeft,
   Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
 } from 'lucide-react';
@@ -107,6 +107,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
       { name: 'Feature Flags', path: ROUTES.FEATURE_FLAGS, icon: ToggleLeft, minRole: 'super_admin' },
       { name: 'App Versions', path: ROUTES.APP_VERSIONS, icon: Smartphone, minRole: 'super_admin' },
       { name: 'Legal Documents', path: ROUTES.LEGAL, icon: Scale, minRole: 'super_admin' },
+      { name: 'Storage Backup', path: ROUTES.STORAGE_BACKUP, icon: DatabaseBackup, minRole: 'super_admin' },
       { name: 'Logs', path: ROUTES.LOGS, icon: FileText, minRole: 'admin' },
       { name: 'Settings', path: ROUTES.SETTINGS, icon: Settings, minRole: 'super_admin' },
     ],
