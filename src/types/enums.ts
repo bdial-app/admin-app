@@ -51,8 +51,16 @@ export type BulkActionType = 'activate' | 'deactivate' | 'delete' | 'suspend' | 
 export type ExportEntity = 'users' | 'providers' | 'products' | 'reviews' | 'reports';
 
 // ── Badge ────────────────────────────────────────────────
-export type BadgeType = 'gold_seller' | 'top_rated' | 'express_service' | 'trusted' | 'rising_star';
-export type BadgeSource = 'paid' | 'earned';
+/** Badges and their rules: bdial-service/src/badges/badge-catalog.ts. */
+export type BadgeType =
+  | 'tijarah_pick'
+  | 'top_rated'
+  | 'community_favourite'
+  | 'quick_responder'
+  | 'rising_star'
+  | 'full_catalogue';
+/** earned: worked out nightly from the business's numbers; curated: given by the team. */
+export type BadgeSource = 'earned' | 'curated';
 
 // ── Ad Event ─────────────────────────────────────────────
 export type AdEventType = 'impression' | 'click';

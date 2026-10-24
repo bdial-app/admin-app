@@ -1,49 +1,35 @@
 import api from './api';
-import { URLS } from '../utils/urls';
-import type { PaginatedResponse, ProviderBadge } from '../types';
+import type { BadgesOverview, BadgeRunSummary, BusinessBadges, PaginatedResponse, ProviderBadge } from '../types';
 
 export interface BadgeFilters {
   page?: number;
   limit?: number;
   type?: string;
-  isActive?: string;
+  search?: string;
+  /** "removed" lists badges taken away or ended; otherwise current holders. */
+  status?: 'current' | 'removed';
+}
+
+export interface AwardBadgeBody {
+  providerId: string;
+  type: 'tijarah_pick';
+  reason: string;
+  expiresAt?: string | null;
 }
 
 export const badgesService = {
-  list: async (filters: BadgeFilters = {}): Promise<PaginatedResponse<ProviderBadge>> => {
-    const params = new URLSearchParams();
-    if (filters.page) params.set('page', String(filters.page));
-    if (filters.limit) params.set('limit', String(filters.limit));
-    if (filters.type) params.set('type', filters.type);
-    if (filters.isActive) params.set('isActive', filters.isActive);
-    const { data } = await api.get(`${URLS.BADGES.LIST}?${params.toString()}`);
-    return {
-      items: data?.items ?? data?.data ?? [],
-      meta: data?.meta ?? {
-        total: data?.total ?? 0,
-        page: data?.page ?? filters.page ?? 1,
-        limit: data?.limit ?? filters.limit ?? 10,
-        totalPages: data?.totalPages ?? 1,
-      },
-    };
-  },
+  overview: async (): Promise<BadgesOverview> => (await api.get('/admin/badges/overview')).data,
 
-  getById: async (id: string): Promise<ProviderBadge> => {
-    const { data } = await api.get(`${URLS.BADGES.LIST}/${id}`);
-    return data;
-  },
+  list: async (f: BadgeFilters): Promise<PaginatedResponse<ProviderBadge>> =>
+    (await api.get('/admin/badges', { params: { ...f, status: f.status === 'removed' ? 'removed' : undefined } })).data,
 
-  create: async (body: { providerId: string; type: string; source?: string; expiresAt?: string }): Promise<ProviderBadge> => {
-    const { data } = await api.post(URLS.BADGES.CREATE, body);
-    return data;
-  },
+  forBusiness: async (providerId: string): Promise<BusinessBadges> =>
+    (await api.get(`/admin/badges/business/${providerId}`)).data,
 
-  update: async (id: string, body: { isActive?: boolean; expiresAt?: string | null }): Promise<ProviderBadge> => {
-    const { data } = await api.patch(URLS.BADGES.UPDATE(id), body);
-    return data;
-  },
+  award: async (body: AwardBadgeBody): Promise<ProviderBadge> => (await api.post('/admin/badges', body)).data,
 
-  delete: async (id: string): Promise<void> => {
-    await api.delete(URLS.BADGES.DELETE(id));
-  },
+  revoke: async (id: string): Promise<{ ok: boolean }> => (await api.delete(`/admin/badges/${id}`)).data,
+
+  recalculate: async (): Promise<BadgeRunSummary | { skipped: true }> =>
+    (await api.post('/admin/badges/recalculate')).data,
 };
