@@ -29,7 +29,7 @@ const formatPrice = (price: number | null | undefined) =>
 
 export default function Products() {
   const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(PRODUCT_FILTER_KEYS);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [pickedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [view, setView] = useState<'catalogue' | 'analytics'>('catalogue');
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
@@ -42,6 +42,8 @@ export default function Products() {
     limit: LIMIT,
     search: search || undefined,
   });
+  // The open product, always as the list has it now (refreshed after saves).
+  const selectedProduct = pickedProduct ? (data?.items?.find((p) => p.id === pickedProduct.id) ?? pickedProduct) : null;
   const { data: filterOptions } = useProductFilterOptions();
   const navigate = useNavigate();
   // Category names from the filter options already loaded for the filter bar.

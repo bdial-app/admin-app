@@ -49,14 +49,16 @@ export function ProductEditPanel({
   const [form, setForm] = useState<ProductFormValues>(() =>
     product ? { ...formOf(product), providerName: product.provider?.brandName ?? businessName ?? '' } : formOf({} as Product),
   );
-  const [gallery, setGallery] = useState<GalleryItem[]>(() => (product?.photoUrls ?? []).map((url) => ({ key: url, url })));
+  // Older products may only have the single main photo (photoUrl).
+  const savedPhotos = product?.photoUrls?.length ? product.photoUrls : product?.photoUrl ? [product.photoUrl] : [];
+  const [gallery, setGallery] = useState<GalleryItem[]>(() => savedPhotos.map((url) => ({ key: url, url })));
   const [saving, setSaving] = useState<string | null>(null);
   const [confirmRemoval, setConfirmRemoval] = useState(false);
 
   if (!product) return null;
 
   /** Photos that saving will delete (saved ones no longer in the gallery). */
-  const photosToRemove = (product.photoUrls ?? []).filter((u) => !gallery.some((g) => !g.file && g.url === u));
+  const photosToRemove = savedPhotos.filter((u) => !gallery.some((g) => !g.file && g.url === u));
 
   const close = () => {
     // Free the previews of photos picked but never saved.
@@ -91,15 +93,21 @@ export function ProductEditPanel({
     const id = product.id;
     try {
       if (photosToRemove.length) setSaving('Removing photos…');
-      let current = product.photoUrls ?? [];
-      for (const url of photosToRemove) current = (await productsService.deleteImage(id, url)).photoUrls ?? [];
+      // Only photos in the product's list can be deleted on the server; an older
+      // single main photo is simply left out of the list saved below.
+      for (const url of photosToRemove) {
+        if (product.photoUrls?.includes(url)) await productsService.deleteImage(id, url);
+      }
 
       const files = gallery.filter((g) => g.file).map((g) => g.file as File);
       let uploaded: string[] = [];
       if (files.length) {
         setSaving(`Uploading ${files.length} photo${files.length === 1 ? '' : 's'}…`);
-        const before = new Set(current);
-        uploaded = ((await productsService.uploadImages(id, files)).photoUrls ?? []).filter((u) => !before.has(u));
+        // The server adds the new photos to the end, in the order sent. Taking
+        // them from the end (not "what we didn't have before") stays right even
+        // if this form opened on an out-of-date copy of the product.
+        const after = (await productsService.uploadImages(id, files)).photoUrls ?? [];
+        uploaded = after.slice(Math.max(0, after.length - files.length));
       }
       let next = 0;
       const photoUrls = gallery.map((g) => (g.file ? uploaded[next++] : g.url)).filter((u): u is string => !!u);
