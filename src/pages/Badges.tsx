@@ -1,314 +1,313 @@
 import { useState } from 'react';
-import { Plus, Eye, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { Award, Loader2, RefreshCw, Sparkles, Store, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
-import { DetailPanel } from '../components/ui/DetailPanel';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import StatusBadge from '../components/ui/StatusBadge';
-import { FormField } from '../components/ui/FormField';
-import { useBadges, useCreateBadge, useUpdateBadge, useDeleteBadge } from '../hooks/useBadges';
+import { AwardBadgeDialog } from '../components/badges/AwardBadgeDialog';
+import { badgeStyle } from '../components/badges/badge-style';
+import { useBadges, useBadgesOverview, useRecalculateBadges, useRevokeBadge } from '../hooks/useBadges';
+import { useHasPermission } from '../hooks/usePermissions';
+import { apiErrorMessage } from '../components/whatsapp/wa-utils';
 import { ROUTES } from '../utils/constants';
-import { toast } from 'react-toastify';
-import type { ProviderBadge, BadgeType } from '../types';
+import type { BadgeDefinition, ProviderBadge } from '../types';
 
-const LIMIT = 10;
-
-const BADGE_TYPES: { label: string; value: BadgeType }[] = [
-  { label: 'Gold Seller', value: 'gold_seller' },
-  { label: 'Top Rated', value: 'top_rated' },
-  { label: 'Express Service', value: 'express_service' },
-  { label: 'Trusted', value: 'trusted' },
-  { label: 'Rising Star', value: 'rising_star' },
-];
-
-const BADGE_EMOJI: Record<string, string> = {
-  gold_seller: '🥇',
-  top_rated: '⭐',
-  express_service: '⚡',
-  trusted: '✅',
-  rising_star: '🌟',
+const LIMIT = 20;
+const fmtDate = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const ago = (iso: string) => {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const h = Math.round(mins / 60);
+  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} d ago`;
 };
 
-const TYPE_TABS = [
-  { label: 'All', value: '' },
-  ...BADGE_TYPES.map(b => ({ label: b.label, value: b.value })),
-];
+function BadgeMark({ type, size = 'md' }: { type: string; size?: 'sm' | 'md' }) {
+  const { icon: Icon, color } = badgeStyle(type);
+  const box = size === 'sm' ? 'w-6 h-6 rounded-md' : 'w-10 h-10 rounded-xl';
+  return (
+    <span className={`${box} inline-flex items-center justify-center text-white shrink-0`} style={{ background: color }}>
+      <Icon className={size === 'sm' ? 'w-3.5 h-3.5' : 'w-5 h-5'} />
+    </span>
+  );
+}
 
-const formatDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+/** One badge: what it says, its rule, and how many hold it. Click to list them. */
+function BadgeCard({ badge, active, onClick }: { badge: BadgeDefinition; active: boolean; onClick: () => void }) {
+  const { color } = badgeStyle(badge.key);
+  return (
+    <button
+      onClick={onClick}
+      className="text-left p-4 rounded-xl transition-all hover:-translate-y-0.5"
+      style={{
+        background: 'var(--surface-0)',
+        border: `1px solid ${active ? color : 'var(--border-default)'}`,
+        boxShadow: active ? `0 0 0 3px color-mix(in srgb, ${color} 18%, transparent)` : 'none',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <BadgeMark type={badge.key} />
+        <div className="text-right">
+          <p className="text-2xl font-bold tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>{badge.holders}</p>
+          <p className="text-[10px] uppercase font-semibold mt-1" style={{ color: 'var(--text-muted)' }}>
+            {badge.holders === 1 ? 'business' : 'businesses'}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-3">
+        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{badge.label}</p>
+        <span
+          className="px-1.5 py-px rounded text-[9px] font-bold uppercase"
+          style={badge.kind === 'curated' ? { background: '#4f46e51a', color: '#4f46e5' } : { background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+        >
+          {badge.kind === 'curated' ? 'By the team' : 'Automatic'}
+        </span>
+      </div>
+      <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{badge.meaning}</p>
+      <p className="text-[11px] mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{badge.rule}</p>
+    </button>
+  );
+}
 
+/**
+ * Badges: every badge with its rule and holders, the businesses holding them,
+ * giving and taking back the team's Tijarah Pick, and recalculating the
+ * automatic ones (they also update every night).
+ */
 export default function Badges() {
-  const [page, setPage] = useState(1);
+  const canEdit = useHasPermission('providers.update');
   const [type, setType] = useState('');
-  const [selected, setSelected] = useState<ProviderBadge | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<ProviderBadge | null>(null);
-  const [form, setForm] = useState({ providerId: '', type: 'gold_seller' as string, source: 'earned' as string, expiresAt: '' });
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<'current' | 'removed'>('current');
+  const [page, setPage] = useState(1);
+  const [awarding, setAwarding] = useState(false);
+  const [revoking, setRevoking] = useState<ProviderBadge | null>(null);
 
-  const { data, isLoading } = useBadges({ page, limit: LIMIT, type: type || undefined });
-  const createMutation = useCreateBadge();
-  const updateMutation = useUpdateBadge();
-  const deleteMutation = useDeleteBadge();
+  const { data: overview, isLoading: overviewLoading } = useBadgesOverview();
+  const { data, isLoading } = useBadges({ page, limit: LIMIT, type: type || undefined, search: search || undefined, status });
+  const recalc = useRecalculateBadges();
+  const revoke = useRevokeBadge();
 
-  const openCreate = () => {
-    setForm({ providerId: '', type: 'gold_seller', source: 'earned', expiresAt: '' });
-    setCreating(true);
-    setSelected(null);
-  };
-
-  const handleCreate = async () => {
-    if (!form.providerId.trim()) { toast.error('Provider ID is required'); return; }
+  const runNow = async () => {
     try {
-      await createMutation.mutateAsync({
-        providerId: form.providerId,
-        type: form.type,
-        source: form.source,
-        expiresAt: form.expiresAt || undefined,
-      });
-      toast.success('Badge awarded');
-      setCreating(false);
-    } catch {
-      toast.error('Failed to award badge');
+      const r = await recalc.mutateAsync();
+      if ('skipped' in r) {
+        toast.info('A recalculation is already running — try again in a minute');
+        return;
+      }
+      const added = Object.values(r.added).reduce((a, b) => a + b, 0);
+      const removed = Object.values(r.removed).reduce((a, b) => a + b, 0);
+      toast.success(`Badges checked: ${added} given, ${removed} taken away`);
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not recalculate'));
     }
   };
 
-  const handleToggleActive = async (badge: ProviderBadge) => {
+  const doRevoke = async () => {
+    if (!revoking) return;
     try {
-      await updateMutation.mutateAsync({ id: badge.id, body: { isActive: !badge.isActive } });
-      toast.success(badge.isActive ? 'Badge deactivated' : 'Badge activated');
-    } catch {
-      toast.error('Failed to update badge');
+      await revoke.mutateAsync(revoking.id);
+      toast.success(`Took back Tijarah Pick from ${revoking.provider?.brandName ?? 'the business'}`);
+      setRevoking(null);
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not take it back'));
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
-    try {
-      await deleteMutation.mutateAsync(confirmDelete.id);
-      toast.success('Badge revoked');
-      setConfirmDelete(null);
-      setSelected(null);
-    } catch {
-      toast.error('Failed to revoke badge');
-    }
+  const pick = (key: string) => {
+    setType((t) => (t === key ? '' : key));
+    setPage(1);
   };
 
   const columns: Column<ProviderBadge>[] = [
     {
+      key: 'business',
+      header: 'Business',
+      render: (row) => (
+        <Link to={`/providers/${row.providerId}`} className="flex items-center gap-3 min-w-0 group">
+          {row.provider?.profilePhotoUrl ? (
+            <img src={row.provider.profilePhotoUrl} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+          ) : (
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+              <Store className="w-4 h-4" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate group-hover:underline" style={{ color: 'var(--text-primary)' }}>
+              {row.provider?.brandName ?? row.providerId.slice(0, 8)}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+              {[row.provider?.area, row.provider?.city].filter(Boolean).join(', ') || '—'}
+            </p>
+          </div>
+        </Link>
+      ),
+    },
+    {
       key: 'badge',
       header: 'Badge',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg" style={{ background: 'var(--color-warning-light)' }}>
-            {BADGE_EMOJI[row.type] || '🏅'}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>
-              {row.type.replace(/_/g, ' ')}
-            </p>
-            <p className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>{row.source}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'provider',
-      header: 'Provider',
-      render: (row) => (
-        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-          {row.provider?.brandName || row.providerId.slice(0, 8)}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
       render: (row) => {
-        const isExpired = row.expiresAt && new Date(row.expiresAt) < new Date();
-        if (!row.isActive) return <StatusBadge status="disabled" />;
-        if (isExpired) return <StatusBadge status="expired" />;
-        return <StatusBadge status="active" />;
+        const label = overview?.badges.find((b) => b.key === row.type)?.label ?? row.type;
+        return (
+          <span className="inline-flex items-center gap-2">
+            <BadgeMark type={row.type} size="sm" />
+            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
+          </span>
+        );
       },
     },
     {
-      key: 'expires',
-      header: 'Expires',
-      render: (row) => (
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {row.expiresAt ? formatDate(row.expiresAt) : 'Never'}
-        </span>
-      ),
+      key: 'why',
+      header: 'Why',
+      render: (row) =>
+        row.source === 'curated' ? (
+          <p className="text-xs max-w-xs line-clamp-2" style={{ color: 'var(--text-secondary)' }} title={row.reason ?? ''}>
+            {row.reason ? `“${row.reason}”` : 'Given by the team'}
+          </p>
+        ) : (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Meets the rule</span>
+        ),
     },
     {
-      key: 'created',
-      header: 'Awarded',
+      key: 'since',
+      header: status === 'removed' ? 'Ended' : 'Since',
       render: (row) => (
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(row.createdAt)}</span>
+        <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <p>{fmtDate(status === 'removed' ? row.updatedAt : row.createdAt)}</p>
+          {status === 'current' && row.expiresAt && <p style={{ color: 'var(--text-muted)' }}>until {fmtDate(row.expiresAt)}</p>}
+        </div>
       ),
     },
     {
       key: 'actions',
       header: '',
-      className: 'w-20',
-      render: (row) => (
-        <div className="flex items-center gap-1">
+      render: (row) =>
+        canEdit && status === 'current' && row.source === 'curated' ? (
           <button
-            onClick={(e) => { e.stopPropagation(); setSelected(row); }}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRevoking(row);
+            }}
+            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80"
+            style={{ color: 'var(--color-danger)', background: 'var(--surface-2)' }}
           >
-            <Eye className="w-4 h-4" />
+            <X className="w-3 h-3" /> Take back
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setConfirmDelete(row); }}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: 'var(--color-danger)' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-danger-light)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-            title="Revoke"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ),
+        ) : null,
     },
   ];
+
+  const lastRun = overview?.lastRun;
 
   return (
     <div>
       <PageHeader
-        title="Provider Badges"
-        description="Manage badges awarded to providers"
+        title="Badges"
+        description="What each badge means, who holds it, and the team’s Tijarah Picks. Automatic badges follow their rules and update every night."
         breadcrumbs={[{ label: 'Dashboard', path: ROUTES.DASHBOARD }, { label: 'Badges' }]}
         actions={
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg" style={{ background: 'var(--color-primary)' }}>
-            <Plus className="w-4 h-4" /> Award Badge
-          </button>
+          canEdit ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={runNow}
+                disabled={recalc.isPending}
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg disabled:opacity-50"
+                style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
+              >
+                {recalc.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Recalculate now
+              </button>
+              <button
+                onClick={() => setAwarding(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg"
+                style={{ background: '#4f46e5' }}
+              >
+                <Award className="w-4 h-4" /> Give Tijarah Pick
+              </button>
+            </div>
+          ) : undefined
         }
       />
 
-      {/* Type Tabs */}
-      <div className="flex gap-1 mb-4 p-1 rounded-lg w-fit overflow-x-auto" style={{ background: 'var(--surface-1)' }}>
-        {TYPE_TABS.map((tab) => (
-          <button key={tab.value} onClick={() => { setType(tab.value); setPage(1); }} className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap" style={{
-            background: type === tab.value ? 'var(--surface-0)' : 'transparent',
-            color: type === tab.value ? 'var(--text-primary)' : 'var(--text-muted)',
-            boxShadow: type === tab.value ? 'var(--shadow-sm)' : 'none',
-          }}>
-            {tab.value ? `${BADGE_EMOJI[tab.value] || ''} ${tab.label}` : tab.label}
-          </button>
-        ))}
+      <p className="flex items-center gap-1.5 text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+        <Sparkles className="w-3.5 h-3.5" />
+        {lastRun
+          ? `Automatic badges last checked ${ago(lastRun.at)} — next check tonight at 2:15 AM.`
+          : 'Automatic badges are checked every night at 2:15 AM. Recalculate now to see them today.'}
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+        {overviewLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-44 rounded-xl animate-pulse" style={{ background: 'var(--surface-1)' }} />
+            ))
+          : overview?.badges.map((b) => <BadgeCard key={b.key} badge={b} active={type === b.key} onClick={() => pick(b.key)} />)}
       </div>
 
-      <DataTable<ProviderBadge>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {type ? `${overview?.badges.find((b) => b.key === type)?.label ?? type} holders` : 'All badge holders'}
+          {type && (
+            <button onClick={() => pick(type)} className="ml-2 text-xs font-medium" style={{ color: 'var(--color-primary)' }}>
+              Show all
+            </button>
+          )}
+        </h2>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
+          {(['current', 'removed'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setStatus(s);
+                setPage(1);
+              }}
+              className="px-3 py-1.5 text-xs font-medium rounded-md"
+              style={{
+                background: status === s ? 'var(--surface-0)' : 'transparent',
+                color: status === s ? 'var(--text-primary)' : 'var(--text-muted)',
+                boxShadow: status === s ? 'var(--shadow-sm)' : 'none',
+              }}
+            >
+              {s === 'current' ? 'Holding now' : 'Taken away or ended'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <DataTable
         columns={columns}
         data={data?.items ?? []}
         meta={data?.meta}
         isLoading={isLoading}
         onPageChange={setPage}
-        rowKey={(r) => r.id}
-        onRowClick={setSelected}
+        onSearch={(q) => {
+          setSearch(q);
+          setPage(1);
+        }}
+        searchValue={search}
+        searchPlaceholder="Search a business…"
+        rowKey={(row) => row.id}
+        emptyIcon={<Award className="w-10 h-10" />}
+        emptyTitle={status === 'removed' ? 'Nothing taken away yet' : type ? 'No business holds this badge yet' : 'No badges yet'}
+        emptyDescription={
+          status === 'removed'
+            ? 'Badges a business stops qualifying for, and Tijarah Picks that end, appear here.'
+            : 'Automatic badges appear after the nightly check (or Recalculate now). Tijarah Picks appear when the team gives one.'
+        }
       />
 
-      {/* Badge Detail */}
-      <DetailPanel
-        open={!!selected && !creating}
-        onClose={() => setSelected(null)}
-        title="Badge Details"
-        subtitle={selected ? selected.type.replace(/_/g, ' ') : undefined}
-        actions={
-          selected ? (
-            <div className="flex gap-2">
-              <button onClick={() => handleToggleActive(selected)} className="px-3 py-1.5 text-sm font-medium rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}>
-                {selected.isActive ? 'Deactivate' : 'Activate'}
-              </button>
-              <button onClick={() => setConfirmDelete(selected)} className="px-3 py-1.5 text-sm font-medium rounded-lg text-white" style={{ background: 'var(--color-danger)' }}>Revoke</button>
-            </div>
-          ) : undefined
-        }
-      >
-        {selected && (
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              <span className="text-5xl">{BADGE_EMOJI[selected.type] || '🏅'}</span>
-              <p className="text-lg font-bold capitalize mt-2" style={{ color: 'var(--text-primary)' }}>
-                {selected.type.replace(/_/g, ' ')}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Provider', value: selected.provider?.brandName || selected.providerId.slice(0, 8) },
-                { label: 'Source', value: selected.source },
-                { label: 'Expires', value: selected.expiresAt ? formatDate(selected.expiresAt) : 'Never' },
-                { label: 'Awarded', value: formatDate(selected.createdAt) },
-              ].map((field) => (
-                <div key={field.label} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                  <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>{field.label}</p>
-                  <p className="text-sm font-medium mt-0.5 truncate capitalize" style={{ color: 'var(--text-primary)' }}>{field.value}</p>
-                </div>
-              ))}
-              <div className="p-2.5 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-                <p className="text-[10px] font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Status</p>
-                <div className="mt-1">
-                  {(() => {
-                    const isExpired = selected.expiresAt && new Date(selected.expiresAt) < new Date();
-                    if (!selected.isActive) return <StatusBadge status="disabled" />;
-                    if (isExpired) return <StatusBadge status="expired" />;
-                    return <StatusBadge status="active" />;
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </DetailPanel>
-
-      {/* Create Form */}
-      <DetailPanel
-        open={creating}
-        onClose={() => setCreating(false)}
-        title="Award Badge"
-        actions={
-          <button onClick={handleCreate} disabled={createMutation.isPending} className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-            {createMutation.isPending ? 'Awarding…' : 'Award'}
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          <FormField label="Provider ID" required>
-            <input type="text" value={form.providerId} onChange={(e) => setForm(prev => ({ ...prev, providerId: e.target.value }))} placeholder="Enter provider UUID" className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
-          </FormField>
-          <FormField label="Badge Type" required>
-            <select value={form.type} onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}>
-              {BADGE_TYPES.map((bt) => (
-                <option key={bt.value} value={bt.value}>{BADGE_EMOJI[bt.value]} {bt.label}</option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Source">
-            <select value={form.source} onChange={(e) => setForm(prev => ({ ...prev, source: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}>
-              <option value="earned">Earned</option>
-              <option value="paid">Paid</option>
-            </select>
-          </FormField>
-          <FormField label="Expires At">
-            <input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm(prev => ({ ...prev, expiresAt: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border" style={{ background: 'var(--surface-0)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }} />
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Leave empty for permanent badge</p>
-          </FormField>
-        </div>
-      </DetailPanel>
+      {awarding && <AwardBadgeDialog open onClose={() => setAwarding(false)} />}
 
       <ConfirmDialog
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={handleDelete}
-        title="Revoke Badge"
-        description={`Are you sure you want to permanently revoke this "${confirmDelete?.type.replace(/_/g, ' ')}" badge? This action cannot be undone.`}
-        confirmLabel="Revoke"
+        open={!!revoking}
+        onClose={() => setRevoking(null)}
+        onConfirm={doRevoke}
+        isLoading={revoke.isPending}
+        title="Take back Tijarah Pick?"
+        description={`${revoking?.provider?.brandName ?? 'This business'} stops showing the badge straight away. It stays in the history below.`}
+        confirmLabel="Take back"
         variant="danger"
-        isLoading={deleteMutation.isPending}
       />
     </div>
   );
