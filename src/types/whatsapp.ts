@@ -18,7 +18,7 @@ export type WaSkipReason =
 
 export type VariableSource =
   | 'brand_name' | 'owner_name' | 'city' | 'category' | 'profile_url' | 'business_link'
-  | 'products_count' | 'visits_7d' | 'enquiries_7d' | 'app_download_url' | 'custom';
+  | 'products_count' | 'visits_7d' | 'enquiries_7d' | 'app_download_url' | 'app_link' | 'custom';
 
 // ── Template components (Meta format) ────────────────────
 export interface WaHeaderComponent {
@@ -53,6 +53,8 @@ export interface WaTemplateVariable {
   label: string;
   source: VariableSource;
   sample: string;
+  /** app_link buttons: the app screen the link opens (see APP_SCREENS). */
+  target?: string;
 }
 
 export interface WaTemplate {

@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Users, FileText, CalendarClock, ClipboardCheck, ChevronLeft, ChevronRight, Save, Send, Loader2,
-  FlaskConical, AlertTriangle, Check, Clock, Zap,
+  FlaskConical, AlertTriangle, Check, Clock, Zap, Smartphone,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -19,15 +19,19 @@ import { WaPhonePreview } from '../../components/whatsapp/WaPhonePreview';
 import { CostHint } from '../../components/whatsapp/CostHint';
 import { Skel } from '../../components/whatsapp/Skeleton';
 import { useNow } from '../../components/whatsapp/useNow';
+import { ProviderPicker, type PickedProvider } from '../../components/ui/ProviderPicker';
 import { API_BASE_URL } from '../../utils/constants';
 import {
   WA_ROUTES, DEFAULT_AUDIENCE, GST_RATE, formatInr, rateFor, getHeader, getBody, getButtons, extractVariableIndexes,
   resolveMappingValues, resolveSourceValue, summarizeFilters, apiErrorMessage, toLocalInputValue, estimateMinutes, humanMinutes,
   VARIABLE_SOURCES, CATEGORY_LABEL, INPUT_CLASS, INPUT_STYLE,
+  isSmartLinkUrl, APP_SCREENS, appScreenLabel, businessScreen, pickedBusinessId, needsBusiness,
 } from '../../components/whatsapp/wa-utils';
 import type {
-  AudienceFilters, WaAudiencePreview, WaCampaign, WaCampaignPayload, WaTemplate, WaVariableMapping, WaButtonUrlParams, VariableSource, WaHeaderMediaSource,
+  AudienceFilters, WaAudiencePreview, WaCampaign, WaCampaignPayload, WaTemplate, WaVariableMapping, WaButtonUrlParams, VariableSource, WaHeaderMediaSource, WaButton,
 } from '../../types';
+
+const linkUrl = (b: WaButton | undefined) => (b?.type === 'URL' ? b.url : '');
 
 /** Variable sources a customer (no business) has no value for. */
 const BUSINESS_ONLY = new Set<string | undefined>(['brand_name', 'category', 'profile_url', 'business_link', 'products_count', 'visits_7d', 'enquiries_7d']);
@@ -101,6 +105,8 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
   const [savedId, setSavedId] = useState<string | null>(existing?.id ?? null);
   const [preview, setPreview] = useState<WaAudiencePreview | undefined>(undefined);
   const [hovered, setHovered] = useState<WaTemplate | null>(null);
+  // The business a "business page" link points to (its name, for the picker).
+  const [pickedBusiness, setPickedBusiness] = useState<PickedProvider | null>(null);
   const [testPhone, setTestPhone] = useState('');
   const [confirm, setConfirm] = useState(false);
 
@@ -130,6 +136,14 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
     .map((b, i) => ({ b, i }))
     .filter(({ b }) => b.type === 'URL' && /\{\{\s*1\s*\}\}/.test(b.url));
   const indexes = extractVariableIndexes(getBody(template?.components)?.text ?? '');
+  // Smart links (…/go?c={{1}}): the screen the template opens, unless this campaign picks another.
+  const templateLinkTarget = template?.variables.find((v) => v.location === 'button' && v.source === 'app_link')?.target ?? '/';
+  const linkTargetFor = (i: number) => {
+    const e = form.buttonUrlParams[String(i)];
+    return e?.source === 'app_link' && e.value ? e.value : templateLinkTarget;
+  };
+  const setLinkTarget = (i: number, target: string) =>
+    patch({ buttonUrlParams: { ...form.buttonUrlParams, [String(i)]: { source: 'app_link' as VariableSource, value: target } } });
   const sample = preview?.sample?.[0] ?? null;
   // The same card WhatsApp will fetch for the sample business.
   const headerPreviewUrl =
@@ -152,14 +166,15 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
   const buttonValues: Record<string, string> = {};
   for (const { i } of urlButtons) {
     const e = form.buttonUrlParams[String(i)];
-    buttonValues[String(i)] = e ? resolveSourceValue(e.source, e.value, sample) : '';
+    buttonValues[String(i)] = isSmartLinkUrl(linkUrl(urlButtons.find((u) => u.i === i)?.b)) ? 'k3m9q2xw7a' : e ? resolveSourceValue(e.source, e.value, sample) : '';
   }
 
   const mappingComplete = indexes.every((i) => {
     const e = fullMapping[String(i)];
     return e && (e.source !== 'custom' || (e.value ?? '').trim());
   });
-  const buttonsComplete = urlButtons.every(({ i }) => {
+  const buttonsComplete = urlButtons.every(({ i, b }) => {
+    if (isSmartLinkUrl(linkUrl(b))) return !needsBusiness(linkTargetFor(i));
     const e = form.buttonUrlParams[String(i)];
     return e && (e.source !== 'custom' || (e.value ?? '').trim());
   });
@@ -168,7 +183,7 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
   const reachesCustomers = (preview?.byKind?.customer ?? 0) > 0;
   const businessOnlyFields = [
     ...indexes.filter((i) => BUSINESS_ONLY.has(fullMapping[String(i)]?.source)).map((i) => `{{${i}}}`),
-    ...urlButtons.filter(({ i }) => BUSINESS_ONLY.has(form.buttonUrlParams[String(i)]?.source ?? 'profile_url')).map(({ b }) => `the “${b.text}” button`),
+    ...urlButtons.filter(({ i, b }) => !isSmartLinkUrl(linkUrl(b)) && BUSINESS_ONLY.has(form.buttonUrlParams[String(i)]?.source ?? 'profile_url')).map(({ b }) => `the “${b.text}” button`),
   ];
   const customerConflict = reachesCustomers && businessOnlyFields.length > 0;
 
@@ -367,10 +382,62 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
 
                     {urlButtons.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Button link parameters</h3>
-                        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>These URL buttons end in <code>{'{{1}}'}</code>; choose what fills the suffix.</p>
+                        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Button links</h3>
+                        <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                          {urlButtons.every(({ b }) => isSmartLinkUrl(linkUrl(b))) ? 'Choose the app screen each button opens.' : <>These URL buttons end in <code>{'{{1}}'}</code>; choose what fills it.</>}
+                        </p>
                         <div className="space-y-2">
                           {urlButtons.map(({ b, i }) => {
+                            if (isSmartLinkUrl(linkUrl(b))) {
+                              const target = linkTargetFor(i);
+                              const pickedId = pickedBusinessId(target);
+                              const choosingBusiness = needsBusiness(target) || !!pickedId;
+                              const ownerScreen = target.includes('mode=provider');
+                              return (
+                                <div key={i} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--surface-1)' }}>
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <div className="sm:w-56 min-w-0">
+                                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{b.text}</p>
+                                      <p className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Smartphone className="w-3 h-3" /> Opens in the app</p>
+                                    </div>
+                                    <select
+                                      value={choosingBusiness ? '/provider-details?id={business_id}&mode=customer' : target}
+                                      onChange={(ev) => setLinkTarget(i, ev.target.value)}
+                                      aria-label={`Screen the “${b.text}” button opens`}
+                                      className={INPUT_CLASS}
+                                      style={INPUT_STYLE}
+                                    >
+                                      {!choosingBusiness && !APP_SCREENS.some((x) => x.target === target) && <option value={target}>{appScreenLabel(target)}</option>}
+                                      {(['Business owners', 'Customers', 'Anyone'] as const).map((g) => (
+                                        <optgroup key={g} label={g}>
+                                          {APP_SCREENS.filter((x) => x.group === g).map((x) => (
+                                            <option key={x.target} value={x.target}>{x.label}{x.target === templateLinkTarget ? ' (template’s default)' : ''}</option>
+                                          ))}
+                                        </optgroup>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  {choosingBusiness && (
+                                    <div className="sm:pl-58">
+                                      <ProviderPicker
+                                        value={pickedId ? (pickedBusiness?.id === pickedId ? pickedBusiness : { id: pickedId, name: 'Chosen business' }) : null}
+                                        onChange={(p: PickedProvider | null) => {
+                                          setPickedBusiness(p);
+                                          setLinkTarget(i, p ? businessScreen(p.id) : '/provider-details?id={business_id}&mode=customer');
+                                        }}
+                                        placeholder="Which business does this message point to?"
+                                        invalid={!pickedId}
+                                      />
+                                    </div>
+                                  )}
+                                  <p className="text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                                    Each person gets their own link: it opens this screen in the Tijarah app, or the App Store / Google Play when the app isn’t installed, then this screen after they sign in.
+                                    {target.includes('{provider_id}') && ' Each owner’s own business is filled in.'}
+                                    {ownerScreen && reachesCustomers && ' Customers in this audience get the home screen instead, since this is an owner screen.'}
+                                  </p>
+                                </div>
+                              );
+                            }
                             const e = form.buttonUrlParams[String(i)] ?? { source: 'profile_url' as VariableSource };
                             return (
                               <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--surface-1)' }}>
@@ -528,7 +595,7 @@ function CampaignWizard({ existing, defaultRate }: { existing: WaCampaign | null
           )}
           {step === 1 && !stepValid[1] && template && (
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
-              {!mappingComplete ? 'Fill every variable' : !buttonsComplete ? 'Map the button link' : 'Header image URL required'}
+              {!mappingComplete ? 'Fill every variable' : !buttonsComplete ? 'Choose where the button link goes' : 'Header image URL required'}
             </span>
           )}
           {step < 3 ? (

@@ -115,7 +115,10 @@ export default function ProviderView() {
   const linkedProductId = searchParams.get('product');
   const linkedProduct =
     !linkClosed && linkedProductId ? (productsData?.items?.find((p) => p.id === linkedProductId) ?? null) : null;
-  const selectedProduct = pickedProduct ?? linkedProduct;
+  // Always the latest copy from the list (refreshed after every save), so
+  // the panel and its edit form never work from an out-of-date snapshot.
+  const selectedProduct =
+    (pickedProduct && (productsData?.items?.find((p) => p.id === pickedProduct.id) ?? pickedProduct)) ?? linkedProduct;
   const setSelectedProduct = (product: Product | null) => {
     setPickedProduct(product);
     if (!product) setLinkClosed(true);
@@ -166,14 +169,17 @@ export default function ProviderView() {
   const updateProductMutation = useUpdateProduct();
   const deleteProductMutation = useDeleteProduct();
 
-  // Sync category state when product panel opens
+  // Load the saved category when a product opens or its saved category
+  // changes — not on every list refresh, which would undo an unsaved pick.
+  const openProductId = selectedProduct?.id;
+  const savedCategoryId = selectedProduct?.categoryId || '';
+  const savedSubcategoryId = selectedProduct?.subcategoryId || '';
   useEffect(() => {
-    if (selectedProduct) {
-      setProductCategoryId(selectedProduct.categoryId || '');
-      setProductSubcategoryId(selectedProduct.subcategoryId || '');
-      setCategoryDirty(false);
-    }
-  }, [selectedProduct]);
+    if (!openProductId) return;
+    setProductCategoryId(savedCategoryId);
+    setProductSubcategoryId(savedSubcategoryId);
+    setCategoryDirty(false);
+  }, [openProductId, savedCategoryId, savedSubcategoryId]);
 
   const handleSaveProductCategory = async () => {
     if (!selectedProduct) return;
@@ -1958,6 +1964,20 @@ export default function ProviderView() {
                 className="w-full rounded-xl object-cover"
                 style={{ maxHeight: '200px' }}
               />
+            )}
+            {/* Every photo, so a newly added one shows up straight away. */}
+            {(selectedProduct.photoUrls?.length ?? 0) > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {selectedProduct.photoUrls.map((url, i) => (
+                  <img
+                    key={url}
+                    src={url}
+                    alt={`${selectedProduct.name} photo ${i + 1}`}
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    style={{ border: i === 0 ? '2px solid var(--color-primary)' : '1px solid var(--border-default)' }}
+                  />
+                ))}
+              </div>
             )}
             <div className="grid grid-cols-2 gap-3">
               {[

@@ -140,10 +140,9 @@ export function SearchableCategoryPicker({ categoryId, subcategoryId, onCategory
       <SearchableCategoryDropdown
         categories={parentCategories}
         selectedId={categoryId}
-        onChange={(id) => {
-          onCategoryChange(id);
-          if (id !== categoryId) onSubcategoryChange('');
-        }}
+        // The parent clears the sub-category with the same update. A second
+        // update here would be built on the old values and undo the pick.
+        onChange={onCategoryChange}
         placeholder="Select a category"
         label="Category (improves discoverability)"
       />

@@ -116,7 +116,64 @@ export const VARIABLE_SOURCES: VariableSourceOption[] = [
 ];
 
 export const variableSourceLabel = (source: VariableSource) =>
-  VARIABLE_SOURCES.find((s) => s.value === source)?.label ?? source;
+  source === 'app_link' ? 'Smart link' : VARIABLE_SOURCES.find((s) => s.value === source)?.label ?? source;
+
+// ── Smart links ───────────────────────────────────────────
+/**
+ * Link buttons that end in /go?c={{1}}: every recipient gets their own code,
+ * which opens a screen in the Tijarah app, or the App Store / Play Store when
+ * the app isn't installed (and then that screen once they sign in).
+ */
+export const SMART_LINK_ORIGIN = 'https://www.tijarahapp.in';
+export const SMART_LINK_URL = `${SMART_LINK_ORIGIN}/go?c={{1}}`;
+export const isSmartLinkUrl = (url: string | undefined) => /\/go\/?\?c=\{\{\s*1\s*\}\}$/.test(url ?? '');
+
+export interface AppScreen {
+  group: 'Business owners' | 'Customers' | 'Anyone';
+  label: string;
+  /** `{provider_id}`: the recipient's own business. `{business_id}`: a business you pick. */
+  target: string;
+}
+
+/** Screens a link can open. Targets match the server's starter templates exactly. */
+export const APP_SCREENS: AppScreen[] = [
+  { group: 'Business owners', label: 'Dashboard', target: '/?tab=home&mode=provider' },
+  { group: 'Business owners', label: 'Chats and enquiries', target: '/?tab=chats&mode=provider' },
+  { group: 'Business owners', label: 'Insights (views, enquiries)', target: '/?tab=analytics&mode=provider' },
+  { group: 'Business owners', label: 'Their business page', target: '/provider-details?id={provider_id}&mode=provider' },
+  { group: 'Business owners', label: 'Their catalogue', target: '/shop?id={provider_id}&mode=provider' },
+  { group: 'Business owners', label: 'Edit details (hours, phone, location)', target: '/?tab=listings&subTab=details&mode=provider' },
+  { group: 'Business owners', label: 'Products and services', target: '/?tab=listings&subTab=products&mode=provider' },
+  { group: 'Business owners', label: 'Photos', target: '/?tab=listings&subTab=photos&mode=provider' },
+  { group: 'Business owners', label: 'Reviews', target: '/?tab=listings&subTab=reviews&mode=provider' },
+  { group: 'Business owners', label: 'Deals', target: '/?tab=listings&subTab=deals&mode=provider' },
+  { group: 'Business owners', label: 'Plans', target: '/?tab=listings&subTab=plans&mode=provider' },
+  { group: 'Business owners', label: 'Boost', target: '/?tab=listings&subTab=boost&mode=provider' },
+  { group: 'Business owners', label: 'Verification', target: '/provider-onboarding/verify?mode=provider' },
+  { group: 'Customers', label: 'Home', target: '/?mode=customer' },
+  { group: 'Customers', label: 'Explore', target: '/?tab=explore&mode=customer' },
+  { group: 'Customers', label: 'Their chats', target: '/?tab=chats&mode=customer' },
+  { group: 'Customers', label: 'Saved businesses', target: '/?tab=saved&mode=customer' },
+  { group: 'Customers', label: 'Deals', target: '/deals?mode=customer' },
+  { group: 'Customers', label: 'Women-Led', target: '/women-led?mode=customer' },
+  { group: 'Customers', label: 'Invite friends', target: '/invite?mode=customer' },
+  { group: 'Customers', label: 'A business page (you pick it)', target: '/provider-details?id={business_id}&mode=customer' },
+  { group: 'Anyone', label: 'List a business', target: '/provider-onboarding' },
+];
+
+const PICKED_BUSINESS = /^\/provider-details\?id=([0-9a-f-]{36})&mode=customer$/;
+
+/** "Reviews", "A business page: Burhani Sweets", or the raw route. */
+export function appScreenLabel(target: string | undefined, businessName?: string): string {
+  if (!target || target === '/') return 'Home';
+  if (PICKED_BUSINESS.test(target)) return `Business page${businessName ? `: ${businessName}` : ''}`;
+  return APP_SCREENS.find((s) => s.target === target)?.label ?? target;
+}
+
+/** A picked business for a `{business_id}` screen. */
+export const businessScreen = (providerId: string) => `/provider-details?id=${providerId}&mode=customer`;
+export const pickedBusinessId = (target: string | undefined) => PICKED_BUSINESS.exec(target ?? '')?.[1] ?? null;
+export const needsBusiness = (target: string | undefined) => !!target?.includes('{business_id}');
 
 export const variableSourceSample = (source: VariableSource) =>
   VARIABLE_SOURCES.find((s) => s.value === source)?.sample ?? '';
