@@ -36,8 +36,9 @@ export const VERIFICATION_FILTER_DEFS: FilterDef[] = [
 ];
 
 /** `oldest` is the server default, so it is the placeholder rather than an option. */
+/** Newest first is the default (no value); these are the alternatives. */
 export const VERIFICATION_SORTS: SortOption[] = [
-  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
   { value: 'waiting_longest', label: 'Waiting longest' },
 ];
 

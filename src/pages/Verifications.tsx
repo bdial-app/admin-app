@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Eye, CheckCircle2, XCircle, FileText, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Eye, CheckCircle2, XCircle, FileText, ShieldCheck, Store, ArrowUpRight } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DataTable, type Column } from '../components/ui/DataTable';
 import { DetailPanel } from '../components/ui/DetailPanel';
@@ -43,7 +44,8 @@ export default function Verifications() {
 
   const { data, isLoading } = useVerifications({
     ...(filters as VerificationFilters),
-    sort: (sort || undefined) as VerificationFilters['sort'],
+    // Newest submissions first unless another order is picked.
+    sort: (sort || 'newest') as VerificationFilters['sort'],
     page,
     limit: LIMIT,
     search: search || undefined,
@@ -90,6 +92,18 @@ export default function Verifications() {
             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
               {[row.user?.mobileNumber, row.user?.city].filter(Boolean).join(' · ') || '—'}
             </p>
+            {row.provider && (
+              <Link
+                to={`/providers/${row.provider.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs font-medium hover:underline max-w-full"
+                style={{ color: 'var(--color-primary)' }}
+                title="Open the business"
+              >
+                <Store className="w-3 h-3 shrink-0" />
+                <span className="truncate">{row.provider.brandName}</span>
+              </Link>
+            )}
           </div>
         </div>
       ),
@@ -210,7 +224,7 @@ export default function Verifications() {
         onChange={update}
         onReplace={replace}
         search={{ value: search, onChange: setSearch, placeholder: 'Search by name or mobile…' }}
-        sort={{ options: VERIFICATION_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: oldest first' }}
+        sort={{ options: VERIFICATION_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
         segments={verificationSegments(filterOptions)}
         resultCount={hasNarrowing ? data?.meta?.total : undefined}
         totalCount={filterOptions?.counts.total}
@@ -277,6 +291,31 @@ export default function Verifications() {
                 </p>
               </div>
             </div>
+
+            {/* The business being verified */}
+            {selected.provider ? (
+              <Link
+                to={`/providers/${selected.provider.id}`}
+                className="flex items-center gap-3 p-3 rounded-lg transition-colors hover:opacity-90"
+                style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)' }}>
+                  <Store className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase" style={{ color: 'var(--text-muted)' }}>Business</p>
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{selected.provider.brandName}</p>
+                </div>
+                <StatusBadge status={selected.provider.status} />
+                <span className="inline-flex items-center gap-1 text-xs font-medium shrink-0" style={{ color: 'var(--color-primary)' }}>
+                  Open <ArrowUpRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+            ) : (
+              <p className="text-xs p-3 rounded-lg" style={{ background: 'var(--surface-1)', color: 'var(--text-muted)' }}>
+                No business listed by this applicant yet.
+              </p>
+            )}
 
             {/* Verification Progress Stepper */}
             <div>

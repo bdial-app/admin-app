@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ImageOff, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ImageOff, Trash2, Eye, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
@@ -8,9 +9,29 @@ import { PHOTO_FILTER_DEFS, PHOTO_FILTER_KEYS, PHOTO_SORTS, photoSegments, withP
 import { usePhotosForModeration, usePhotoFilterOptions, useRemovePhoto } from '../hooks/usePhotoModeration';
 import type { PhotoFilters } from '../services/photo-moderation.service';
 import { ROUTES } from '../utils/constants';
-import type { PhotoType } from '../types';
+import type { PhotoModerationItem, PhotoType } from '../types';
 
 const LIMIT = 50;
+
+/**
+ * Where a photo lives in the admin: a product photo opens that product on its
+ * business's Catalogue tab, a review photo the Reviews tab, a gallery photo
+ * the Photos tab.
+ */
+function photoHome(photo: PhotoModerationItem): string | null {
+  if (!photo.providerId) return null;
+  const base = `/providers/${photo.providerId}`;
+  if (photo.photoType === 'product') {
+    return photo.rowId ? `${base}?tab=products&product=${photo.rowId}` : `${base}?tab=products`;
+  }
+  return `${base}?tab=${photo.photoType === 'review' ? 'reviews' : 'photos'}`;
+}
+
+const OPEN_LABEL: Record<string, string> = {
+  product: 'Open product',
+  review: 'Open review',
+  provider: 'Open business',
+};
 
 const PHOTO_TYPE_LABEL: Record<string, string> = {
   provider: 'Business gallery',
@@ -19,6 +40,7 @@ const PHOTO_TYPE_LABEL: Record<string, string> = {
 };
 
 export default function PhotoModeration() {
+  const navigate = useNavigate();
   const { values: filters, page, search, sort, update, replace, setSearch, setSort, setPage, hasNarrowing } = useUrlFilters(PHOTO_FILTER_KEYS);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: PhotoType } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -82,7 +104,9 @@ export default function PhotoModeration() {
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
-            {photos.map((photo) => (
+            {photos.map((photo) => {
+              const home = photoHome(photo);
+              return (
               <div
                 key={photo.id}
                 className="group relative rounded-xl overflow-hidden border"
@@ -95,9 +119,23 @@ export default function PhotoModeration() {
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                  <div
+                    className={`absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 ${home ? 'cursor-pointer' : ''}`}
+                    onClick={() => home && navigate(home)}
+                  >
+                    {home && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(home); }}
+                        className="p-2 rounded-lg transition-colors"
+                        style={{ background: 'var(--surface-0)', color: 'var(--color-primary)' }}
+                        aria-label={OPEN_LABEL[photo.photoType] ?? 'Open'}
+                        title={OPEN_LABEL[photo.photoType] ?? 'Open'}
+                      >
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => setPreviewUrl(photo.imageUrl)}
+                      onClick={(e) => { e.stopPropagation(); setPreviewUrl(photo.imageUrl); }}
                       className="p-2 rounded-lg transition-colors"
                       style={{ background: 'var(--surface-0)', color: 'var(--text-secondary)' }}
                       aria-label="Preview photo"
@@ -105,7 +143,7 @@ export default function PhotoModeration() {
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => setConfirmDelete({ id: photo.id, type: photo.photoType })}
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: photo.id, type: photo.photoType }); }}
                       className="p-2 rounded-lg bg-red-500/90 text-white hover:bg-red-600 transition-colors"
                       aria-label="Remove photo"
                     >
@@ -114,17 +152,27 @@ export default function PhotoModeration() {
                   </div>
                 </div>
                 <div className="p-2">
-                  <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {photo.brandName || photo.productName || photo.providerId?.slice(0, 8) || '—'}
-                  </p>
+                  {home ? (
+                    <Link to={home} className="block text-xs font-medium truncate hover:underline" style={{ color: 'var(--text-primary)' }} title={OPEN_LABEL[photo.photoType]}>
+                      {photo.photoType === 'product' && photo.productName ? photo.productName : photo.brandName || photo.productName || '—'}
+                    </Link>
+                  ) : (
+                    <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      {photo.brandName || photo.productName || photo.providerId?.slice(0, 8) || '—'}
+                    </p>
+                  )}
                   <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
                     {PHOTO_TYPE_LABEL[photo.photoType] || photo.photoType}
                     {photo.city ? ` · ${photo.city}` : ''}
                     {photo.uploadedAt ? ` · ${new Date(photo.uploadedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : ''}
                   </p>
+                  {photo.photoType === 'product' && photo.productName && photo.brandName && (
+                    <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{photo.brandName}</p>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pager */}
