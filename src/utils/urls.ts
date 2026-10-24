@@ -370,6 +370,7 @@ export const URLS = {
     TEMPLATE_SUBMIT: (id: string) => `/admin/whatsapp/templates/${id}/submit`,
     TEMPLATES_SYNC: '/admin/whatsapp/templates/sync',
     TEMPLATES_SEED: '/admin/whatsapp/templates/seed',
+    TEMPLATES_CLEAR_DISABLED: '/admin/whatsapp/templates/clear-disabled',
     TEMPLATES_PREVIEW: '/admin/whatsapp/templates/preview',
     AUDIENCE_PREVIEW: '/admin/whatsapp/audience/preview',
     AUDIENCE_OPTIONS: '/admin/whatsapp/audience/options',

@@ -106,8 +106,12 @@ export const whatsappService = {
   deleteTemplate: async (id: string): Promise<void> => {
     await api.delete(U.TEMPLATE(id));
   },
-  syncTemplates: async (): Promise<{ synced: number; created: number; updated: number }> => {
+  syncTemplates: async (): Promise<{ synced: number; created: number; updated: number; removed?: number }> => {
     const { data } = await api.post(U.TEMPLATES_SYNC);
+    return data;
+  },
+  clearDisabledTemplates: async (): Promise<{ removed: number; kept: number }> => {
+    const { data } = await api.post(U.TEMPLATES_CLEAR_DISABLED);
     return data;
   },
   seedTemplates: async (): Promise<{ created: number; linksFixed?: number }> => {

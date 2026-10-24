@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw, Sparkles, FileText, Loader2, Search } from 'lucide-react';
+import { Plus, RefreshCw, Sparkles, FileText, Loader2, Search, Trash2, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { DataTable, type Column } from '../../components/ui/DataTable';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useHasPermission } from '../../hooks/usePermissions';
-import { useWaTemplates, useSyncWaTemplates, useSeedWaTemplates, useWaSettings } from '../../hooks/useWhatsApp';
+import { useWaTemplates, useSyncWaTemplates, useSeedWaTemplates, useClearDisabledWaTemplates, useWaSettings } from '../../hooks/useWhatsApp';
 import { TemplateStatusBadge } from '../../components/whatsapp/TemplateStatusBadge';
 import { WA_ROUTES, formatInr, rateFor, fmtRelative, getBody, apiErrorMessage, CATEGORY_LABEL, QUALITY_COLOR } from '../../components/whatsapp/wa-utils';
 import type { WaTemplate, WaTemplateCategory, WaTemplateStatus } from '../../types';
@@ -27,14 +28,30 @@ export default function Templates() {
 
   const { data: templates = [], isLoading } = useWaTemplates({ status, category, search: search.trim() || undefined });
   const { data: all = [] } = useWaTemplates({});
+  // Hidden from the list unless asked for: deleted or switched off at Meta.
+  const { data: disabled = [] } = useWaTemplates({ status: 'disabled' });
   const sync = useSyncWaTemplates();
   const seed = useSeedWaTemplates();
+  const clear = useClearDisabledWaTemplates();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const removable = disabled.filter((t) => !t.usageCount).length;
 
   const onSync = async () => {
     try {
       const r = await sync.mutateAsync();
-      toast.success(`Synced ${r.synced} templates from Meta (${r.created} new, ${r.updated} updated)`);
+      toast.success(`Synced ${r.synced} templates from Meta (${r.created} new, ${r.updated} updated${r.removed ? `, ${r.removed} deleted at Meta removed` : ''})`);
     } catch (e) { toast.error(apiErrorMessage(e, 'Sync failed')); }
+  };
+  const onClear = async () => {
+    try {
+      const r = await clear.mutateAsync();
+      toast.success(
+        `Removed ${r.removed} disabled template${r.removed === 1 ? '' : 's'}` +
+          (r.kept ? `; kept ${r.kept} that past campaigns used, hidden` : ''),
+      );
+      setConfirmClear(false);
+      if (status === 'disabled') setStatus('');
+    } catch (e) { toast.error(apiErrorMessage(e, 'Could not remove them')); }
   };
   const onSeed = async () => {
     try {
@@ -82,7 +99,7 @@ export default function Templates() {
   const filters = (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-        {STATUS_CHIPS.map((c) => (
+        {[...STATUS_CHIPS, ...(disabled.length ? [{ label: `Disabled (${disabled.length})`, value: 'disabled' as const }] : [])].map((c) => (
           <button key={c.value} onClick={() => setStatus(c.value)} className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors" style={{ background: status === c.value ? 'var(--surface-0)' : 'transparent', color: status === c.value ? 'var(--text-primary)' : 'var(--text-muted)', boxShadow: status === c.value ? 'var(--shadow-sm)' : 'none' }}>{c.label}</button>
         ))}
       </div>
@@ -92,7 +109,7 @@ export default function Templates() {
     </div>
   );
 
-  const isEmpty = !isLoading && all.length === 0;
+  const isEmpty = !isLoading && all.length === 0 && disabled.length === 0;
 
   return (
     <div className="space-y-4">
@@ -131,6 +148,25 @@ export default function Templates() {
           </div>
         </div>
       ) : (
+        <>
+        {disabled.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg flex-wrap" style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+            <EyeOff className="w-4 h-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+            <p className="text-xs flex-1 min-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
+              {status === 'disabled'
+                ? 'Disabled templates were deleted or switched off at Meta and can’t be sent. They’re hidden from the list.'
+                : `${disabled.length} disabled template${disabled.length === 1 ? ' is' : 's are'} hidden — deleted or switched off at Meta, so they can’t be sent.`}
+            </p>
+            {status !== 'disabled' && (
+              <button onClick={() => setStatus('disabled')} className="text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}>View</button>
+            )}
+            {canManage && removable > 0 && (
+              <button onClick={() => setConfirmClear(true)} className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--color-danger)' }}>
+                <Trash2 className="w-3 h-3" /> Remove {removable === disabled.length ? 'all' : removable}
+              </button>
+            )}
+          </div>
+        )}
         <DataTable<WaTemplate>
           columns={columns}
           data={templates}
@@ -145,7 +181,22 @@ export default function Templates() {
           emptyTitle="No templates match"
           emptyDescription="Try another status or category."
         />
+        </>
       )}
+
+      <ConfirmDialog
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={onClear}
+        isLoading={clear.isPending}
+        title={`Remove ${removable} disabled template${removable === 1 ? '' : 's'}?`}
+        description={
+          'They’re deleted here and at Meta (if Meta still has them). They can’t be sent anyway.' +
+          (removable < disabled.length ? ` ${disabled.length - removable} used by past campaigns stay, hidden, so those campaigns still show what was sent.` : '')
+        }
+        confirmLabel="Remove"
+        variant="danger"
+      />
     </div>
   );
 }

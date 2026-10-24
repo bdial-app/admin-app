@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { lazy, Suspense } from 'react';
 import type { RootState } from './store/store';
@@ -81,8 +81,10 @@ function PageLoader() {
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const location = useLocation();
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} replace />;
+    // Back to this page after signing in.
+    return <Navigate to={ROUTES.LOGIN} replace state={{ from: location.pathname + location.search }} />;
   }
   return <>{children}</>;
 };
