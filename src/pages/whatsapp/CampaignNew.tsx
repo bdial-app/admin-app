@@ -30,7 +30,7 @@ import type {
 } from '../../types';
 
 /** Variable sources a customer (no business) has no value for. */
-const BUSINESS_ONLY = new Set<string | undefined>(['brand_name', 'category', 'profile_url', 'products_count', 'visits_7d', 'enquiries_7d']);
+const BUSINESS_ONLY = new Set<string | undefined>(['brand_name', 'category', 'profile_url', 'business_link', 'products_count', 'visits_7d', 'enquiries_7d']);
 
 // ── Form state ────────────────────────────────────────────
 interface FormState {

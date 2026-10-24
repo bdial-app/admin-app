@@ -19,6 +19,8 @@ export type PhotoType = 'provider' | 'review' | 'product';
 export interface PhotoModerationItem {
   /** Stable across pages: `${type}:${rowId}:${index}`. */
   id: string;
+  /** The photo's row: the product's id for product photos, the review photo's or gallery photo's id otherwise. */
+  rowId?: string;
   imageUrl: string;
   photoType: PhotoType;
   providerId?: string;

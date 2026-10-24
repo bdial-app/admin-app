@@ -17,7 +17,7 @@ export type WaSkipReason =
   | 'marketing_cap' | 'daily_cap' | 'cancelled';
 
 export type VariableSource =
-  | 'brand_name' | 'owner_name' | 'city' | 'category' | 'profile_url'
+  | 'brand_name' | 'owner_name' | 'city' | 'category' | 'profile_url' | 'business_link'
   | 'products_count' | 'visits_7d' | 'enquiries_7d' | 'app_download_url' | 'custom';
 
 // ── Template components (Meta format) ────────────────────

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle, Wand2, Sparkles,
@@ -99,9 +99,26 @@ const fmtTime = (t: string | null) => {
 export default function ProviderView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('overview');
+  // Other pages link straight to a tab (?tab=photos) or one product (?product=<id>).
+  const [searchParams] = useSearchParams();
+  const linkedTab = searchParams.get('tab');
+  const [tab, setTab] = useState<Tab>(() =>
+    TABS.some((t) => t.key === linkedTab) ? (linkedTab as Tab) : 'overview',
+  );
   const [confirmAction, setConfirmAction] = useState<'approve' | 'suspend' | 'unsuspend' | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const { data: productsData } = useProducts({ providerId: id, limit: 50 });
+  // The product whose details are open: one picked here, or — when opened on
+  // one product (?product=<id>, from Photo Moderation) — that one, until closed.
+  const [pickedProduct, setPickedProduct] = useState<Product | null>(null);
+  const [linkClosed, setLinkClosed] = useState(false);
+  const linkedProductId = searchParams.get('product');
+  const linkedProduct =
+    !linkClosed && linkedProductId ? (productsData?.items?.find((p) => p.id === linkedProductId) ?? null) : null;
+  const selectedProduct = pickedProduct ?? linkedProduct;
+  const setSelectedProduct = (product: Product | null) => {
+    setPickedProduct(product);
+    if (!product) setLinkClosed(true);
+  };
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
   // Editing what the business lists, without leaving its page
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -176,7 +193,7 @@ export default function ProviderView() {
     try {
       await updateProductMutation.mutateAsync({ id: product.id, body: { isActive: !product.isActive } });
       toast.success(product.isActive ? 'Product disabled' : 'Product activated');
-      setSelectedProduct((prev) => prev?.id === product.id ? { ...prev, isActive: !product.isActive } : prev);
+      if (selectedProduct?.id === product.id) setPickedProduct({ ...selectedProduct, isActive: !product.isActive });
     } catch { toast.error('Failed to update product'); }
   };
 
@@ -184,7 +201,7 @@ export default function ProviderView() {
     try {
       await updateProductMutation.mutateAsync({ id: product.id, body: { isHero: !product.isHero } });
       toast.success(product.isHero ? 'Removed hero status' : 'Marked as hero product');
-      setSelectedProduct((prev) => prev?.id === product.id ? { ...prev, isHero: !product.isHero } : prev);
+      if (selectedProduct?.id === product.id) setPickedProduct({ ...selectedProduct, isHero: !product.isHero });
     } catch { toast.error('Failed to update hero status'); }
   };
 
@@ -269,7 +286,6 @@ export default function ProviderView() {
   };
 
   // Products & Reviews for this provider
-  const { data: productsData } = useProducts({ providerId: id, limit: 50 });
   const { data: reviewsData } = useReviews({ providerId: id, limit: 50 });
   const { data: warnings } = useProviderWarnings(id || '');
   const { data: offersData } = useOffers({ providerId: id, limit: 50 });

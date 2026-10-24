@@ -18,6 +18,8 @@ export interface Verification {
   createdAt?: string;
   /** Whole days since submission while still undecided; null once approved/rejected. */
   waitingDays?: number | null;
+  /** The business the applicant runs, if any — to open it from the review. */
+  provider?: { id: string; brandName: string; slug?: string; status: string } | null;
   // Relations
   user?: import('./user').User;
   reviewer?: import('./user').User;
