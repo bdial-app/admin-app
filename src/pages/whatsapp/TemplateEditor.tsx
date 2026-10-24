@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Save, Send, Trash2, Copy, Loader2, Plus, X, Lock, AlertTriangle, Info } from 'lucide-react';
+import { ChevronLeft, Save, Send, Trash2, Copy, Loader2, Plus, X, Lock, AlertTriangle, Info, Smartphone, Globe } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import EmptyState from '../../components/ui/EmptyState';
@@ -14,11 +14,13 @@ import { Skel } from '../../components/whatsapp/Skeleton';
 import {
   WA_ROUTES, LANGUAGES, TEMPLATE_NAME_RE, CATEGORY_LABEL, CATEGORY_GUIDE, slugifyTemplateName, formatInr, rateFor,
   getHeader, getBody, getFooter, getButtons, extractVariableIndexes, templateSampleValues, apiErrorMessage, INPUT_CLASS, INPUT_STYLE,
+  SMART_LINK_ORIGIN, SMART_LINK_URL, isSmartLinkUrl, APP_SCREENS, appScreenLabel,
 } from '../../components/whatsapp/wa-utils';
 import type { WaTemplate, WaTemplateCategory, WaTemplateComponent, WaTemplatePayload, WaTemplateVariable, WaButton } from '../../types';
 
 type HeaderType = 'none' | 'text' | 'image';
-interface ButtonForm { type: 'URL' | 'QUICK_REPLY' | 'PHONE_NUMBER'; text: string; url: string; dynamic: boolean; phone: string }
+/** `smart`: a link to an app screen (…/go?c={{1}}, a code per recipient) instead of a web address. */
+interface ButtonForm { type: 'URL' | 'QUICK_REPLY' | 'PHONE_NUMBER'; text: string; url: string; dynamic: boolean; smart: boolean; phone: string }
 interface FormState {
   title: string;
   name: string;
@@ -32,12 +34,14 @@ interface FormState {
   variables: WaTemplateVariable[];
   footer: string;
   buttons: ButtonForm[];
+  /** The app screen the smart link opens. */
+  linkTarget: string;
   description: string;
 }
 
 const EMPTY: FormState = {
   title: '', name: '', nameTouched: false, language: 'en', category: 'utility',
-  headerType: 'none', headerText: '', headerImageSample: '', body: '', variables: [], footer: 'Tijarah Connect', buttons: [], description: '',
+  headerType: 'none', headerText: '', headerImageSample: '', body: '', variables: [], footer: 'Tijarah Connect', buttons: [], linkTarget: '', description: '',
 };
 
 function fromTemplate(t: WaTemplate, duplicate = false): FormState {
@@ -47,8 +51,10 @@ function fromTemplate(t: WaTemplate, duplicate = false): FormState {
     text: b.text,
     url: b.type === 'URL' ? b.url.replace(/\{\{\s*1\s*\}\}$/, '') : '',
     dynamic: b.type === 'URL' ? /\{\{\s*1\s*\}\}$/.test(b.url) : false,
+    smart: b.type === 'URL' && isSmartLinkUrl(b.url),
     phone: b.type === 'PHONE_NUMBER' ? b.phone_number : '',
   }));
+  const linkVar = t.variables?.find((v) => v.location === 'button' && v.source === 'app_link');
   const name = duplicate ? `${t.name}_v2` : t.name;
   return {
     title: name.replace(/_/g, ' '),
@@ -60,9 +66,11 @@ function fromTemplate(t: WaTemplate, duplicate = false): FormState {
     headerText: header?.format === 'TEXT' ? header.text ?? '' : '',
     headerImageSample: '',
     body: getBody(t.components)?.text ?? '',
-    variables: t.variables ?? [],
+    // The body's blanks only; the link's variable is rebuilt from linkTarget.
+    variables: (t.variables ?? []).filter((v) => v.location !== 'button'),
     footer: getFooter(t.components)?.text ?? '',
     buttons,
+    linkTarget: linkVar?.target ?? (buttons.some((b) => b.smart) ? '/' : ''),
     description: t.description ?? '',
   };
 }
@@ -76,7 +84,9 @@ function toComponents(f: FormState): WaTemplateComponent[] {
   if (f.footer.trim()) out.push({ type: 'FOOTER', text: f.footer.trim() });
   if (f.buttons.length) {
     const buttons: WaButton[] = f.buttons.map((b) =>
-      b.type === 'URL'
+      b.type === 'URL' && b.smart
+        ? { type: 'URL', text: b.text.trim(), url: SMART_LINK_URL, example: [`${SMART_LINK_ORIGIN}/go?c=k3m9q2xw7a`] }
+        : b.type === 'URL'
         ? { type: 'URL', text: b.text.trim(), url: b.dynamic ? `${b.url.trim()}{{1}}` : b.url.trim(), ...(b.dynamic ? { example: [`${b.url.trim()}abc123`] } : {}) }
         : b.type === 'PHONE_NUMBER'
           ? { type: 'PHONE_NUMBER', text: b.text.trim(), phone_number: b.phone.trim() }
@@ -102,9 +112,11 @@ function validate(f: FormState): Record<string, string> {
   f.buttons.forEach((b, i) => {
     if (!b.text.trim()) e[`button${i}`] = 'Button label is required';
     else if (b.text.length > 25) e[`button${i}`] = 'Labels are limited to 25 characters';
-    if (b.type === 'URL' && !/^https?:\/\/\S+/.test(b.url.trim())) e[`button${i}`] = 'Enter a full URL starting with https://';
+    if (b.type === 'URL' && b.smart && !f.linkTarget) e[`button${i}`] = 'Choose the screen it opens';
+    if (b.type === 'URL' && !b.smart && !/^https?:\/\/\S+/.test(b.url.trim())) e[`button${i}`] = 'Enter a full URL starting with https://';
     if (b.type === 'PHONE_NUMBER' && !/^\+?\d{8,15}$/.test(b.phone.trim())) e[`button${i}`] = 'Enter a phone number in international format';
   });
+  if (f.buttons.filter((b) => b.smart).length > 1) e.button0 = 'Use one app link per template';
   return e;
 }
 
@@ -146,7 +158,12 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
     language: form.language,
     category: form.category,
     components,
-    variables: form.variables.map((v) => ({ ...v, location: 'body' })),
+    variables: [
+      ...form.variables.map((v) => ({ ...v, location: 'body' as const })),
+      ...(form.buttons.some((b) => b.smart)
+        ? [{ index: 1, location: 'button' as const, label: 'Opens', source: 'app_link' as const, sample: 'k3m9q2xw7a', target: form.linkTarget || '/' }]
+        : []),
+    ],
     description: form.description.trim() || undefined,
     submit: submitNow,
   });
@@ -193,7 +210,11 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
 
   const addButton = (type: ButtonForm['type']) => {
     if (form.buttons.length >= 3) return;
-    patch({ buttons: [...form.buttons, { type, text: type === 'URL' ? 'Open' : type === 'PHONE_NUMBER' ? 'Call us' : 'Yes', url: 'https://', dynamic: false, phone: '' }] });
+    const smart = type === 'URL' && !form.buttons.some((b) => b.smart);
+    patch({
+      buttons: [...form.buttons, { type, text: type === 'URL' ? 'Open in the app' : type === 'PHONE_NUMBER' ? 'Call us' : 'Yes', url: 'https://', dynamic: false, smart, phone: '' }],
+      ...(smart && !form.linkTarget ? { linkTarget: APP_SCREENS[0].target } : {}),
+    });
   };
   const setButton = (i: number, p: Partial<ButtonForm>) => patch({ buttons: form.buttons.map((b, j) => (j === i ? { ...b, ...p } : b)) });
 
@@ -319,16 +340,60 @@ function TemplateForm({ template, initial }: { template: WaTemplate | null; init
                       {!readOnly && <button type="button" onClick={() => patch({ buttons: form.buttons.filter((_, j) => j !== i) })} aria-label="Remove button" style={{ color: 'var(--text-muted)' }}><X className="w-4 h-4" /></button>}
                     </div>
                     {b.type === 'URL' && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <input value={b.url} readOnly={readOnly} onChange={(e) => setButton(i, { url: e.target.value })} placeholder="https://uat.tijarahapp.in/b/" className="flex-1 min-w-[200px] px-2.5 py-1.5 text-sm rounded-md font-mono focus-ring" style={INPUT_STYLE} />
-                        <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                          <input type="checkbox" checked={b.dynamic} disabled={readOnly} onChange={(e) => setButton(i, { dynamic: e.target.checked })} />
-                          Dynamic suffix <code className="font-mono">{'{{1}}'}</code>
-                        </label>
-                        {/provider-details|product-details|\/\/(www\.)?tijarahapp\.in\//.test(b.url) && (
-                          <p className="w-full text-[11px] leading-snug" style={{ color: 'var(--color-warning-dark)' }}>
-                            This opens the web app{/\/\/(www\.)?tijarahapp\.in\//.test(b.url) ? ' on tijarahapp.in, which isn\'t live yet' : ''}. To open the Tijarah app (or the App Store / Play Store when it isn&apos;t installed), use <code className="font-mono">https://uat.tijarahapp.in/b/</code> with the dynamic suffix (the business id).
-                          </p>
+                      <div className="space-y-2">
+                        <div className="inline-flex p-0.5 rounded-md" style={{ background: 'var(--surface-2)' }} role="radiogroup" aria-label="Link type">
+                          {([[true, 'App screen', Smartphone], [false, 'Web address', Globe]] as const).map(([smart, label, Icon]) => (
+                            <button
+                              key={label}
+                              type="button"
+                              role="radio"
+                              aria-checked={b.smart === smart}
+                              disabled={readOnly}
+                              onClick={() => {
+                                setButton(i, { smart });
+                                if (smart && !form.linkTarget) patch({ linkTarget: APP_SCREENS[0].target, buttons: form.buttons.map((x, j) => (j === i ? { ...x, smart } : x)) });
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded"
+                              style={{ background: b.smart === smart ? 'var(--surface-0)' : 'transparent', color: b.smart === smart ? 'var(--text-primary)' : 'var(--text-muted)', boxShadow: b.smart === smart ? 'var(--shadow-sm)' : 'none' }}
+                            >
+                              <Icon className="w-3 h-3" /> {label}
+                            </button>
+                          ))}
+                        </div>
+                        {b.smart ? (
+                          <>
+                            <select
+                              value={form.linkTarget}
+                              disabled={readOnly}
+                              onChange={(e) => patch({ linkTarget: e.target.value })}
+                              aria-label="Screen it opens"
+                              className="w-full px-2.5 py-1.5 text-sm rounded-md focus-ring"
+                              style={INPUT_STYLE}
+                            >
+                              {!APP_SCREENS.some((x) => x.target === form.linkTarget) && <option value={form.linkTarget}>{appScreenLabel(form.linkTarget)}</option>}
+                              {(['Business owners', 'Customers', 'Anyone'] as const).map((g) => (
+                                <optgroup key={g} label={g}>
+                                  {APP_SCREENS.filter((x) => x.group === g).map((x) => <option key={x.target} value={x.target}>{x.label}</option>)}
+                                </optgroup>
+                              ))}
+                            </select>
+                            <p className="text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                              Each person gets their own link. It opens this screen in the Tijarah app; without the app it goes to the App Store on iPhone or Google Play on Android, and opens this screen once they sign in.
+                              {form.linkTarget.includes('{provider_id}') && ' Their own business is filled in for each owner.'}
+                              {form.linkTarget.includes('{business_id}') && ' You pick the business when you set up the campaign.'}
+                            </p>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input value={b.url} readOnly={readOnly} onChange={(e) => setButton(i, { url: e.target.value })} placeholder="https://www.tijarahapp.in/" className="flex-1 min-w-[200px] px-2.5 py-1.5 text-sm rounded-md font-mono focus-ring" style={INPUT_STYLE} />
+                            <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                              <input type="checkbox" checked={b.dynamic} disabled={readOnly} onChange={(e) => setButton(i, { dynamic: e.target.checked })} />
+                              Dynamic suffix <code className="font-mono">{'{{1}}'}</code>
+                            </label>
+                            <p className="w-full text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                              A web address opens in the browser. To open the app (or the store when it isn&apos;t installed), choose App screen.
+                            </p>
+                          </div>
                         )}
                       </div>
                     )}

@@ -58,9 +58,15 @@ export default function Templates() {
       const r = await seed.mutateAsync();
       const parts = [
         r.created ? `Added ${r.created} starter templates as drafts` : 'Starter templates already exist',
-        r.linksFixed ? `fixed the button links in ${r.linksFixed} drafts so they open the app` : '',
+        r.linksFixed ? `${r.linksFixed} draft${r.linksFixed === 1 ? '' : 's'} now open${r.linksFixed === 1 ? 's' : ''} the right app screen (or the store)` : '',
       ].filter(Boolean);
       toast.success(parts.join('; '));
+      if (r.outdated?.length) {
+        toast.info(
+          `${r.outdated.length} template${r.outdated.length === 1 ? ' was' : 's were'} already sent to Meta with the older link: ${r.outdated.slice(0, 4).join(', ')}${r.outdated.length > 4 ? '…' : ''}. They still work. To switch one, Copy it, set its link to App screen, and submit.`,
+          { autoClose: 12000 },
+        );
+      }
     } catch (e) { toast.error(apiErrorMessage(e, 'Could not add starter templates')); }
   };
 

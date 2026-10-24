@@ -114,7 +114,7 @@ export const whatsappService = {
     const { data } = await api.post(U.TEMPLATES_CLEAR_DISABLED);
     return data;
   },
-  seedTemplates: async (): Promise<{ created: number; linksFixed?: number }> => {
+  seedTemplates: async (): Promise<{ created: number; linksFixed?: number; outdated?: string[] }> => {
     const { data } = await api.post(U.TEMPLATES_SEED);
     return data;
   },
