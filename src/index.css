@@ -794,3 +794,58 @@ a.vet-img-name { color: var(--color-primary); }
     min-height: 5rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIGN-IN — Tijarah brand: the logo's indigo and amber
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  --tj-indigo:     #2C2D89;
+  --tj-indigo-ink: #1E1F5C;
+  --tj-amber:      #FFC000;
+}
+[data-theme="dark"] {
+  --tj-indigo:     #A5A6FF;
+}
+
+.tj-cta {
+  background: var(--tj-amber);
+  color: var(--tj-indigo-ink);
+  box-shadow: 0 6px 20px -6px rgba(255, 176, 0, 0.55);
+}
+.tj-cta:hover:not(:disabled) { background: #FFB300; transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(255, 176, 0, 0.6); }
+.tj-cta:active:not(:disabled) { transform: translateY(0); }
+.tj-cta:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--surface-0), 0 0 0 5px var(--tj-indigo); }
+.tj-cta:disabled { background: var(--surface-2); color: var(--text-muted); box-shadow: none; cursor: not-allowed; }
+.tj-cta.tj-cta-done:disabled { background: var(--color-success); color: #fff; cursor: default; }
+
+.tj-field:focus-within,
+.tj-otp-box:focus {
+  border-color: var(--tj-indigo) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tj-indigo) 16%, transparent);
+}
+
+@keyframes tj-step-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.tj-step-in { animation: tj-step-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes tj-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-6px); }
+  40%, 60% { transform: translateX(6px); }
+}
+.tj-shake { animation: tj-shake 0.42s ease-in-out both; }
+
+@keyframes tj-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.tj-float { animation: tj-float 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tj-step-in, .tj-shake, .tj-float { animation: none; }
+  .tj-cta:hover:not(:disabled) { transform: none; }
+}

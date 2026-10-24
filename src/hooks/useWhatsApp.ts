@@ -153,6 +153,14 @@ export function useSyncWaTemplates() {
   });
 }
 
+export function useClearDisabledWaTemplates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => whatsappService.clearDisabledTemplates(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: whatsappKeys.templates() }),
+  });
+}
+
 export function useSeedWaTemplates() {
   const qc = useQueryClient();
   return useMutation({

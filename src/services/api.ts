@@ -48,7 +48,8 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       // Redirect — use replace to prevent back-button returning to a broken state
-      window.location.replace('/login');
+      const here = window.location.pathname + window.location.search;
+      window.location.replace(here.startsWith('/login') ? '/login' : `/login?next=${encodeURIComponent(here)}`);
     }
     return Promise.reject(error);
   }
