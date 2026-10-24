@@ -39,6 +39,7 @@ import { CreateDealPanel } from '../components/offers/CreateDealPanel';
 import { photoModerationService } from '../services/photo-moderation.service';
 import { ProviderWhatsAppCard } from '../components/whatsapp/ProviderWhatsAppCard';
 import { OwnerTermsStatus } from '../components/legal/OwnerTermsStatus';
+import { PublicLinkCard } from '../components/providers/PublicLinkCard';
 import { checkPickedFile } from '../utils/compress-image';
 
 type Tab = 'overview' | 'products' | 'reviews' | 'photos' | 'verification' | 'activity' | 'analytics' | 'deals';
@@ -860,6 +861,9 @@ export default function ProviderView() {
                 )}
               </div>
             </div>
+
+            {/* ── Section: Public link ── */}
+            <PublicLinkCard providerId={provider.id} brandName={provider.brandName} />
 
             {/* ── Section: Contact & Hours ── */}
             <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>

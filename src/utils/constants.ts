@@ -48,3 +48,6 @@ export const ROUTES = {
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://p8lfvsk0-3001.inc1.devtunnels.ms/api/';
+
+/** The public website, where every business has its page: /business/<slug>/. */
+export const PUBLIC_SITE_URL = 'https://www.tijarahapp.in';

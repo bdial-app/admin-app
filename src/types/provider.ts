@@ -3,6 +3,8 @@ import type { User } from './user';
 
 export interface Provider {
   id: string;
+  /** Public address: tijarahapp.in/business/<slug>. */
+  slug?: string;
   userId: string;
   brandName: string;
   description: string | null;
