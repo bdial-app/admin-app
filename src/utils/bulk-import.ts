@@ -446,7 +446,9 @@ export function buildRows(sheet: ParsedSheet, mapping: ColumnMapping, ctx: Build
     }
 
     const womenLedCol = normalizeBoolean(get(row, 'isWomenLed'));
-    const isWomenLed = ctx.defaults.womenLed === 'yes' ? true : ctx.defaults.womenLed === 'no' ? false : (womenLedCol ?? gender.value === 'female');
+    // Only a clear yes makes it women-led (recorded as verified by the importing
+    // admin); a woman owner alone doesn't, and a blank cell means no.
+    const isWomenLed = ctx.defaults.womenLed === 'yes' ? true : ctx.defaults.womenLed === 'no' ? false : womenLedCol === true;
 
     const website = get(row, 'website').trim();
 
