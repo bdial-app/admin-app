@@ -13,6 +13,10 @@ export interface Automation {
   templateStatus: WaTemplateStatus | 'missing';
   /** What Meta has it as now (it can re-file utility as marketing). */
   templateCategory: string | null;
+  /** False when the existing template has a different number of blanks than this automation fills. */
+  templateMatches?: boolean;
+  /** Where the page lists it. */
+  section?: 'alerts' | 'listing_updates' | 'asking' | 'customers';
   enabled: boolean;
   monthlyBudgetInr: number | null;
   last7Days: {

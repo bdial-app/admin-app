@@ -29,14 +29,20 @@ const REASON: Record<string, string> = {
   whatsapp_not_configured: 'WhatsApp not configured',
   waiting_for_sending_hours: 'Waiting for sending hours',
   already_signed_in: 'Owner already signed in',
+  template_differs: 'Approved template has different blanks — re-seed and resubmit it',
 };
 const reasonLabel = (r: string | null | undefined) =>
   !r ? '—' : REASON[r] ?? (r.startsWith('missing_') ? 'Missing information for the message' : r.replace(/_/g, ' '));
 
+/** Where an automation is listed: the server says; older servers didn't, so fall back. */
+const sectionOf = (a: Automation) =>
+  a.section ?? (a.category === 'marketing' ? 'asking' : a.audience === 'customer' ? 'customers' : 'alerts');
+
 const GROUPS: { title: string; hint: string; match: (a: Automation) => boolean }[] = [
-  { title: 'Business owners', hint: 'Sent only to owners who agreed to WhatsApp alerts', match: (a) => a.audience === 'owner' && a.category === 'utility' },
-  { title: 'Asking owners to agree', hint: 'Marketing (₹0.86 each), capped hard', match: (a) => a.category === 'marketing' },
-  { title: 'Customers', hint: 'Only customers who turned on WhatsApp replies', match: (a) => a.audience === 'customer' },
+  { title: 'Business owners: alerts and summaries', hint: 'Enquiries, reviews, weekly and monthly numbers · only owners who agreed to WhatsApp alerts', match: (a) => sectionOf(a) === 'alerts' },
+  { title: 'Business owners: updates about their listing', hint: 'When their listing, link, photos or items change, or their documents arrive', match: (a) => sectionOf(a) === 'listing_updates' },
+  { title: 'Asking owners to agree', hint: 'Marketing (₹0.86 each), capped hard', match: (a) => sectionOf(a) === 'asking' },
+  { title: 'Customers', hint: 'Only customers who turned on WhatsApp updates', match: (a) => sectionOf(a) === 'customers' },
 ];
 
 function Toggle({ on, disabled, onChange, label }: { on: boolean; disabled?: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -64,6 +70,11 @@ function TemplateState({ a }: { a: Automation }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <TemplateStatusBadge status={a.templateStatus} />
+      {a.templateMatches === false && (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" style={{ background: 'var(--color-warning-light)', color: 'var(--color-warning-dark)' }} title="This template's blanks don't match what the automation fills, so it is skipped. Delete it in Templates, press Add starter templates, and submit it again.">
+          <AlertTriangle className="w-3 h-3" /> Out of date
+        </span>
+      )}
       {moved && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-dark)' }} title="Meta re-filed this template. Sends are paused so you don't pay the higher rate.">
           <AlertTriangle className="w-3 h-3" /> Now {a.templateCategory}
@@ -106,7 +117,7 @@ export default function Automations() {
         <div className="flex-1 min-w-[240px]">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Messages that send themselves</p>
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Each one sends when something happens: an enquiry, a review, the 1st of the month. They only go to people who agreed, between 10 AM and 8 PM (never Friday 12–2), at most 1 a day and 3 a week per person, and skip anyone already using the app.
+            Each one sends when something happens: an enquiry, a review, a change to a listing, the 1st of the month. They go only to people who agreed (account notices, like a listing made with someone's number, go unless they said no), between 10 AM and 8 PM (never Friday 12–2), at most 1 a day and 3 a week per person, and skip anyone already using the app.
             Everything starts off. Before switching one on, seed and submit its template in Templates and wait for Meta to approve it.
           </p>
         </div>
