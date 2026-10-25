@@ -34,6 +34,7 @@ import { toast } from 'react-toastify';
 import type { Photo, Product, ProviderOffer, Review } from '../types';
 import { ProductEditPanel } from '../components/products/ProductEditPanel';
 import { ProductCreatePanel } from '../components/products/ProductCreatePanel';
+import { WomenLedStatusLine } from '../components/women-led/WomenLedStatusLine';
 import { OfferEditPanel } from '../components/offers/OfferEditPanel';
 import { CreateDealPanel } from '../components/offers/CreateDealPanel';
 import { photoModerationService } from '../services/photo-moderation.service';
@@ -425,7 +426,7 @@ export default function ProviderView() {
   const saveBusinessInfo = async () => {
     if (!id) return;
     try {
-      await updateProviderMut.mutateAsync({ id, body: { brandName: businessForm.brandName, description: businessForm.description || null, isWomenLed: businessForm.isWomenLed, isAvailable: businessForm.isAvailable } });
+      await updateProviderMut.mutateAsync({ id, body: { brandName: businessForm.brandName, description: businessForm.description || null, isAvailable: businessForm.isAvailable } });
       toast.success('Business info updated');
       setEditingSection(null);
     } catch { toast.error('Failed to update'); }
@@ -848,9 +849,7 @@ export default function ProviderView() {
                         <div className={`w-2 h-2 rounded-full ${provider.isAvailable ? 'bg-emerald-500' : 'bg-red-400'}`} />
                         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{provider.isAvailable ? 'Available' : 'Unavailable'}</span>
                       </div>
-                      {provider.isWomenLed && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">♀ Women-Led</span>
-                      )}
+                      <WomenLedStatusLine providerId={provider.id} ownerName={provider.user?.name} />
                     </div>
                   </div>
                 ) : (
@@ -868,10 +867,8 @@ export default function ProviderView() {
                         <input type="checkbox" checked={businessForm.isAvailable} onChange={(e) => setBusinessForm((p) => ({ ...p, isAvailable: e.target.checked }))} className="rounded" />
                         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Available</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={businessForm.isWomenLed} onChange={(e) => setBusinessForm((p) => ({ ...p, isWomenLed: e.target.checked }))} className="rounded" />
-                        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Women-Led</span>
-                      </label>
+                      {/* Women-Led changes only through a reviewed request (see the status line). */}
+                      <WomenLedStatusLine providerId={provider.id} ownerName={provider.user?.name} />
                     </div>
                     <div className="flex items-center gap-2 pt-1">
                       <button onClick={saveBusinessInfo} disabled={updateProviderMut.isPending || !businessForm.brandName.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>

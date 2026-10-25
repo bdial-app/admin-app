@@ -956,7 +956,7 @@ export default function BulkImportProviders() {
               <label className="block">
                 <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Women-led</span>
                 <select value={defaults.womenLed} onChange={(e) => setDefaults((d) => ({ ...d, womenLed: e.target.value as BuildDefaults['womenLed'] }))} className={`${inputCls} mt-1`} style={inputStyle}>
-                  <option value="auto">Auto (from gender / column)</option><option value="yes">Yes for all</option><option value="no">No for all</option>
+                  <option value="auto">From the column (blank = no)</option><option value="yes">Yes for all (you checked them)</option><option value="no">No for all</option>
                 </select>
               </label>
               <label className="block">

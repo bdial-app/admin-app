@@ -618,7 +618,7 @@ export default function CreateProviderFlow() {
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Gender <span className="text-red-500">*</span>
             </label>
-            <select value={userGender} onChange={(e) => { setUserGender(e.target.value as Gender); setIsWomenLed(e.target.value === 'female'); }}
+            <select value={userGender} onChange={(e) => setUserGender(e.target.value as Gender)}
               className="w-full px-3 py-2 text-sm rounded-lg focus-ring" style={inputStyle}>
               {GENDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -680,7 +680,7 @@ export default function CreateProviderFlow() {
           <div className="md:col-span-2 flex flex-col gap-2">
             <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={isWomenLed} onChange={(e) => setIsWomenLed(e.target.checked)} className="rounded" />
-              Women-led business
+              Women-led (you checked she owns or runs it)
             </label>
             <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={communityVerified} onChange={(e) => setCommunityVerified(e.target.checked)} className="rounded mt-0.5" />
