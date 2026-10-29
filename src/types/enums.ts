@@ -69,7 +69,7 @@ export type AdEntityType = 'sponsored_listing' | 'promo_banner' | 'provider_offe
 // ── Chat ─────────────────────────────────────────────────
 export type ConversationType = 'direct' | 'enquiry';
 export type ConversationStatus = 'active' | 'archived' | 'closed';
-export type MessageType = 'text' | 'image' | 'enquiry' | 'system' | 'quote_request';
+export type MessageType = 'text' | 'image' | 'enquiry' | 'system' | 'quote_request' | 'file' | 'product' | 'deal';
 export type MessageStatus = 'sent' | 'delivered' | 'read';
 export type ParticipantRole = 'customer' | 'provider';
 
