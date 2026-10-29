@@ -215,6 +215,16 @@ export const URLS = {
     REMOVE_MESSAGE: (id: string) => `/admin/chat/messages/${id}/remove`,
     CLOSE: (id: string) => `/admin/chat/conversations/${id}/close`,
     STATS: '/admin/chat/stats',
+    DETAIL: (id: string) => `/admin/chat/conversations/${id}`,
+  },
+
+  // Admin Leads
+  LEADS: {
+    OVERVIEW: '/admin/leads/overview',
+    LIST: '/admin/leads',
+    DETAIL: (id: string) => `/admin/leads/${id}`,
+    INTERACTIONS: '/admin/leads/interactions',
+    RESCORE: '/admin/leads/rescore',
   },
 
   // â”€â”€ Admin Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

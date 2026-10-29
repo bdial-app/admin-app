@@ -23,6 +23,8 @@ export interface ChatFilters {
   minMessages?: string;
   inactiveDays?: string;
   city?: string;
+  providerId?: string;
+  customerId?: string;
   sort?: ChatSort | '';
 }
 
@@ -30,7 +32,18 @@ export interface ChatStats {
   totalConversations: number;
   activeConversations: number;
   closedConversations: number;
+  newConversations24h: number;
+  newConversations7d: number;
+  unansweredConversations: number;
+  reportedConversations: number;
   totalMessages: number;
+  messages24h: number;
+  activeChatters7d: number;
+  /** % of conversations started in the last 30 days where the business replied. */
+  replyRate30d: number | null;
+  medianFirstReplyMinutes: number | null;
+  /** Most active businesses in chat over the last 30 days. */
+  topBusinesses: { id: string; brandName: string; city: string | null; slug: string | null; conversations: number; unanswered: number }[];
 }
 
 /** Drop empty values so the backend's whitelist only ever sees real filters. */
@@ -45,6 +58,11 @@ export const chatService = {
 
   filterOptions: async (): Promise<ChatFilterOptions> => {
     const { data } = await api.get(URLS.CHAT.FILTER_OPTIONS);
+    return data;
+  },
+
+  getConversation: async (id: string): Promise<Conversation> => {
+    const { data } = await api.get(URLS.CHAT.DETAIL(id));
     return data;
   },
 

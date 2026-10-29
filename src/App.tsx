@@ -32,6 +32,7 @@ const Offers = lazy(() => import('./pages/Offers'));
 const Badges = lazy(() => import('./pages/Badges'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
+const Leads = lazy(() => import('./pages/Leads'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Logs = lazy(() => import('./pages/Logs'));
 const SystemSettings = lazy(() => import('./pages/Settings'));
@@ -161,6 +162,7 @@ function App() {
             {/* Insights */}
             <Route path={ROUTES.ANALYTICS} element={<RoleRoute minRole="admin"><Analytics /></RoleRoute>} />
             <Route path={ROUTES.AUDIENCE} element={<RoleRoute minRole="admin"><Audience /></RoleRoute>} />
+            <Route path={ROUTES.LEADS} element={<RoleRoute minRole="admin"><Leads /></RoleRoute>} />
 
             {/* System */}
             <Route path={ROUTES.ADMIN_USERS} element={<RoleRoute minRole="moderator"><AdminUsers /></RoleRoute>} />

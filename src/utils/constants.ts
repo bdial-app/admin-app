@@ -17,6 +17,7 @@ export const ROUTES = {
   OFFERS: '/offers',
   BADGES: '/badges',
   CHAT_MODERATION: '/chat-moderation',
+  LEADS: '/leads',
   ANALYTICS: '/analytics',
   ADMIN_USERS: '/admin-users',
   AUDIT_LOG: '/audit-log',

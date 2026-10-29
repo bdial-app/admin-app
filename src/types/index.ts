@@ -23,3 +23,4 @@ export * from './notification';
 export * from './moderation';
 export * from './feature-flag';
 export * from './whatsapp';
+export * from './lead';

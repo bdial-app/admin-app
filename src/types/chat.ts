@@ -32,6 +32,27 @@ export interface Conversation {
   hasRedacted?: boolean;
   /** A participant has blocked the other. */
   blocked?: boolean;
+  /** The customer sent the last message. */
+  unanswered?: boolean;
+  customerMessages?: number;
+  providerMessages?: number;
+  attachmentCount?: number;
+  /** Minutes from the customer's first message to the business's first reply. */
+  firstReplyMinutes?: number | null;
+  provider?: ChatBusiness | null;
+  customer?: { id: string; name: string; mobileNumber: string | null; email: string | null; city: string | null } | null;
+  /** The customer's lead with this business, when it has been scored. */
+  lead?: { id: string; tier: import('./enums').LeadTier; score: number; isUnlocked: boolean } | null;
+}
+
+export interface ChatBusiness {
+  id: string;
+  brandName: string;
+  slug: string | null;
+  city: string | null;
+  photoUrl: string | null;
+  contactNumber: string | null;
+  status: string;
 }
 
 export interface ConversationParticipant {

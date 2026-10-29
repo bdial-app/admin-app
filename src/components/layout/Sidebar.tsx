@@ -8,7 +8,7 @@ import {
   MessageSquare, BarChart3, ShieldAlert,
   UserCog, FileText, Settings, Bell, Bug, Scale, DatabaseBackup,
   UserPlus, PlusCircle, Camera, ToggleLeft,
-  Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid,
+  Ticket, Sparkles, CreditCard, Crown, DollarSign, Coins, Heart, MapPin, Rocket, ShieldCheck, FileSpreadsheet, MessageCircle, Smartphone, Activity, LayoutGrid, Target,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import { useDispatch } from 'react-redux';
@@ -94,6 +94,7 @@ const sections: { label: string; minRole?: AdminRole; items: { name: string; pat
     label: 'Insights',
     minRole: 'admin',
     items: [
+      { name: 'Leads', path: ROUTES.LEADS, icon: Target, minRole: 'admin' },
       { name: 'Analytics', path: ROUTES.ANALYTICS, icon: BarChart3, minRole: 'admin' },
       { name: 'Audience', path: ROUTES.AUDIENCE, icon: Activity, minRole: 'admin' },
     ],
