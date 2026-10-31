@@ -14,7 +14,8 @@ import { Skel } from '../../components/whatsapp/Skeleton';
 import { useNow } from '../../components/whatsapp/useNow';
 import { renderWaMarkdown } from '../../components/whatsapp/wa-markdown';
 import { WaMediaAttachment } from '../../components/whatsapp/WaMediaAttachment';
-import { WA_ROUTES, fmtRelative, fmtTime, dayLabel, initials, apiErrorMessage } from '../../components/whatsapp/wa-utils';
+import { SharedContactCard } from '../../components/whatsapp/SharedContactCard';
+import { WA_ROUTES, fmtRelative, fmtTime, dayLabel, initials, apiErrorMessage, contactPreview } from '../../components/whatsapp/wa-utils';
 import { ROUTES } from '../../utils/constants';
 import type { WaConversation, WaConversationFilter, WaMessage } from '../../types';
 
@@ -106,7 +107,7 @@ function ConversationRow({ c, active, onClick, now }: { c: WaConversation; activ
         <div className="flex items-center gap-1.5 mt-0.5">
           {c.lastMessage?.direction === 'outbound' && <MessageStatusIcon status={c.lastMessage.status} size={13} />}
           <p className={`text-xs truncate flex-1 ${c.unreadCount ? 'font-medium' : ''}`} style={{ color: c.unreadCount ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-            {c.lastMessage?.body || (c.lastMessage ? `[${c.lastMessage.kind}]` : 'No messages')}
+            {contactPreview(c.lastMessage?.body) ?? (c.lastMessage?.body || (c.lastMessage ? `[${c.lastMessage.kind}]` : 'No messages'))}
           </p>
           {c.unreadCount > 0 && <span className="min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums shrink-0" style={{ background: '#25D366' }}>{c.unreadCount}</span>}
         </div>
@@ -298,7 +299,11 @@ function Bubble({ m }: { m: WaMessage }) {
             <FileText className="w-3 h-3" /> {m.templateName}{m.campaign ? <> · <Link to={WA_ROUTES.campaign(m.campaign.id)} className="hover:underline">{m.campaign.name}</Link></> : null}
           </p>
         )}
-        {m.media ? (
+        {m.contacts?.length ? (
+          <div className="pt-0.5 space-y-1.5">
+            {m.contacts.map((c, i) => <SharedContactCard key={i} c={c} />)}
+          </div>
+        ) : m.media ? (
           <div className="pt-0.5">
             <WaMediaAttachment messageId={m.id} media={m.media} />
             {m.media.caption && <p className="text-[14px] leading-[1.35] whitespace-pre-wrap break-words mt-1">{renderWaMarkdown(m.media.caption)}</p>}

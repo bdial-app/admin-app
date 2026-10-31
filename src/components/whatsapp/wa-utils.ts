@@ -453,3 +453,12 @@ export const BTN_PRIMARY = 'inline-flex items-center gap-1.5 px-4 py-2 text-sm f
 export const BTN_SECONDARY = 'inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50';
 export const SECONDARY_STYLE = { background: 'var(--surface-2)', color: 'var(--text-primary)' } as const;
 export const PRIMARY_STYLE = { background: 'var(--color-primary)' } as const;
+
+/** "[contact] Ali +91…" or the old "[contacts]" → "📇 Contact: Ali". */
+export function contactPreview(body: string | null | undefined): string | null {
+  if (!body) return null;
+  const m = /^\[contacts?\]\s*(.*)$/.exec(body);
+  if (!m) return null;
+  const name = m[1].replace(/\s*\+?\d[\d\s-]{6,}.*$/, '').trim();
+  return name ? `📇 Contact: ${name}` : '📇 Contact';
+}
