@@ -462,3 +462,14 @@ export function contactPreview(body: string | null | undefined): string | null {
   const name = m[1].replace(/\s*\+?\d[\d\s-]{6,}.*$/, '').trim();
   return name ? `📇 Contact: ${name}` : '📇 Contact';
 }
+
+/** "[reaction] 😉" → "Reacted 😉"; an empty one is a reaction taken back. */
+export function reactionPreview(body: string | null | undefined): string | null {
+  if (!body) return null;
+  const m = /^\[reaction\]\s*(.*)$/.exec(body);
+  if (!m) return null;
+  return m[1].trim() ? `Reacted ${m[1].trim()}` : 'Removed a reaction';
+}
+
+/** Friendly text for messages stored as "[kind] …" (contact cards, reactions). */
+export const messagePreview = (body: string | null | undefined) => contactPreview(body) ?? reactionPreview(body);

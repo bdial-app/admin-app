@@ -521,6 +521,10 @@ export interface WaMessage {
   media: WaMessageMedia | null;
   /** Contact cards they shared ("Share contact"). */
   contacts?: WaSharedContact[] | null;
+  /** On a reaction message whose target isn't on screen: the emoji (null = taken back). */
+  reaction?: { emoji: string | null; targetWaId: string | null } | null;
+  /** Emoji reactions on this message. */
+  reactions?: { emoji: string }[];
   templateName: string | null;
   errorMessage: string | null;
   createdAt: string;

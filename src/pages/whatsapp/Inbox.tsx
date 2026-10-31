@@ -15,7 +15,7 @@ import { useNow } from '../../components/whatsapp/useNow';
 import { renderWaMarkdown } from '../../components/whatsapp/wa-markdown';
 import { WaMediaAttachment } from '../../components/whatsapp/WaMediaAttachment';
 import { SharedContactCard } from '../../components/whatsapp/SharedContactCard';
-import { WA_ROUTES, fmtRelative, fmtTime, dayLabel, initials, apiErrorMessage, contactPreview } from '../../components/whatsapp/wa-utils';
+import { WA_ROUTES, fmtRelative, fmtTime, dayLabel, initials, apiErrorMessage, messagePreview } from '../../components/whatsapp/wa-utils';
 import { ROUTES } from '../../utils/constants';
 import type { WaConversation, WaConversationFilter, WaMessage } from '../../types';
 
@@ -107,7 +107,7 @@ function ConversationRow({ c, active, onClick, now }: { c: WaConversation; activ
         <div className="flex items-center gap-1.5 mt-0.5">
           {c.lastMessage?.direction === 'outbound' && <MessageStatusIcon status={c.lastMessage.status} size={13} />}
           <p className={`text-xs truncate flex-1 ${c.unreadCount ? 'font-medium' : ''}`} style={{ color: c.unreadCount ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-            {contactPreview(c.lastMessage?.body) ?? (c.lastMessage?.body || (c.lastMessage ? `[${c.lastMessage.kind}]` : 'No messages'))}
+            {messagePreview(c.lastMessage?.body) ?? (c.lastMessage?.body || (c.lastMessage ? `[${c.lastMessage.kind}]` : 'No messages'))}
           </p>
           {c.unreadCount > 0 && <span className="min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold text-white tabular-nums shrink-0" style={{ background: '#25D366' }}>{c.unreadCount}</span>}
         </div>
@@ -287,10 +287,21 @@ function Thread({ contactId, summary, onBack }: { contactId: string; summary?: W
 function Bubble({ m }: { m: WaMessage }) {
   const out = m.direction === 'outbound';
   const failed = m.status === 'failed';
+  // A reaction to a message further up than this page: a quiet line, not a bubble.
+  if (m.kind === 'reaction') {
+    return (
+      <div className="flex justify-start">
+        <p className="text-[12px] italic px-2.5 py-1 rounded-lg ml-1" style={{ background: 'var(--wa-bubble-in)', color: 'var(--wa-time)' }}>
+          {m.reaction?.emoji ? `Reacted ${m.reaction.emoji} to an earlier message` : 'Removed a reaction'} · {fmtTime(m.createdAt)}
+        </p>
+      </div>
+    );
+  }
+  const reactions = m.reactions ?? [];
   return (
-    <div className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${out ? 'justify-end' : 'justify-start'} ${reactions.length ? 'mb-3' : ''}`}>
       <div
-        className={`wa-bubble max-w-[78%] md:max-w-[65%] rounded-lg px-2.5 pt-1.5 pb-1 ${out ? 'rounded-tr-none ml-2' : 'rounded-tl-none mr-2'}`}
+        className={`wa-bubble relative max-w-[78%] md:max-w-[65%] rounded-lg px-2.5 pt-1.5 pb-1 ${out ? 'rounded-tr-none ml-2' : 'rounded-tl-none mr-2'}`}
         data-side={out ? 'out' : 'in'}
         style={{ background: out ? 'var(--wa-bubble-out)' : 'var(--wa-bubble-in)', color: 'var(--wa-text)', boxShadow: '0 1px 0.5px rgba(11,20,26,0.13)' }}
       >
@@ -316,6 +327,15 @@ function Bubble({ m }: { m: WaMessage }) {
           <span className="text-[10.5px] tabular-nums" style={{ color: 'var(--wa-time)' }}>{fmtTime(m.createdAt)}</span>
           {out && <MessageStatusIcon status={m.status} size={14} inBubble />}
         </div>
+        {reactions.length > 0 && (
+          <span
+            className={`absolute -bottom-3.5 ${out ? 'right-2' : 'left-2'} px-1.5 py-0.5 rounded-full text-[13px] leading-none`}
+            style={{ background: 'var(--wa-bubble-in)', boxShadow: '0 1px 2px rgba(11,20,26,0.2)', border: '1px solid var(--wa-divider)' }}
+            title="Their reaction"
+          >
+            {reactions.map((r) => r.emoji).join('')}
+          </span>
+        )}
       </div>
     </div>
   );
