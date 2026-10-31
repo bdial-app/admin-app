@@ -9,7 +9,7 @@ import { WindowTimer } from './WindowTimer';
 import { MessageStatusIcon } from './MessageStatusIcon';
 import { SendTemplateDialog } from './SendTemplateDialog';
 import { Skel } from './Skeleton';
-import { WA_ROUTES, fmtRelative, apiErrorMessage } from './wa-utils';
+import { WA_ROUTES, fmtRelative, apiErrorMessage, contactPreview } from './wa-utils';
 import type { WaContact } from '../../types/whatsapp';
 
 interface Props {
@@ -172,7 +172,7 @@ export function ProviderWhatsAppCard({ providerId, brandName, city }: Props) {
                         ? <ArrowUpRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-primary)' }} />
                         : <ArrowDownLeft className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-success)' }} />}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate" style={{ color: 'var(--text-primary)' }}>{m.body || `[${m.kind}]`}</p>
+                        <p className="truncate" style={{ color: 'var(--text-primary)' }}>{contactPreview(m.body) ?? (m.body || `[${m.kind}]`)}</p>
                         <p className="flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           {m.templateName && <span className="font-mono">{m.templateName}</span>}
                           <span>{fmtRelative(m.createdAt)}</span>

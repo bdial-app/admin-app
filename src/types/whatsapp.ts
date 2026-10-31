@@ -519,6 +519,8 @@ export interface WaMessage {
   body: string | null;
   /** A photo, video, voice note or document the customer sent. */
   media: WaMessageMedia | null;
+  /** Contact cards they shared ("Share contact"). */
+  contacts?: WaSharedContact[] | null;
   templateName: string | null;
   errorMessage: string | null;
   createdAt: string;
@@ -526,6 +528,17 @@ export interface WaMessage {
   deliveredAt: string | null;
   readAt: string | null;
   campaign: { id: string; name: string } | null;
+}
+
+export interface WaSharedContact {
+  name: string;
+  company: string | null;
+  phones: { phone: string; e164: string | null; label: string | null }[];
+  /** Whether the number is already on Tijarah. */
+  match: {
+    business: { id: string; brandName: string; city: string | null } | null;
+    customer: { id: string; name: string | null } | null;
+  } | null;
 }
 
 export interface WaMessageMedia {
