@@ -8,6 +8,16 @@ import type {
   BatchFilters,
   NotificationTemplate,
   UpdateTemplatePayload,
+  CreateTemplatePayload,
+  CreateCampaignPayload,
+  PushAudience,
+  PushAudienceOptions,
+  PushAudiencePreview,
+  PushKind,
+  PushMessage,
+  PushTestResult,
+  PushTestTarget,
+  TemplateStat,
 } from '../types';
 
 export const notificationsService = {
@@ -60,6 +70,61 @@ export const notificationsService = {
 
   toggleTemplate: async (id: string, isActive: boolean): Promise<NotificationTemplate> => {
     const { data } = await api.patch(URLS.NOTIFICATIONS.TEMPLATE_TOGGLE(id), { isActive });
+    return data;
+  },
+
+  createTemplate: async (payload: CreateTemplatePayload): Promise<NotificationTemplate> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.TEMPLATES, payload);
+    return data;
+  },
+
+  deleteTemplate: async (id: string): Promise<void> => {
+    await api.delete(URLS.NOTIFICATIONS.TEMPLATE_DETAIL(id));
+  },
+
+  resetTemplate: async (id: string): Promise<NotificationTemplate> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.TEMPLATE_RESET(id));
+    return data;
+  },
+
+  testTemplate: async (
+    id: string,
+    payload: PushTestTarget & { variables?: Record<string, string> },
+  ): Promise<PushTestResult> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.TEMPLATE_TEST(id), payload);
+    return data;
+  },
+
+  getTemplateStats: async (days = 30): Promise<TemplateStat[]> => {
+    const { data } = await api.get(URLS.NOTIFICATIONS.TEMPLATE_STATS, { params: { days } });
+    return data;
+  },
+
+  // ── Push campaigns ───────────────────────────────────────
+
+  getAudienceOptions: async (): Promise<PushAudienceOptions> => {
+    const { data } = await api.get(URLS.NOTIFICATIONS.AUDIENCE_OPTIONS);
+    return data;
+  },
+
+  previewAudience: async (audience: PushAudience, type: PushKind): Promise<PushAudiencePreview> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.AUDIENCE_PREVIEW, { audience, type });
+    return data;
+  },
+
+  createCampaign: async (
+    payload: CreateCampaignPayload,
+  ): Promise<{ id: string; status: string; scheduledAt: string | null }> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.CAMPAIGNS, payload);
+    return data;
+  },
+
+  cancelCampaign: async (id: string): Promise<void> => {
+    await api.delete(URLS.NOTIFICATIONS.BATCH_DETAIL(id));
+  },
+
+  sendTest: async (payload: PushMessage & PushTestTarget): Promise<PushTestResult> => {
+    const { data } = await api.post(URLS.NOTIFICATIONS.TEST, payload);
     return data;
   },
 };
