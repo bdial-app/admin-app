@@ -35,6 +35,7 @@ export interface NotificationBatch {
   scheduledAt: string | null;
   sentAt: string | null;
   createdAt: string;
+  sender?: { id: string; name?: string | null } | null;
 }
 
 export interface NotificationStats {
@@ -66,7 +67,7 @@ export interface BatchFilters {
 
 // ── Notification Templates ───────────────────────────────
 
-export type TemplateCategory = 'onboarding' | 'transactional' | 'engagement' | 'marketing';
+export type TemplateCategory = 'onboarding' | 'transactional' | 'engagement' | 'marketing' | 'campaign';
 
 export interface NotificationTemplate {
   id: string;
@@ -87,11 +88,108 @@ export interface NotificationTemplate {
 
 export interface UpdateTemplatePayload {
   name?: string;
-  description?: string;
+  description?: string | null;
   titleTemplate?: string;
   bodyTemplate?: string;
-  variables?: string[];
   isActive?: boolean;
+  defaultRoute?: string | null;
+  defaultImageUrl?: string | null;
+  /** Saved messages only. */
+  type?: NotificationType;
+}
+
+// ── Push campaigns ───────────────────────────────────────
+
+export type PushAudienceKind = 'everyone' | 'businesses' | 'customers' | 'people';
+export type PushPlatform = 'android' | 'ios' | 'web';
+export type PushKind = 'promotional' | 'system_announcement';
+
+export interface PushAudience {
+  kind: PushAudienceKind;
+  cities?: string[];
+  categoryIds?: string[];
+  platforms?: PushPlatform[];
+  joinedWithinDays?: number;
+  activeWithinDays?: number;
+  inactiveDays?: number;
+  womenLed?: boolean;
+  paidPlan?: 'yes' | 'no';
+  noProducts?: boolean;
+  userIds?: string[];
+  providerIds?: string[];
+}
+
+export interface PushRecipient {
+  userId: string;
+  kind: 'business' | 'customer';
+  name: string | null;
+  city: string | null;
+  providerId: string | null;
+  businessName: string | null;
+}
+
+export interface PushAudiencePreview {
+  total: number;
+  businesses: number;
+  customers: number;
+  pushOff: number;
+  noDevice: number;
+  platforms: Record<PushPlatform, number>;
+  sample: PushRecipient[];
+}
+
+export interface PushAudienceOptions {
+  cities: { name: string; count: number }[];
+  categories: { id: string; name: string }[];
+}
+
+export interface PushMessage {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  route?: string;
+  type?: PushKind;
+}
+
+export interface CreateCampaignPayload extends PushMessage {
+  audience: PushAudience;
+  scheduledAt?: string;
+  templateId?: string;
+}
+
+export interface PushTestTarget {
+  userId?: string;
+  providerId?: string;
+}
+
+export interface PushTestResult {
+  devices: number;
+  delivered: number;
+  sentTo: string;
+}
+
+/** What a campaign batch carries in `data`. */
+export interface CampaignData {
+  campaign?: boolean;
+  type?: PushKind;
+  route?: string | null;
+  templateId?: string | null;
+  stats?: { pushed: number; inbox: number; failed: number };
+}
+
+export interface TemplateStat {
+  slug: string;
+  sent: number;
+  opened: number;
+  lastSentAt: string | null;
+}
+
+export interface CreateTemplatePayload {
+  name: string;
+  description?: string;
+  titleTemplate: string;
+  bodyTemplate: string;
   defaultRoute?: string;
   defaultImageUrl?: string;
+  type?: PushKind;
 }
