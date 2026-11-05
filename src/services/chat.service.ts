@@ -1,6 +1,6 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { ChatFilterOptions, Conversation, Message, PaginatedResponse } from '../types';
+import type { ChatFilterOptions, ChatNudgeChannel, ChatNudgeResult, ChatNudgeState, Conversation, Message, PaginatedResponse } from '../types';
 
 export type ChatSort = 'recent' | 'oldest' | 'most_messages';
 
@@ -78,6 +78,16 @@ export const chatService = {
 
   closeConversation: async (conversationId: string): Promise<{ success: boolean }> => {
     const { data } = await api.patch(URLS.CHAT.CLOSE(conversationId));
+    return data;
+  },
+
+  getNudge: async (conversationId: string): Promise<ChatNudgeState> => {
+    const { data } = await api.get(URLS.CHAT.NUDGE(conversationId));
+    return data;
+  },
+
+  sendNudge: async (conversationId: string, channel: ChatNudgeChannel): Promise<ChatNudgeResult> => {
+    const { data } = await api.post(URLS.CHAT.NUDGE(conversationId), { channel });
     return data;
   },
 

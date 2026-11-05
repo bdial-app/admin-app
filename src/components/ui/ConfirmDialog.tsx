@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'default';
   isLoading?: boolean;
+  confirmDisabled?: boolean;
   children?: ReactNode;
 }
 
@@ -24,6 +25,7 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   variant = 'default',
   isLoading,
+  confirmDisabled,
   children,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -116,7 +118,7 @@ export function ConfirmDialog({
               onClick={onConfirm}
               className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-60"
               style={{ background: btnColor }}
-              disabled={isLoading}
+              disabled={isLoading || confirmDisabled}
             >
               {isLoading ? 'Processing…' : confirmLabel}
             </button>
