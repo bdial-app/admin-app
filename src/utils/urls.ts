@@ -214,6 +214,7 @@ export const URLS = {
     MESSAGES: (id: string) => `/admin/chat/conversations/${id}/messages`,
     REMOVE_MESSAGE: (id: string) => `/admin/chat/messages/${id}/remove`,
     CLOSE: (id: string) => `/admin/chat/conversations/${id}/close`,
+    NUDGE: (id: string) => `/admin/chat/conversations/${id}/nudge`,
     STATS: '/admin/chat/stats',
     DETAIL: (id: string) => `/admin/chat/conversations/${id}`,
   },

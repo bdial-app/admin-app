@@ -88,6 +88,7 @@ export const PERMISSIONS = {
   'chat.view': 'moderator',
   'chat.redact': 'moderator',
   'chat.close': 'moderator',
+  'chat.nudge': 'admin',
 
   // ── Photo Moderation ──
   'photos.view': 'moderator',

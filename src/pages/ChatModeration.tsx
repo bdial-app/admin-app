@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import {
   MessageSquare, XCircle, Lock, Flag, EyeOff, Ban, ArrowRight, ExternalLink, Store, X, Clock, Hourglass,
   MessageCircle, Reply, Inbox, ChevronLeft, ChevronRight, Loader2, FileText, Package, Tag, Copy, Image as ImageIcon,
-  AlertTriangle, LockOpen, Paperclip, UserRound,
+  AlertTriangle, LockOpen, Paperclip, UserRound, BellRing,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { ChatNudgeDialog } from '../components/chat/ChatNudgeDialog';
+import { useHasPermission } from '../hooks/usePermissions';
 import StatusBadge from '../components/ui/StatusBadge';
 import { FilterBar, useUrlFilters, type FilterValues } from '../components/ui/filters';
 import { CHAT_FILTER_DEFS, CHAT_FILTER_KEYS, CHAT_SORTS, chatSegments, withChatOptions } from '../components/chat/chat-filters';
@@ -252,6 +254,8 @@ function Thread({ c, onBack, onScopeBusiness, onScopeCustomer }: {
   const redactMutation = useRedactMessage();
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmRedact, setConfirmRedact] = useState<Message | null>(null);
+  const [nudgeOpen, setNudgeOpen] = useState(false);
+  const canNudge = useHasPermission('chat.nudge');
   const scrollRef = useRef<HTMLDivElement>(null);
   const customer = customerOf(c);
   const providerUserId = c.participants?.find((p) => p.role === 'provider')?.userId;
@@ -330,6 +334,11 @@ function Thread({ c, onBack, onScopeBusiness, onScopeCustomer }: {
               }
             />
           </div>
+          {c.status === 'active' && canNudge && (
+            <button onClick={() => setNudgeOpen(true)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white" style={{ background: 'var(--color-primary)' }} title="Remind the person who hasn't replied, by push or WhatsApp">
+              <BellRing className="w-3.5 h-3.5" /> Remind
+            </button>
+          )}
           {c.status === 'active' && (
             <button onClick={() => setConfirmClose(true)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-white" style={{ background: 'var(--color-danger)' }} title="Stop both sides sending messages">
               <Lock className="w-3.5 h-3.5" /> Close
@@ -413,6 +422,7 @@ function Thread({ c, onBack, onScopeBusiness, onScopeCustomer }: {
         <button onClick={() => { navigator.clipboard?.writeText(c.id); toast.success('Conversation ID copied'); }} className="inline-flex items-center gap-1 font-mono hover:underline"><Copy className="w-3 h-3" />{c.id.slice(0, 8)}</button>
       </div>
 
+      <ChatNudgeDialog conversationId={c.id} open={nudgeOpen} onClose={() => setNudgeOpen(false)} />
       <ConfirmDialog
         open={confirmClose}
         onClose={() => setConfirmClose(false)}

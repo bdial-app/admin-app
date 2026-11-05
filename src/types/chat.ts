@@ -6,6 +6,56 @@ import type {
   ParticipantRole,
 } from './enums';
 
+export type ChatNudgeChannel = 'push' | 'whatsapp';
+
+/** Who owes a reply in a chat and how an admin can remind them. */
+export interface ChatNudgeState {
+  waitingOn: 'customer' | 'provider' | null;
+  recipient: { userId: string; name: string; role: 'customer' | 'provider' } | null;
+  /** The person they haven't replied to. */
+  waitingFor: string;
+  waitingSince: string;
+  unreadCount: number;
+  /** Why no reminder can go at all. */
+  problem: string | null;
+  channels: {
+    push: {
+      available: boolean;
+      reason: string | null;
+      title?: string | null;
+      body?: string | null;
+      devices?: number;
+      /** It would only reach their in-app inbox. */
+      inboxOnly?: boolean;
+    };
+    whatsapp: {
+      available: boolean;
+      reason: string | null;
+      phone?: string | null;
+      text?: string | null;
+      /** Set outside sending hours: when it would actually go. */
+      sendsAt?: string | null;
+    };
+  };
+  history: {
+    id: string;
+    channel: ChatNudgeChannel;
+    outcome: string;
+    /** Where it got to since: a WhatsApp's delivery status, or its queued job's. */
+    status: string | null;
+    reason: string | null;
+    at: string;
+    adminName: string | null;
+  }[];
+}
+
+export interface ChatNudgeResult {
+  channel: ChatNudgeChannel;
+  outcome: string;
+  message: string;
+  sendsAt?: string;
+}
+
 export interface Conversation {
   id: string;
   type: ConversationType;

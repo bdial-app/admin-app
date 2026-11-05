@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatService, type ChatFilters } from '../services/chat.service';
+import type { ChatNudgeChannel } from '../types';
 
 export const chatKeys = {
   all: ['chat'] as const,
@@ -69,6 +70,28 @@ export function useCloseConversation() {
   return useMutation({
     mutationFn: (conversationId: string) => chatService.closeConversation(conversationId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chatKeys.all });
+    },
+  });
+}
+
+export function useChatNudge(conversationId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...chatKeys.all, 'nudge', conversationId],
+    queryFn: () => chatService.getNudge(conversationId),
+    enabled,
+    // Who's waiting changes with every message, so always ask afresh.
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+export function useSendChatNudge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conversationId, channel }: { conversationId: string; channel: ChatNudgeChannel }) =>
+      chatService.sendNudge(conversationId, channel),
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: chatKeys.all });
     },
   });
