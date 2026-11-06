@@ -13,7 +13,7 @@ export type IjamatStatus = 'pending' | 'approved' | 'rejected' | 'not_submitted'
 export type VerificationOverallStatus = 'pending' | 'in_review' | 'approved' | 'rejected';
 
 // ── Review ───────────────────────────────────────────────
-export type ReviewStatus = 'active' | 'removed';
+export type ReviewStatus = 'active' | 'removed' | 'flagged';
 
 // ── Report ───────────────────────────────────────────────
 export type ReportEntityType = 'provider' | 'product' | 'message' | 'deal' | 'review' | 'customer';

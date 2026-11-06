@@ -105,6 +105,8 @@ export const URLS = {
     REPORTS: '/admin/reviews/reports',
     REMOVE: (id: string) => `/admin/reviews/${id}/remove`,
     STATS: '/admin/reviews/stats',
+    FILTER_OPTIONS: '/admin/reviews/filter-options',
+    DISMISS_REPORTS: (id: string) => `/admin/reviews/${id}/reports/dismiss`,
   },
   // â"€â"€ Admin Google Reviews â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   GOOGLE_REVIEWS: {
