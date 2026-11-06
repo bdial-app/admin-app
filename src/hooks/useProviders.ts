@@ -220,8 +220,8 @@ export function useBulkDeleteProviders() {
 export function useUpdateContactNumber() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, contactNumber, otp }: { id: string; contactNumber: string; otp: string }) =>
-      providersService.updateContactNumber(id, contactNumber, otp),
+    mutationFn: ({ id, contactNumber }: { id: string; contactNumber: string }) =>
+      providersService.updateContactNumber(id, contactNumber),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: providerKeys.all });
     },

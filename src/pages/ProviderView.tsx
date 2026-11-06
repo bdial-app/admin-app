@@ -4,7 +4,7 @@ import {
   Star, MapPin, Phone, Clock, Package,
   MessageSquare, Camera, Shield, AlertTriangle, Wand2, Sparkles,
   CheckCircle2, XCircle, Users, Eye, BarChart3, Gift, Trash2,
-  Pencil, X, Globe, Store, Save, Loader2, ShieldAlert, ImagePlus,
+  Pencil, X, Globe, Store, Save, Loader2, ImagePlus,
   Tags, Search, ChevronRight, CheckCircle, Plus, ArrowUpRight, RotateCcw, EyeOff,
 } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -13,7 +13,6 @@ import StatusBadge from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { DetailPanel } from '../components/ui/DetailPanel';
 import { SearchableCategoryPicker } from '../components/ui/SearchableCategoryPicker';
-import { PhoneOtpVerifier } from '../components/ui/PhoneOtpVerifier';
 import LocationPicker, { type LocationData } from '../components/ui/LocationPicker';
 import {
   useProvider, useApproveProvider, useSuspendProvider,
@@ -141,7 +140,6 @@ export default function ProviderView() {
   const [editingSection, setEditingSection] = useState<EditingSection>(null);
   const [businessForm, setBusinessForm] = useState({ brandName: '', description: '', isWomenLed: false, isAvailable: true });
   const [contactForm, setContactForm] = useState({ contactNumber: '', openTime: '', closeTime: '' });
-  const [contactOtpVerified, setContactOtpVerified] = useState(false);
   const [locationForm, setLocationForm] = useState({ city: '', area: '', pincode: '', address: '', latitude: '', longitude: '' });
   const [socialForm, setSocialForm] = useState({ websiteUrl: '', instagramHandle: '', facebookHandle: '', youtubeHandle: '', whatsappNumber: '' });
   const [categoryForm, setCategoryForm] = useState<string[]>([]);
@@ -380,7 +378,6 @@ export default function ProviderView() {
   const startEdit = useCallback((section: EditingSection) => {
     if (!provider) return;
     setEditingSection(section);
-    setContactOtpVerified(false);
     if (section === 'business') {
       setBusinessForm({
         brandName: provider.brandName || '',
@@ -420,7 +417,6 @@ export default function ProviderView() {
 
   const cancelEdit = useCallback(() => {
     setEditingSection(null);
-    setContactOtpVerified(false);
   }, []);
 
   const saveBusinessInfo = async () => {
@@ -432,8 +428,13 @@ export default function ProviderView() {
     } catch { toast.error('Failed to update'); }
   };
 
-  const saveContactInfo = async (otpForPhone?: string) => {
+  const saveContactInfo = async () => {
     if (!id) return;
+    const phoneChanged = contactForm.contactNumber !== (provider?.contactNumber || '');
+    if (phoneChanged && !/^\d{10}$/.test(contactForm.contactNumber)) {
+      toast.error('Contact number must be exactly 10 digits');
+      return;
+    }
     try {
       // Save hours via generic update
       const hoursBody: Record<string, any> = {};
@@ -442,11 +443,8 @@ export default function ProviderView() {
       if (Object.keys(hoursBody).length > 0) {
         await updateProviderMut.mutateAsync({ id, body: hoursBody });
       }
-      // Save phone via OTP endpoint if changed
-      const phoneChanged = contactForm.contactNumber !== provider?.contactNumber;
-      if (phoneChanged && otpForPhone) {
-        await updateContactMut.mutateAsync({ id, contactNumber: contactForm.contactNumber, otp: otpForPhone });
-        setContactOtpVerified(true);
+      if (phoneChanged) {
+        await updateContactMut.mutateAsync({ id, contactNumber: contactForm.contactNumber });
       }
       toast.success('Contact info updated');
       setEditingSection(null);
@@ -533,16 +531,6 @@ export default function ProviderView() {
   };
 
   // Cooldown helper
-  const getContactChangeCooldown = useCallback(() => {
-    if (!provider?.lastContactNumberChangeAt) return null;
-    const elapsed = Date.now() - new Date(provider.lastContactNumberChangeAt).getTime();
-    const cooldownMs = 24 * 60 * 60 * 1000;
-    if (elapsed >= cooldownMs) return null;
-    const remaining = cooldownMs - elapsed;
-    const hours = Math.floor(remaining / (60 * 60 * 1000));
-    const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-    return `${hours}h ${mins}m`;
-  }, [provider?.lastContactNumberChangeAt]);
 
   if (isLoading) {
     return (
@@ -952,30 +940,9 @@ export default function ProviderView() {
                     <div>
                       <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: 'var(--text-muted)' }}>Business Contact Number</label>
                       <input type="text" value={contactForm.contactNumber} onChange={(e) => setContactForm((p) => ({ ...p, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))} placeholder="10-digit number" maxLength={10} className="w-full px-3 py-2 text-sm rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
-                      {/* Cooldown warning */}
-                      {getContactChangeCooldown() && contactForm.contactNumber !== provider.contactNumber && (
-                        <div className="flex items-center gap-1.5 mt-2 text-xs" style={{ color: 'var(--color-warning-dark, #92400e)' }}>
-                          <ShieldAlert className="w-3.5 h-3.5" />
-                          Phone was changed recently. Next change in {getContactChangeCooldown()}.
-                        </div>
-                      )}
-                      {/* OTP required if number changed */}
-                      {contactForm.contactNumber !== provider.contactNumber && !getContactChangeCooldown() && /^\d{10}$/.test(contactForm.contactNumber) && (
-                        <PhoneOtpVerifier
-                          phoneNumber={contactForm.contactNumber}
-                          purpose="business_verification"
-                          onOtpReady={async (otp) => {
-                            try {
-                              await updateContactMut.mutateAsync({ id: id!, contactNumber: contactForm.contactNumber, otp });
-                              setContactOtpVerified(true);
-                              toast.success('Contact number updated');
-                            } catch (err: any) {
-                              toast.error(err?.response?.data?.message || 'Failed to update contact number');
-                            }
-                          }}
-                          verified={contactOtpVerified}
-                        />
-                      )}
+                      <p className="mt-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        Saved straight away, no OTP. The owner is told on WhatsApp when that message is switched on.
+                      </p>
                     </div>
                     {/* Hours */}
                     <div className="grid grid-cols-2 gap-3">
@@ -989,9 +956,9 @@ export default function ProviderView() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 pt-1">
-                      <button onClick={() => saveContactInfo()} disabled={updateProviderMut.isPending} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
-                        {updateProviderMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        Save Hours
+                      <button onClick={() => saveContactInfo()} disabled={updateProviderMut.isPending || updateContactMut.isPending} className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg text-white disabled:opacity-50" style={{ background: 'var(--color-primary)' }}>
+                        {updateProviderMut.isPending || updateContactMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Save
                       </button>
                       <button onClick={cancelEdit} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>Cancel</button>
                     </div>

@@ -315,8 +315,9 @@ export const providersService = {
     return data;
   },
 
-  updateContactNumber: async (id: string, contactNumber: string, otp: string): Promise<Provider> => {
-    const { data } = await api.patch(URLS.PROVIDERS.UPDATE_CONTACT(id), { contactNumber, otp });
+  /** Admins set it directly: no OTP. */
+  updateContactNumber: async (id: string, contactNumber: string): Promise<Provider> => {
+    const { data } = await api.patch(URLS.PROVIDERS.UPDATE_CONTACT(id), { contactNumber });
     return data;
   },
 
