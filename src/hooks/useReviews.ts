@@ -17,11 +17,28 @@ export function useReviews(filters: ReviewFilters) {
   });
 }
 
-export function useReview(id: string) {
+export function useReview(id: string | null) {
   return useQuery({
-    queryKey: reviewKeys.detail(id),
-    queryFn: () => reviewsService.getById(id),
+    queryKey: reviewKeys.detail(id ?? ''),
+    queryFn: () => reviewsService.getById(id!),
     enabled: !!id,
+  });
+}
+
+/** Segment counts, cities and headline numbers; they move slowly. */
+export function useReviewFilterOptions() {
+  return useQuery({
+    queryKey: [...reviewKeys.all, 'filter-options'],
+    queryFn: () => reviewsService.filterOptions(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useDismissReviewReports() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => reviewsService.dismissReports(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.all }),
   });
 }
 
@@ -44,8 +61,8 @@ export function useCreateReview() {
 export function useUpdateReviewStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      reviewsService.updateStatus(id, status),
+    mutationFn: ({ id, status, reason }: { id: string; status: 'active' | 'removed'; reason?: string }) =>
+      reviewsService.updateStatus(id, status, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: reviewKeys.all });
     },

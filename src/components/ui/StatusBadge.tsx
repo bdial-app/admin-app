@@ -3,7 +3,7 @@ type StatusType =
   | 'not_submitted' | 'flagged' | 'open' | 'in_progress' | 'resolved' | 'closed'
   | 'action_taken' | 'dismissed' | 'under_review'
   | 'in_review' | 'unverified' | 'disabled' | 'succeeded' | 'verified' | 'expired' | 'scheduled'
-  | 'trusted' | 'basic';
+  | 'trusted' | 'basic' | 'removed';
 
 interface StatusBadgeProps {
   status: string;
@@ -28,6 +28,7 @@ const config: Record<StatusType, { label: string; color: string; bg: string }> =
   closed:        { label: 'Closed',        color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
   action_taken:  { label: 'Action Taken',  color: '#FFFFFF',              bg: 'var(--color-success)'       },
   dismissed:     { label: 'Dismissed',     color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
+  removed:       { label: 'Removed',       color: '#FFFFFF',              bg: 'var(--color-danger)'        },
   under_review:  { label: 'Under Review',  color: 'var(--color-info)',    bg: 'var(--color-info-light)'    },
   in_review:     { label: 'In Review',     color: 'var(--color-warning)', bg: 'var(--color-warning-light)' },
   unverified:    { label: 'Unverified',    color: 'var(--text-muted)',    bg: 'var(--surface-2)'           },
