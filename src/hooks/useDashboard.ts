@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
-import { dashboardService } from '../services/dashboard.service';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { dashboardService, type DashboardPeriodParams } from '../services/dashboard.service';
 
 export const dashboardKeys = {
   stats: () => ['dashboard', 'stats'] as const,
-  timeSeries: (days: number) => ['dashboard', 'time-series', days] as const,
+  period: (params: DashboardPeriodParams) => ['dashboard', 'period', params] as const,
   recentActivity: () => ['dashboard', 'recent-activity'] as const,
 };
 
@@ -15,10 +15,13 @@ export function useDashboardStats() {
   });
 }
 
-export function useDashboardTimeSeries(days = 30) {
+/** Figures over a date range; keeps showing the last range while the next loads. */
+export function useDashboardPeriod(params: DashboardPeriodParams) {
   return useQuery({
-    queryKey: dashboardKeys.timeSeries(days),
-    queryFn: () => dashboardService.getTimeSeries(days),
+    queryKey: dashboardKeys.period(params),
+    queryFn: () => dashboardService.getPeriod(params),
+    placeholderData: keepPreviousData,
+    refetchInterval: 60_000,
   });
 }
 

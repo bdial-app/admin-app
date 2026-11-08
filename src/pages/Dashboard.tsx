@@ -4,24 +4,46 @@ import {
   Users, Store, Package, Star, ShieldCheck, AlertTriangle,
   ArrowRight, Loader2, Search, MessageSquare, TrendingUp,
   Image, Megaphone, Gift, UserPlus, Bell, Send, Eye,
-  DollarSign, CreditCard, Heart, Zap, Plus, Clock,
+  DollarSign, CreditCard, Heart, Zap, Plus, Clock, Flag,
   CheckCircle2, Activity, Calendar, Sparkles,
 } from 'lucide-react';
 import { StatCard } from '../components/ui/StatCard';
-import { useDashboardStats, useDashboardTimeSeries, useRecentActivity } from '../hooks/useDashboard';
+import { FilterBar, useUrlFilters, shortDate } from '../components/ui/filters';
+import { DASHBOARD_FILTER_KEYS, dashboardFilterDefs, toDashboardParams } from '../components/dashboard/dashboard-filters';
+import { useDashboardStats, useDashboardPeriod, useRecentActivity } from '../hooks/useDashboard';
 import { useNotificationStats } from '../hooks/useNotifications';
 import { ROUTES } from '../utils/constants';
-import { useState } from 'react';
+import { useMemo } from 'react';
 import type { RootState } from '../store/store';
+import type { DashboardGranularity, DashboardPeriodTotals, DashboardSeriesPoint } from '../types';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 
-const formatDate = (label: unknown): string => {
-  const d = new Date(String(label));
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+/** A bucket's first day as the axis shows it: "9 Oct", or "Oct 26" by month. */
+const formatBucket = (bucket: string, g: DashboardGranularity): string => {
+  const d = new Date(`${bucket}T00:00:00`);
+  return g === 'month'
+    ? d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
+    : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
+
+const fullDate = (ymd: string) =>
+  new Date(`${ymd}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Daily, weekly or monthly counts, in the order they appear. */
+const TREND_CHARTS: { key: keyof Omit<DashboardSeriesPoint, 'bucket'>; title: string; name: string; color: string; bar?: boolean }[] = [
+  { key: 'users', title: 'User Growth', name: 'New Users', color: 'var(--color-primary)' },
+  { key: 'providers', title: 'Provider Growth', name: 'New Providers', color: 'var(--color-success)' },
+  { key: 'searches', title: 'Search Volume', name: 'Searches', color: '#8B5CF6', bar: true },
+  { key: 'reports', title: 'Report Volume', name: 'Reports', color: 'var(--color-danger)', bar: true },
+  { key: 'leads', title: 'Lead Volume', name: 'Leads', color: '#EC4899' },
+  { key: 'conversations', title: 'Conversation Volume', name: 'Conversations', color: '#06B6D4' },
+];
+
+/** Marks a figure that is a live state, so the date range doesn't apply. */
+const NOW = 'Right now';
 
 const getGreeting = (): string => {
   const h = new Date().getHours();
@@ -57,9 +79,10 @@ export default function Dashboard() {
   const user = useSelector((state: RootState) => state.auth.user);
   const { data: stats, isLoading, error } = useDashboardStats();
   const { data: notifStats } = useNotificationStats();
-  const [days, setDays] = useState(30);
-  const { data: timeSeries } = useDashboardTimeSeries(days);
   const { data: recentActivity } = useRecentActivity();
+  const { values, update, replace } = useUrlFilters(DASHBOARD_FILTER_KEYS);
+  const params = useMemo(() => toDashboardParams(values), [values]);
+  const { data: period } = useDashboardPeriod(params);
 
   if (isLoading) {
     return (
@@ -77,20 +100,50 @@ export default function Dashboard() {
     );
   }
 
-  const kpis = [
-    { title: 'Total Users', value: stats?.totalUsers?.toLocaleString() ?? '—', icon: <Users className="w-5 h-5" />, accent: 'var(--color-primary)', onClick: () => navigate(ROUTES.USERS) },
-    { title: 'Providers', value: stats?.totalProviders?.toLocaleString() ?? '—', icon: <Store className="w-5 h-5" />, accent: 'var(--color-success)', onClick: () => navigate(ROUTES.PROVIDERS) },
-    { title: 'Products', value: stats?.totalProducts?.toLocaleString() ?? '—', icon: <Package className="w-5 h-5" />, accent: 'var(--color-info)', onClick: () => navigate(ROUTES.PRODUCTS) },
-    { title: 'Reviews', value: stats?.totalReviews?.toLocaleString() ?? '—', icon: <Star className="w-5 h-5" />, accent: '#F59E0B', onClick: () => navigate(ROUTES.REVIEWS) },
-  ];
+  // A range narrows every figure that happens over time; "all time" is no range.
+  const ranged = !!(params.from || params.to);
+  const t = period?.totals;
+  const prev = period?.previous?.totals;
+  const granularity = period?.range.granularity ?? 'day';
+  const periodLabel = !period
+    ? (ranged ? 'Selected period' : 'All time')
+    : period.range.allTime
+      ? `All time · since ${fullDate(period.range.from)}`
+      : period.range.from === period.range.to
+        ? fullDate(period.range.from)
+        : `${shortDate(period.range.from)} – ${fullDate(period.range.to)}`;
+  const prevLabel = period?.previous
+    ? `${shortDate(period.previous.from)} – ${fullDate(period.previous.to)}`
+    : null;
+
+  const count = (k: keyof DashboardPeriodTotals) => (t ? t[k].toLocaleString() : '—');
+  /** Change against the previous period, when comparing. */
+  const vs = (k: keyof DashboardPeriodTotals): { trend?: { value: number; label: string }; hint?: string } => {
+    if (!t || !prev) return {};
+    if (prev[k] > 0) return { trend: { value: Math.round(((t[k] - prev[k]) / prev[k]) * 1000) / 10, label: 'vs previous' } };
+    return t[k] > 0 ? { hint: 'Up from 0' } : {};
+  };
+
+  const kpis = ranged
+    ? [
+        { title: 'New Users', value: count('newUsers'), icon: <Users className="w-5 h-5" />, accent: 'var(--color-primary)', onClick: () => navigate(ROUTES.USERS), ...vs('newUsers'), hint: t ? `${t.signedInUsers.toLocaleString()} signed in themselves` : undefined },
+        { title: 'New Providers', value: count('newProviders'), icon: <Store className="w-5 h-5" />, accent: 'var(--color-success)', onClick: () => navigate(ROUTES.PROVIDERS), ...vs('newProviders') },
+        { title: 'Products Added', value: count('newProducts'), icon: <Package className="w-5 h-5" />, accent: 'var(--color-info)', onClick: () => navigate(ROUTES.PRODUCTS), ...vs('newProducts') },
+        { title: 'Reviews Posted', value: count('reviews'), icon: <Star className="w-5 h-5" />, accent: '#F59E0B', onClick: () => navigate(ROUTES.REVIEWS), ...vs('reviews') },
+      ]
+    : [
+        { title: 'Total Users', value: stats?.totalUsers?.toLocaleString() ?? '—', icon: <Users className="w-5 h-5" />, accent: 'var(--color-primary)', onClick: () => navigate(ROUTES.USERS) },
+        { title: 'Providers', value: stats?.totalProviders?.toLocaleString() ?? '—', icon: <Store className="w-5 h-5" />, accent: 'var(--color-success)', onClick: () => navigate(ROUTES.PROVIDERS) },
+        { title: 'Products', value: stats?.totalProducts?.toLocaleString() ?? '—', icon: <Package className="w-5 h-5" />, accent: 'var(--color-info)', onClick: () => navigate(ROUTES.PRODUCTS) },
+        { title: 'Reviews', value: stats?.totalReviews?.toLocaleString() ?? '—', icon: <Star className="w-5 h-5" />, accent: '#F59E0B', onClick: () => navigate(ROUTES.REVIEWS) },
+      ];
 
   const growthMetrics = [
-    { title: 'New Users (7d)', value: stats?.newUsersThisWeek ?? 0, icon: <UserPlus className="w-5 h-5" />, accent: 'var(--color-primary)' },
-    { title: 'New Users (30d)', value: stats?.newUsersThisMonth ?? 0, icon: <Users className="w-5 h-5" />, accent: 'var(--color-info)' },
-    { title: 'New Providers (7d)', value: stats?.newProvidersThisWeek ?? 0, icon: <Store className="w-5 h-5" />, accent: 'var(--color-success)' },
-    { title: 'Total Searches', value: stats?.totalSearches?.toLocaleString() ?? '0', icon: <Search className="w-5 h-5" />, accent: '#8B5CF6' },
-    { title: 'Total Leads', value: stats?.totalLeads?.toLocaleString() ?? '0', icon: <TrendingUp className="w-5 h-5" />, accent: '#EC4899' },
-    { title: 'Conversations', value: stats?.totalConversations?.toLocaleString() ?? '0', icon: <MessageSquare className="w-5 h-5" />, accent: '#06B6D4' },
+    { title: 'Searches', value: count('searches'), icon: <Search className="w-5 h-5" />, accent: '#8B5CF6', ...vs('searches') },
+    { title: 'Leads', value: count('leads'), icon: <TrendingUp className="w-5 h-5" />, accent: '#EC4899', ...vs('leads') },
+    { title: 'Conversations', value: count('conversations'), icon: <MessageSquare className="w-5 h-5" />, accent: '#06B6D4', ...vs('conversations') },
+    { title: 'Messages', value: count('messages'), icon: <Send className="w-5 h-5" />, accent: 'var(--color-info)', ...vs('messages') },
+    { title: 'Reports Filed', value: count('reports'), icon: <Flag className="w-5 h-5" />, accent: 'var(--color-danger)', ...vs('reports') },
   ];
 
   const actionCards = [
@@ -101,10 +154,10 @@ export default function Dashboard() {
   ];
 
   const marketingStats = [
-    { title: 'Active Banners', value: stats?.activeBanners ?? 0, icon: <Image className="w-5 h-5" />, accent: '#F59E0B', onClick: () => navigate(ROUTES.BANNERS) },
-    { title: 'Active Sponsorships', value: stats?.activeSponsorships ?? 0, icon: <Megaphone className="w-5 h-5" />, accent: 'var(--color-primary)', onClick: () => navigate(ROUTES.SPONSORSHIPS) },
-    { title: 'Active Offers', value: stats?.activeOffers ?? 0, icon: <Gift className="w-5 h-5" />, accent: 'var(--color-success)', onClick: () => navigate(ROUTES.OFFERS) },
-    { title: 'App Invites', value: stats?.totalInvites?.toLocaleString() ?? '0', icon: <UserPlus className="w-5 h-5" />, accent: '#EC4899' },
+    { title: 'Active Banners', value: stats?.activeBanners ?? 0, icon: <Image className="w-5 h-5" />, accent: '#F59E0B', onClick: () => navigate(ROUTES.BANNERS), hint: NOW },
+    { title: 'Active Sponsorships', value: stats?.activeSponsorships ?? 0, icon: <Megaphone className="w-5 h-5" />, accent: 'var(--color-primary)', onClick: () => navigate(ROUTES.SPONSORSHIPS), hint: NOW },
+    { title: 'Active Offers', value: stats?.activeOffers ?? 0, icon: <Gift className="w-5 h-5" />, accent: 'var(--color-success)', onClick: () => navigate(ROUTES.OFFERS), hint: NOW },
+    { title: 'App Invites', value: count('invites'), icon: <UserPlus className="w-5 h-5" />, accent: '#EC4899', ...vs('invites') },
   ];
 
   const quickActions = [
@@ -115,12 +168,14 @@ export default function Dashboard() {
     { label: 'Create User', icon: UserPlus, color: '#06B6D4', route: ROUTES.CREATE_USER },
   ];
 
-  const searchToLeadRate = stats?.totalSearches && stats.totalLeads
-    ? ((stats.totalLeads / stats.totalSearches) * 100).toFixed(1)
+  const searchToLeadRate = t?.searches && t.leads
+    ? ((t.leads / t.searches) * 100).toFixed(1)
     : '0';
-  const leadToConvoRate = stats?.totalLeads && stats.totalConversations
-    ? ((stats.totalConversations / stats.totalLeads) * 100).toFixed(1)
+  const leadToConvoRate = t?.leads && t.conversations
+    ? ((t.conversations / t.leads) * 100).toFixed(1)
     : '0';
+  const adCtr = t?.adImpressions ? Math.round((t.adClicks / t.adImpressions) * 10000) / 100 : 0;
+  const readRate = t?.notificationsSent ? Math.round((t.notificationsRead / t.notificationsSent) * 100) : 0;
   const totalPending = (stats?.pendingVerifications ?? 0) + (stats?.pendingProviders ?? 0) + (stats?.openReports ?? 0) + (stats?.womenLedPending ?? 0);
 
   return (
@@ -148,6 +203,16 @@ export default function Dashboard() {
             <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>System healthy</span>
           </div>
         </div>
+      </div>
+
+      {/* Period: applies to every figure that happens over time */}
+      <div>
+        <FilterBar defs={dashboardFilterDefs(values)} values={values} onChange={update} onReplace={replace} />
+        <p className="-mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Showing <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{periodLabel}</span>
+          {prevLabel && <> · compared with {prevLabel}</>}
+          {' '}· figures marked “{NOW}” are live and ignore the dates
+        </p>
       </div>
 
       {/* Quick Actions */}
@@ -203,7 +268,7 @@ export default function Dashboard() {
             <CheckCircle2 className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Active Subs Rate</p>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Active Subs Rate · {NOW}</p>
             <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {stats?.totalProviders ? ((stats.activeSubscriptions / stats.totalProviders) * 100).toFixed(1) : '0'}%
             </p>
@@ -214,7 +279,10 @@ export default function Dashboard() {
       {/* Action Required + Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3">
-          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Requires Attention</h2>
+          <h2 className="text-base font-semibold mb-3 flex items-baseline gap-2" style={{ color: 'var(--text-primary)' }}>
+            Requires Attention
+            <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{NOW}</span>
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {actionCards.map((card) => (
               <button
@@ -284,81 +352,56 @@ export default function Dashboard() {
       {/* Growth Metrics */}
       <div>
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Growth & Engagement</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {growthMetrics.map((m) => (<StatCard key={m.title} {...m} />))}
         </div>
       </div>
 
-      {/* Time Series Charts */}
-      {timeSeries && (
+      {/* Trends over the period */}
+      {period && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-baseline justify-between gap-2 mb-3">
             <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Trends</h2>
-            <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--surface-1)' }}>
-              {[7, 14, 30, 60].map((d) => (
-                <button key={d} onClick={() => setDays(d)} className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors" style={{
-                  background: days === d ? 'var(--surface-0)' : 'transparent',
-                  color: days === d ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: days === d ? 'var(--shadow-sm)' : 'none',
-                }}>
-                  {d}d
-                </button>
-              ))}
-            </div>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>By {granularity} · {periodLabel}</span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* User Growth */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>User Growth</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={timeSeries.userGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="count" stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.1} strokeWidth={2} name="New Users" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Provider Growth */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Provider Growth</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={timeSeries.providerGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="count" stroke="var(--color-success)" fill="var(--color-success)" fillOpacity={0.1} strokeWidth={2} name="New Providers" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Search Volume */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Search Volume</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={timeSeries.searchVolume}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" fill="#8B5CF6" radius={[4, 4, 0, 0]} name="Searches" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Report Volume */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Report Volume</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={timeSeries.reportVolume}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                  <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" fill="var(--color-danger)" radius={[4, 4, 0, 0]} name="Reports" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {TREND_CHARTS.map((c) => {
+              const axis = {
+                x: <XAxis dataKey="bucket" tickFormatter={(b: string) => formatBucket(b, granularity)} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} minTickGap={12} />,
+                y: <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />,
+                tip: (
+                  <Tooltip
+                    labelFormatter={(b) => (granularity === 'week' ? `Week of ${formatBucket(String(b), 'day')}` : formatBucket(String(b), granularity))}
+                    contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
+                  />
+                ),
+              };
+              return (
+                <div key={c.key} className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+                  <div className="flex items-baseline justify-between gap-2 mb-3">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{c.title}</p>
+                    <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      {period.series.reduce((sum, p) => sum + p[c.key], 0).toLocaleString()} total
+                    </span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    {c.bar ? (
+                      <BarChart data={period.series}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                        {axis.x}{axis.y}{axis.tip}
+                        <Bar dataKey={c.key} fill={c.color} radius={[4, 4, 0, 0]} name={c.name} />
+                      </BarChart>
+                    ) : (
+                      <AreaChart data={period.series}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+                        {axis.x}{axis.y}{axis.tip}
+                        <Area type="monotone" dataKey={c.key} stroke={c.color} fill={c.color} fillOpacity={0.1} strokeWidth={2} name={c.name} />
+                      </AreaChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -374,12 +417,11 @@ export default function Dashboard() {
       {/* Monetization & Revenue */}
       <div>
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Monetization</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <StatCard title="Total Revenue" value={`₹${(stats?.totalRevenue ?? 0).toLocaleString()}`} icon={<DollarSign className="w-5 h-5" />} accent="var(--color-success)" onClick={() => navigate(ROUTES.REVENUE)} />
-          <StatCard title="Revenue (30d)" value={`₹${(stats?.revenueThisMonth ?? 0).toLocaleString()}`} icon={<TrendingUp className="w-5 h-5" />} accent="#10B981" />
-          <StatCard title="Payments" value={(stats?.totalPayments ?? 0).toLocaleString()} icon={<CreditCard className="w-5 h-5" />} accent="var(--color-info)" onClick={() => navigate(ROUTES.PAYMENTS)} />
-          <StatCard title="Active Subs" value={stats?.activeSubscriptions ?? 0} icon={<Zap className="w-5 h-5" />} accent="#8B5CF6" onClick={() => navigate(ROUTES.SUBSCRIPTIONS)} />
-          <StatCard title="Pending Sponsorships" value={stats?.pendingSponsorships ?? 0} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.SPONSORSHIPS)} />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title={ranged ? 'Revenue' : 'Total Revenue'} value={t ? `₹${t.revenue.toLocaleString()}` : '—'} icon={<DollarSign className="w-5 h-5" />} accent="var(--color-success)" onClick={() => navigate(ROUTES.REVENUE)} {...vs('revenue')} />
+          <StatCard title="Payments" value={count('payments')} icon={<CreditCard className="w-5 h-5" />} accent="var(--color-info)" onClick={() => navigate(ROUTES.PAYMENTS)} {...vs('payments')} />
+          <StatCard title="Active Subs" value={stats?.activeSubscriptions ?? 0} icon={<Zap className="w-5 h-5" />} accent="#8B5CF6" onClick={() => navigate(ROUTES.SUBSCRIPTIONS)} hint={NOW} />
+          <StatCard title="Pending Sponsorships" value={stats?.pendingSponsorships ?? 0} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.SPONSORSHIPS)} hint={NOW} />
         </div>
       </div>
 
@@ -388,15 +430,15 @@ export default function Dashboard() {
         {/* Lead Funnel Pie */}
         <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
           <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Lead Funnel</p>
-          {stats?.leadBreakdown && (stats.leadBreakdown.hot + stats.leadBreakdown.warm + stats.leadBreakdown.cold) > 0 ? (
+          {period && (period.leadBreakdown.hot + period.leadBreakdown.warm + period.leadBreakdown.cold) > 0 ? (
             <div className="flex items-center gap-4">
               <ResponsiveContainer width={140} height={140}>
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Hot', value: stats.leadBreakdown.hot },
-                      { name: 'Warm', value: stats.leadBreakdown.warm },
-                      { name: 'Cold', value: stats.leadBreakdown.cold },
+                      { name: 'Hot', value: period.leadBreakdown.hot },
+                      { name: 'Warm', value: period.leadBreakdown.warm },
+                      { name: 'Cold', value: period.leadBreakdown.cold },
                     ]}
                     cx="50%" cy="50%" innerRadius={35} outerRadius={60}
                     paddingAngle={3} dataKey="value"
@@ -411,20 +453,20 @@ export default function Dashboard() {
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ background: '#EF4444' }} />
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Hot — {stats.leadBreakdown.hot}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Hot — {period.leadBreakdown.hot}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ background: '#F59E0B' }} />
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Warm — {stats.leadBreakdown.warm}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Warm — {period.leadBreakdown.warm}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ background: '#6B7280' }} />
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Cold — {stats.leadBreakdown.cold}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Cold — {period.leadBreakdown.cold}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-xs py-8 text-center" style={{ color: 'var(--text-muted)' }}>No lead data yet</p>
+            <p className="text-xs py-8 text-center" style={{ color: 'var(--text-muted)' }}>No leads in this period</p>
           )}
         </div>
 
@@ -433,32 +475,30 @@ export default function Dashboard() {
           <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Ad Performance</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.adImpressions ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{count('adImpressions')}</p>
               <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Impressions</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.adClicks ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{count('adClicks')}</p>
               <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Clicks</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold" style={{ color: stats?.adCtr && stats.adCtr > 2 ? 'var(--color-success)' : 'var(--text-primary)' }}>{stats?.adCtr ?? 0}%</p>
+              <p className="text-2xl font-bold" style={{ color: adCtr > 2 ? 'var(--color-success)' : 'var(--text-primary)' }}>{adCtr}%</p>
               <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>CTR</p>
             </div>
-          </div>
-          <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-default)' }}>
-            <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Messages Sent</p>
-            <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{(stats?.totalMessages ?? 0).toLocaleString()}</p>
           </div>
         </div>
       </div>
 
       {/* City Distribution */}
-      {(stats?.topCities?.length ?? 0) > 0 && (
+      {(period?.topCities.length ?? 0) > 0 && (
         <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Provider Distribution by City</p>
+          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+            Provider Distribution by City{ranged && <span className="font-normal" style={{ color: 'var(--text-muted)' }}> · joined in this period</span>}
+          </p>
           <div className="space-y-2">
-            {stats?.topCities?.map((c: any) => {
-              const maxCount = stats?.topCities?.[0]?.count || 1;
+            {period?.topCities.map((c) => {
+              const maxCount = period.topCities[0]?.count || 1;
               return (
                 <div key={c.city} className="flex items-center gap-3">
                   <span className="text-xs font-medium w-24 truncate" style={{ color: 'var(--text-secondary)' }}>{c.city}</span>
@@ -476,45 +516,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Lead & Conversation Trends */}
-      {timeSeries && (timeSeries.leadVolume?.length > 0 || timeSeries.conversationVolume?.length > 0) && (
-        <div>
-          <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Engagement Trends</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {timeSeries.leadVolume?.length > 0 && (
-              <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Lead Volume</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={timeSeries.leadVolume}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                    <Area type="monotone" dataKey="count" stroke="#EC4899" fill="#EC4899" fillOpacity={0.1} strokeWidth={2} name="Leads" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-            {timeSeries.conversationVolume?.length > 0 && (
-              <div className="rounded-xl p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
-                <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Conversation Volume</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={timeSeries.conversationVolume}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                    <Tooltip labelFormatter={formatDate} contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
-                    <Area type="monotone" dataKey="count" stroke="#06B6D4" fill="#06B6D4" fillOpacity={0.1} strokeWidth={2} name="Conversations" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Notification Stats */}
-      {notifStats && (
+      {t && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Notifications</h2>
@@ -528,11 +531,11 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <StatCard title="Sent Today" value={notifStats.sentToday} icon={<Send className="w-5 h-5" />} accent="var(--color-primary)" />
-            <StatCard title="Total Sent" value={notifStats.totalSent.toLocaleString()} icon={<Bell className="w-5 h-5" />} accent="var(--color-info)" />
-            <StatCard title="Total Read" value={notifStats.totalRead.toLocaleString()} icon={<Eye className="w-5 h-5" />} accent="var(--color-success)" />
-            <StatCard title="Read Rate" value={`${notifStats.readRate}%`} icon={<TrendingUp className="w-5 h-5" />} accent="#8B5CF6" />
-            <StatCard title="Batches Sent" value={notifStats.batchesSent} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.NOTIFICATIONS)} />
+            <StatCard title={ranged ? 'Sent' : 'Total Sent'} value={count('notificationsSent')} icon={<Bell className="w-5 h-5" />} accent="var(--color-info)" {...vs('notificationsSent')} />
+            <StatCard title={ranged ? 'Read' : 'Total Read'} value={count('notificationsRead')} icon={<Eye className="w-5 h-5" />} accent="var(--color-success)" {...vs('notificationsRead')} />
+            <StatCard title="Read Rate" value={`${readRate}%`} icon={<TrendingUp className="w-5 h-5" />} accent="#8B5CF6" />
+            <StatCard title="Batches Sent" value={count('batchesSent')} icon={<Megaphone className="w-5 h-5" />} accent="#F59E0B" onClick={() => navigate(ROUTES.NOTIFICATIONS)} {...vs('batchesSent')} />
+            <StatCard title="Sent Today" value={notifStats?.sentToday ?? '—'} icon={<Send className="w-5 h-5" />} accent="var(--color-primary)" hint="Today" />
           </div>
         </div>
       )}

@@ -73,13 +73,51 @@ export interface TimeSeriesPoint {
   count: number;
 }
 
-export interface DashboardTimeSeries {
-  userGrowth: TimeSeriesPoint[];
-  providerGrowth: TimeSeriesPoint[];
-  searchVolume: TimeSeriesPoint[];
-  reportVolume: TimeSeriesPoint[];
-  leadVolume: TimeSeriesPoint[];
-  conversationVolume: TimeSeriesPoint[];
+/** Everything the dashboard counts over a period: rows created in the range. */
+export interface DashboardPeriodTotals {
+  newUsers: number;
+  /** New accounts that signed in themselves (not imported, not staff). */
+  signedInUsers: number;
+  newProviders: number;
+  newProducts: number;
+  reviews: number;
+  searches: number;
+  leads: number;
+  conversations: number;
+  messages: number;
+  invites: number;
+  reports: number;
+  revenue: number;
+  payments: number;
+  adImpressions: number;
+  adClicks: number;
+  notificationsSent: number;
+  notificationsRead: number;
+  batchesSent: number;
+}
+
+export type DashboardGranularity = 'day' | 'week' | 'month';
+
+export interface DashboardSeriesPoint {
+  /** First day of the bucket, YYYY-MM-DD (IST). */
+  bucket: string;
+  users: number;
+  providers: number;
+  searches: number;
+  reports: number;
+  leads: number;
+  conversations: number;
+}
+
+/** GET /admin/dashboard/period. Dates are IST calendar days, inclusive. */
+export interface DashboardPeriod {
+  range: { from: string; to: string; days: number; granularity: DashboardGranularity; allTime: boolean };
+  totals: DashboardPeriodTotals;
+  /** The period of equal length just before, when asked to compare. */
+  previous: { from: string; to: string; totals: DashboardPeriodTotals } | null;
+  leadBreakdown: { hot: number; warm: number; cold: number };
+  topCities: { city: string; count: number }[];
+  series: DashboardSeriesPoint[];
 }
 
 export interface AnalyticsOverview {
