@@ -15,7 +15,7 @@ import { ProductCreatePanel } from '../components/products/ProductCreatePanel';
 import { ProductAnalytics } from '../components/products/ProductAnalytics';
 import { StatCard } from '../components/ui/StatCard';
 import { FilterBar, useUrlFilters } from '../components/ui/filters';
-import { PRODUCT_FILTER_DEFS, PRODUCT_FILTER_KEYS, PRODUCT_SORTS, productSegments, withProductOptions } from '../components/products/product-filters';
+import { DEFAULT_PRODUCT_SORT, PRODUCT_FILTER_DEFS, PRODUCT_FILTER_KEYS, PRODUCT_SORTS, productSegments, withProductOptions } from '../components/products/product-filters';
 import { useProducts, useProductFilterOptions, useProductStats, useUpdateProduct, useDeleteProduct } from '../hooks/useProducts';
 import { ROUTES } from '../utils/constants';
 import type { Product, ProductFilters } from '../types';
@@ -37,7 +37,7 @@ export default function Products() {
 
   const { data, isLoading } = useProducts({
     ...(filters as ProductFilters),
-    sort: (sort || undefined) as ProductFilters['sort'],
+    sort: (sort || DEFAULT_PRODUCT_SORT) as ProductFilters['sort'],
     page,
     limit: LIMIT,
     search: search || undefined,
@@ -425,7 +425,7 @@ export default function Products() {
         onChange={update}
         onReplace={replace}
         search={{ value: search, onChange: setSearch, placeholder: 'Search by product name, description, business…' }}
-        sort={{ options: PRODUCT_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: display order' }}
+        sort={{ options: PRODUCT_SORTS, value: sort, onChange: setSort, defaultLabel: 'Sort: newest first' }}
         segments={productSegments(filterOptions)}
         resultCount={hasNarrowing ? data?.meta?.total : undefined}
         totalCount={totalCount}

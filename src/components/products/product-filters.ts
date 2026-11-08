@@ -37,10 +37,11 @@ export const PRODUCT_FILTER_DEFS: FilterDef[] = [
   ] },
 ];
 
-/** `display_order` is the server default, so it is the placeholder rather than an option. */
+/** The page opens on newest first, so that is the placeholder rather than an option. */
+export const DEFAULT_PRODUCT_SORT = 'newest';
 export const PRODUCT_SORTS: SortOption[] = [
-  { value: 'newest', label: 'Newest first' },
   { value: 'oldest', label: 'Oldest first' },
+  { value: 'display_order', label: 'Display order' },
   { value: 'name_asc', label: 'Name A–Z' },
   { value: 'name_desc', label: 'Name Z–A' },
   { value: 'price_asc', label: 'Price: low to high' },
