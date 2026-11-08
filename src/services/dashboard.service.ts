@@ -1,6 +1,13 @@
 import api from './api';
 import { URLS } from '../utils/urls';
-import type { DashboardStats, DashboardTimeSeries } from '../types';
+import type { DashboardPeriod, DashboardStats } from '../types';
+
+/** Dates are IST calendar days, inclusive; no `from` means all time. */
+export interface DashboardPeriodParams {
+  from?: string;
+  to?: string;
+  compare?: 'true';
+}
 
 export interface RecentActivity {
   id: string;
@@ -18,8 +25,8 @@ export const dashboardService = {
     return data;
   },
 
-  getTimeSeries: async (days = 30): Promise<DashboardTimeSeries> => {
-    const { data } = await api.get(`${URLS.DASHBOARD.TIME_SERIES}?days=${days}`);
+  getPeriod: async (params: DashboardPeriodParams): Promise<DashboardPeriod> => {
+    const { data } = await api.get(URLS.DASHBOARD.PERIOD, { params });
     return data;
   },
 

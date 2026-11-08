@@ -6,11 +6,13 @@ interface StatCardProps {
   value: string | number;
   icon?: ReactNode;
   trend?: { value: number; label: string };
+  /** One muted line under the value, shown when there is no trend. */
+  hint?: string;
   accent?: string;
   onClick?: () => void;
 }
 
-export function StatCard({ title, value, icon, trend, accent = 'var(--color-primary)', onClick }: StatCardProps) {
+export function StatCard({ title, value, icon, trend, hint, accent = 'var(--color-primary)', onClick }: StatCardProps) {
   const TrendIcon = trend
     ? trend.value > 0
       ? TrendingUp
@@ -55,6 +57,9 @@ export function StatCard({ title, value, icon, trend, accent = 'var(--color-prim
                 {trend.label}
               </span>
             </div>
+          )}
+          {!trend && hint && (
+            <p className="text-xs mt-2 truncate" style={{ color: 'var(--text-muted)' }} title={hint}>{hint}</p>
           )}
         </div>
         {icon && (
