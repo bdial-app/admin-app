@@ -8,8 +8,10 @@ import {
   CheckCircle2, Activity, Calendar, Sparkles,
 } from 'lucide-react';
 import { StatCard } from '../components/ui/StatCard';
-import { FilterBar, useUrlFilters, shortDate } from '../components/ui/filters';
-import { DASHBOARD_FILTER_KEYS, dashboardFilterDefs, toDashboardParams } from '../components/dashboard/dashboard-filters';
+import { useUrlFilters } from '../components/ui/filters';
+import { DASHBOARD_FILTER_KEYS, toDashboardParams } from '../components/dashboard/dashboard-filters';
+import { PeriodPicker } from '../components/dashboard/PeriodPicker';
+import { dayLabel, rangeLabel } from '../components/dashboard/period-dates';
 import { useDashboardStats, useDashboardPeriod, useRecentActivity } from '../hooks/useDashboard';
 import { useNotificationStats } from '../hooks/useNotifications';
 import { ROUTES } from '../utils/constants';
@@ -28,9 +30,6 @@ const formatBucket = (bucket: string, g: DashboardGranularity): string => {
     ? d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
     : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
-
-const fullDate = (ymd: string) =>
-  new Date(`${ymd}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** Daily, weekly or monthly counts, in the order they appear. */
 const TREND_CHARTS: { key: keyof Omit<DashboardSeriesPoint, 'bucket'>; title: string; name: string; color: string; bar?: boolean }[] = [
@@ -80,9 +79,10 @@ export default function Dashboard() {
   const { data: stats, isLoading, error } = useDashboardStats();
   const { data: notifStats } = useNotificationStats();
   const { data: recentActivity } = useRecentActivity();
-  const { values, update, replace } = useUrlFilters(DASHBOARD_FILTER_KEYS);
+  const { values, update } = useUrlFilters(DASHBOARD_FILTER_KEYS);
   const params = useMemo(() => toDashboardParams(values), [values]);
-  const { data: period } = useDashboardPeriod(params);
+  // While a new period loads, the last one stays on screen.
+  const { data: period, isPlaceholderData: switching } = useDashboardPeriod(params);
 
   if (isLoading) {
     return (
@@ -108,13 +108,9 @@ export default function Dashboard() {
   const periodLabel = !period
     ? (ranged ? 'Selected period' : 'All time')
     : period.range.allTime
-      ? `All time · since ${fullDate(period.range.from)}`
-      : period.range.from === period.range.to
-        ? fullDate(period.range.from)
-        : `${shortDate(period.range.from)} – ${fullDate(period.range.to)}`;
-  const prevLabel = period?.previous
-    ? `${shortDate(period.previous.from)} – ${fullDate(period.previous.to)}`
-    : null;
+      ? `All time · since ${dayLabel(period.range.from, true)}`
+      : rangeLabel(period.range.from, period.range.to);
+  const prevLabel = period?.previous ? rangeLabel(period.previous.from, period.previous.to) : null;
 
   const count = (k: keyof DashboardPeriodTotals) => (t ? t[k].toLocaleString() : '—');
   /** Change against the previous period, when comparing. */
@@ -206,13 +202,23 @@ export default function Dashboard() {
       </div>
 
       {/* Period: applies to every figure that happens over time */}
-      <div>
-        <FilterBar defs={dashboardFilterDefs(values)} values={values} onChange={update} onReplace={replace} />
-        <p className="-mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Showing <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{periodLabel}</span>
-          {prevLabel && <> · compared with {prevLabel}</>}
-          {' '}· figures marked “{NOW}” are live and ignore the dates
-        </p>
+      <div className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--surface-0)', border: '1px solid var(--border-default)' }}>
+        <PeriodPicker values={values} onChange={update} />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t pt-3 text-xs" style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}>
+          <p className="flex flex-wrap items-center gap-x-1.5" aria-live="polite">
+            {switching && <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: 'var(--color-primary)' }} />}
+            {period?.range.allTime ? (
+              <>Everything since <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{dayLabel(period.range.from, true)}</span></>
+            ) : (
+              <>
+                <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{periodLabel}</span>
+                {period && <span>· {period.range.days} {period.range.days === 1 ? 'day' : 'days'}</span>}
+              </>
+            )}
+            {prevLabel && <span>· vs <span className="font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>{prevLabel}</span></span>}
+          </p>
+          <p>Figures marked “{NOW}” are live and ignore the dates</p>
+        </div>
       </div>
 
       {/* Quick Actions */}
